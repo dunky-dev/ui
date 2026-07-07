@@ -1,0 +1,48 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "eslint",
+    "import",
+    "node",
+    "oxc",
+    "promise",
+    "react",
+    "typescript",
+    "unicorn",
+    "vitest"
+  ],
+  "rules": {
+    "eslint/arrow-body-style": ["error", "as-needed"],
+    "import/newline-after-import": "error",
+    "unicorn/filename-case": [
+      "error",
+      {
+        "case": "kebabCase"
+      }
+    ],
+    "unicorn/no-useless-spread": "off",
+    "typescript/no-this-alias": "off"
+  },
+  "overrides": [
+    {
+      "files": ["packages/**/src/**/*.ts", "packages/**/src/**/*.tsx"],
+      "rules": {
+        "import/no-default-export": "error"
+      }
+    },
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "vitest/require-mock-type-parameters": "off"
+      }
+    }
+  ],
+  "categories": {},
+  "settings": {
+    "vitest": {
+      "typecheck": false
+    }
+  },
+  "globals": {},
+  "ignorePatterns": ["**/dist/**"]
+}

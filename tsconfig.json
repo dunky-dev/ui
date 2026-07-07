@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "allowJs": false,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noImplicitReturns": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "paths": {
+      "@dunky-dev/core": ["./packages/core/src"],
+    },
+    "types": ["@types/node", "vitest/globals"],
+  },
+  "include": ["./*.ts", "./packages"],
+  "exclude": ["**/node_modules", "**/dist"],
+}
