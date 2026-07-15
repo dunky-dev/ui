@@ -15,10 +15,11 @@ runs:
         git config user.name github-actions
         git config user.email github-actions[bot]@users.noreply.github.com
 
+    # No `version:` — pnpm/action-setup reads it from package.json's
+    # `packageManager` field, keeping a single source of truth. Pinning it here
+    # too errors with ERR_PNPM_BAD_PM_VERSION when the two disagree.
     - name: setup pnpm
       uses: pnpm/action-setup@v4
-      with:
-        version: 10.20.0
 
     - name: setup node
       uses: actions/setup-node@v4
