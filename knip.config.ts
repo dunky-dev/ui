@@ -6,6 +6,10 @@ const config: KnipConfig = {
   // their own module — keep those out of the "unused exports" report.
   ignoreExportsUsedInFile: true,
 
+  // Scaffolding template stubs — not part of the dependency graph until copied
+  // out by scripts/scaffold.ts.
+  ignore: ['scripts/templates/**'],
+
   workspaces: {
     '.': {
       // pnpm script names knip mistakes for binaries when it parses

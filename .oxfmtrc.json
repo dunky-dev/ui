@@ -8,5 +8,6 @@
   "useTabs": false,
   "semi": false,
   "singleQuote": true,
-  "trailingComma": "all"
+  "trailingComma": "all",
+  "ignorePatterns": ["scripts/templates/**"]
 }

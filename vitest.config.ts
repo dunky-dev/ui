@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     globals: false,
     environment: 'node',
-    exclude: ['**/node_modules/**', '**/dist/**'],
+    // scripts/templates holds __name__-tokenized scaffolding stubs — real files,
+    // but not runnable tests (their imports resolve only once scaffolded).
+    exclude: ['**/node_modules/**', '**/dist/**', 'scripts/templates/**'],
   },
 })

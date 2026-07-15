@@ -10,6 +10,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "knip": "knip",
+    "scaffold": "node scripts/scaffold.ts",
     "changeset": "changeset",
     "prepare": "husky"
   },
