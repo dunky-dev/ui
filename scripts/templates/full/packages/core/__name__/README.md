@@ -1,7 +1,7 @@
 # @dunky.dev/__name__
 
 The framework-agnostic __name__ interaction, modeled as a state machine on
-`@dunky.dev/state-machine`. Pure logic — no DOM, no framework. Consumers pair it
+`@dunky.dev/state-machine`. Pure logic — no substrate, no framework. Consumers pair it
 with a substrate driver rather than driving the machine directly.
 
 The behavior contract — scenarios, guarantees, driver obligations — lives in

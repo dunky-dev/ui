@@ -1,5 +1,5 @@
 // Public + machine-facing types for the framework-agnostic __name__ primitive.
-// The state machine is substrate-free: all DOM/native event reading lives in a
+// The state machine is substrate-free: all event reading lives in a
 // per-substrate driver.
 
 export interface __Name__Callbacks {
