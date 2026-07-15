@@ -1,12 +1,12 @@
 {
-  "name": "@dunky.dev/dom-__name__",
+  "name": "@dunky.dev/react-__name__",
   "version": "0.0.0",
-  "description": "Vanilla DOM driver for @dunky.dev/__name__ — usable from any web framework.",
+  "description": "React binding for @dunky.dev/__name__.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dunky-dev/ui.git",
-    "directory": "packages/dom/__name__"
+    "directory": "packages/react/__name__"
   },
   "files": [
     "dist"
@@ -36,5 +36,15 @@
   "dependencies": {
     "@dunky.dev/__name__": "workspace:^",
     "@dunky.dev/state-machine": "^0.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "peerDependencies": {
+    "react": "*"
   }
 }

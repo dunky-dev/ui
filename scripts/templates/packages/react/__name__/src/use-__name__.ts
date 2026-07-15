@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from 'react'
 import { connector, machine } from '@dunky.dev/state-machine'
 import {
   create__Name__Config,
@@ -5,19 +6,21 @@ import {
   type __Name__Options,
 } from '@dunky.dev/__name__'
 
-/**
- * A live, framework-free __name__ binding. `attach` an element and the instance
- * wires its DOM listeners and drives the agnostic __name__ machine. One instance
- * per element; restartable across attach/detach (safe for React StrictMode remounts).
- */
-export interface __Name__Instance {
+export interface Use__Name__Result {
+  /** Attach to the element: `<button ref={ref}>`. */
+  ref: (element: HTMLElement | null) => void
+}
+
+// The hook drives the agnostic __name__ machine directly: it owns the element
+// listeners and translates DOM events into machine events. Created once per hook
+// instance and restarted across attach/detach, so it is StrictMode-safe.
+interface __Name__Binding {
   attach: (element: HTMLElement) => void
   detach: () => void
-  /** Swap options/callbacks (fresh closures each render); `disabled` is synced into the machine. */
   setOptions: (options: __Name__Options) => void
 }
 
-export function create__Name__(initialOptions: __Name__Options = {}): __Name__Instance {
+function create__Name__Binding(initialOptions: __Name__Options): __Name__Binding {
   let options = initialOptions
   const service = machine(create__Name__Config(options))
   const connection = connector(service, __camelName__Connect, options)
@@ -68,4 +71,32 @@ export function create__Name__(initialOptions: __Name__Options = {}): __Name__In
       if (wasDisabled !== isDisabled) service.send({ type: 'SET_DISABLED', disabled: isDisabled })
     },
   }
+}
+
+/**
+ * React binding for the __name__ primitive. The binding is created once and
+ * survives StrictMode remounts (attach/detach restart the machine); options are
+ * re-synced after every render so inline callbacks stay fresh.
+ */
+export function use__Name__(options: __Name__Options = {}): Use__Name__Result {
+  const [binding] = useState<__Name__Binding>(() => create__Name__Binding(options))
+
+  useEffect(() => {
+    binding.setOptions(options)
+  })
+
+  const ref = useCallback(
+    (element: HTMLElement | null) => {
+      // Statement form on purpose: returning attach's cleanup would make React 19
+      // treat it as a ref cleanup while React 18 ignores it — keep both identical.
+      if (element) {
+        binding.attach(element)
+      } else {
+        binding.detach()
+      }
+    },
+    [binding],
+  )
+
+  return { ref }
 }

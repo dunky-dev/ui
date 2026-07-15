@@ -3,17 +3,21 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// Scaffolds a new primitive from a template kind. Templates live as real
-// (`__name__`-tokenized) files under scripts/templates/<kind>, so they stay
+// Scaffolds a new primitive across every substrate. Templates live as real
+// (`__name__`-tokenized) files under scripts/templates/packages, so they stay
 // lintable/formattable and diffable against the packages they mirror. The script
 // copies the tree with token substitution, then derives the workspace wiring
 // (tsconfig paths + tsdown workspace) from the packages it created — add a
-// substrate later by dropping a new folder into a kind, no script change needed.
+// substrate later by dropping a new folder into scripts/templates/packages, no
+// script change needed.
 //
-//   pnpm scaffold <kind> <name>      e.g. pnpm scaffold full toggle
+//   pnpm scaffold <name>      e.g. pnpm scaffold toggle
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
+// The packages tree mirrors the repo layout; rel paths are taken from TEMPLATES
+// so the leading `packages/` survives into the destination.
 const TEMPLATES = join(ROOT, 'scripts', 'templates')
+const PACKAGES_TEMPLATE = join(TEMPLATES, 'packages')
 
 const NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/
 
@@ -60,13 +64,10 @@ function walk(dir: string, visit: (file: string) => void): void {
   }
 }
 
-function collectJobs(
-  templateDir: string,
-  tokens: Tokens,
-): Array<{ src: string; dest: string; rel: string }> {
+function collectJobs(tokens: Tokens): Array<{ src: string; dest: string; rel: string }> {
   const jobs: Array<{ src: string; dest: string; rel: string }> = []
-  walk(templateDir, src => {
-    const rel = relative(templateDir, src).replaceAll('__name__', tokens.kebab)
+  walk(PACKAGES_TEMPLATE, src => {
+    const rel = relative(TEMPLATES, src).replaceAll('__name__', tokens.kebab)
     jobs.push({ src, dest: join(ROOT, rel), rel })
   })
   return jobs
@@ -127,19 +128,13 @@ function formatOutputs(created: CreatedPackage[]): void {
 }
 
 function main(): void {
-  const [kind, rawName] = process.argv.slice(2)
-  const available = existsSync(TEMPLATES)
-    ? readdirSync(TEMPLATES, { withFileTypes: true })
-        .filter(entry => entry.isDirectory())
-        .map(entry => entry.name)
-    : []
+  const [rawName] = process.argv.slice(2)
 
-  if (!kind || !rawName) {
-    fail(`usage: pnpm scaffold <kind> <name>\navailable kinds: ${available.join(', ') || '(none)'}`)
+  if (!rawName) {
+    fail('usage: pnpm scaffold <name>      e.g. pnpm scaffold toggle')
   }
-  const templateDir = join(TEMPLATES, kind)
-  if (!existsSync(templateDir)) {
-    fail(`unknown kind "${kind}". available kinds: ${available.join(', ') || '(none)'}`)
+  if (!existsSync(PACKAGES_TEMPLATE)) {
+    fail(`missing template dir ${relative(ROOT, PACKAGES_TEMPLATE)}`)
   }
   if (!NAME_PATTERN.test(rawName)) {
     fail(`name "${rawName}" must be kebab-case (e.g. toggle, toggle-button)`)
@@ -148,7 +143,7 @@ function main(): void {
   const pascal = toPascal(rawName)
   const tokens: Tokens = { kebab: rawName, pascal, camel: toCamel(pascal) }
 
-  const jobs = collectJobs(templateDir, tokens)
+  const jobs = collectJobs(tokens)
   for (const job of jobs) {
     if (existsSync(job.dest)) fail(`refusing to overwrite existing ${job.rel}`)
   }
@@ -162,7 +157,7 @@ function main(): void {
   wireTsdown(created)
   formatOutputs(created)
 
-  console.log(`\nScaffolded "${rawName}" (${kind}):\n`)
+  console.log(`\nScaffolded "${rawName}":\n`)
   for (const pkg of created) console.log(`  ${pkg.name}  ->  ${pkg.dir}`)
   console.log('\nNext:')
   console.log('  1. pnpm install       # link the new workspace packages')

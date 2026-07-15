@@ -1,9 +1,9 @@
 # react-__name__ — spec
 
-The behavior contract lives in
-[`../../core/__name__/SPEC.md`](../../core/__name__/SPEC.md); the driver
-contract in [`../../dom/__name__/SPEC.md`](../../dom/__name__/SPEC.md). This
-spec covers hook-specific guarantees only.
+The behavior spec lives with the core primitive:
+[`../../core/__name__/SPEC.md`](../../core/__name__/SPEC.md). This package
+implements it as a React hook and adds nothing to the behavior contract; the
+notes below cover only what is specific to the hook.
 
 ## Hook contract
 
