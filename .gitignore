@@ -4,6 +4,7 @@ dist
 .DS_Store
 *.log
 .vite
+storybook-static
 *.tsbuildinfo
 
 # local-only Claude settings (never committed; keep it out of format/lint too)
