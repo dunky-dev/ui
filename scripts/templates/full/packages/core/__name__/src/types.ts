@@ -1,6 +1,6 @@
 // Public + machine-facing types for the framework-agnostic __name__ primitive.
 // The state machine is substrate-free: all DOM/native event reading lives in a
-// per-substrate driver (see @dunky.dev/dom-__name__).
+// per-substrate driver.
 
 export interface __Name__Callbacks {
   /** Fired when the primitive activates. */

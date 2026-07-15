@@ -1,9 +1,8 @@
 # @dunky.dev/__name__
 
 The framework-agnostic __name__ interaction, modeled as a state machine on
-`@dunky.dev/state-machine`. Pure logic — no DOM, no framework. Pair it with a
-driver: [`@dunky.dev/dom-__name__`](../../dom/__name__) for any web framework,
-[`@dunky.dev/react-__name__`](../../react/__name__) for the React hook.
+`@dunky.dev/state-machine`. Pure logic — no DOM, no framework. Consumers pair it
+with a substrate driver rather than driving the machine directly.
 
 The behavior contract — scenarios, guarantees, driver obligations — lives in
 [SPEC.md](./SPEC.md).
@@ -44,6 +43,4 @@ service.start()
 service.send({ type: 'ACTIVATE' })
 ```
 
-Consumers should use a driver instead — see
-[`@dunky.dev/dom-__name__`](../../dom/__name__) and
-[`@dunky.dev/react-__name__`](../../react/__name__).
+Consumers should use a substrate driver instead of driving the machine directly.
