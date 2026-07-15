@@ -166,7 +166,7 @@ function main(): void {
   for (const pkg of created) console.log(`  ${pkg.name}  ->  ${pkg.dir}`)
   console.log('\nNext:')
   console.log('  1. pnpm install       # link the new workspace packages')
-  console.log('  2. write each SPECS.md, then the tests, then the implementation')
+  console.log('  2. write each SPEC.md, then the tests, then the implementation')
   console.log('  3. pnpm test && pnpm typecheck && pnpm lint && pnpm build\n')
 }
 

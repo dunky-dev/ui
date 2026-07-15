@@ -9,7 +9,7 @@ import type {
 // TODO(spec): replace this placeholder lifecycle with the real statechart. The
 // skeleton models a single `idle` state that activates in place — enough to
 // compile, test, and drive end-to-end. Describe the intended behavior in
-// SPECS.md first, then grow the states/transitions to match it.
+// SPEC.md first, then grow the states/transitions to match it.
 
 type __Name__Action = Action<__Name__Context, __Name__MachineEvent>
 type __Name__Guard = Guard<__Name__Context, __Name__MachineEvent>

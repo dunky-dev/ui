@@ -5,8 +5,8 @@ wraps the framework-free [`@dunky.dev/dom-__name__`](../../dom/__name__) driver 
 a ref callback for attach/detach and an effect that re-syncs options every
 render so inline callbacks stay fresh.
 
-Behavior contract: [`../../core/__name__/SPECS.md`](../../core/__name__/SPECS.md).
-Hook-specific guarantees: [SPECS.md](./SPECS.md).
+Behavior contract: [`../../core/__name__/SPEC.md`](../../core/__name__/SPEC.md).
+Hook-specific guarantees: [SPEC.md](./SPEC.md).
 
 ## Usage
 

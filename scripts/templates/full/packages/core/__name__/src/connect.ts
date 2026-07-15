@@ -27,7 +27,7 @@ const reaction = makeReaction<
 >()
 
 // One reaction per consumer callback. Reactions fire in registration order within
-// a single setContext — that order is the callback-order contract. See SPECS.md.
+// a single setContext — that order is the callback-order contract. See SPEC.md.
 __camelName__Connect.reactions = [
   reaction(
     m => m.context.activateEvent,

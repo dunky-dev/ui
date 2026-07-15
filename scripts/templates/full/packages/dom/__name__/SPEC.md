@@ -1,7 +1,7 @@
 # dom-__name__ — spec
 
 The behavior contract lives in
-[`../../core/__name__/SPECS.md`](../../core/__name__/SPECS.md). This spec covers
+[`../../core/__name__/SPEC.md`](../../core/__name__/SPEC.md). This spec covers
 the DOM driver: instance lifecycle, event wiring, and what lives here vs in the
 machine.
 

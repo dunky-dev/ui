@@ -7,8 +7,8 @@ Framework-free — the React/Vue/Solid/Svelte bindings are thin wrappers over
 this one driver.
 
 The behavior it implements is specified in
-[`../../core/__name__/SPECS.md`](../../core/__name__/SPECS.md); this package's
-own [SPECS.md](./SPECS.md) covers the driver contract (instance lifecycle,
+[`../../core/__name__/SPEC.md`](../../core/__name__/SPEC.md); this package's
+own [SPEC.md](./SPEC.md) covers the driver contract (instance lifecycle,
 event wiring, what lives here vs in the machine).
 
 ## How the package works

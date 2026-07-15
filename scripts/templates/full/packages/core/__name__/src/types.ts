@@ -18,7 +18,7 @@ export type __Name__StateName = 'idle'
  * Machine context. Config flags (`disabled`) are seeded from options at build
  * time — the machine itself never sees props/callbacks. `activateEvent` is an
  * emission mailbox: writing a NEW value into it fires the matching connector
- * reaction, which is how the consumer callback is dispatched. See SPECS.md.
+ * reaction, which is how the consumer callback is dispatched. See SPEC.md.
  */
 export interface __Name__Context {
   disabled: boolean

@@ -6,7 +6,7 @@ driver: [`@dunky.dev/dom-__name__`](../../dom/__name__) for any web framework,
 [`@dunky.dev/react-__name__`](../../react/__name__) for the React hook.
 
 The behavior contract — scenarios, guarantees, driver obligations — lives in
-[SPECS.md](./SPECS.md).
+[SPEC.md](./SPEC.md).
 
 ## How the package works
 

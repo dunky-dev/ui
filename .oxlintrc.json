@@ -35,6 +35,12 @@
       "rules": {
         "vitest/require-mock-type-parameters": "off"
       }
+    },
+    {
+      "files": ["**/*.stories.ts", "**/*.stories.tsx"],
+      "rules": {
+        "import/no-default-export": "off"
+      }
     }
   ],
   "categories": {},

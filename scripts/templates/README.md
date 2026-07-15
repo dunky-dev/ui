@@ -31,7 +31,7 @@ root, so a package at `<kind>/packages/native/__name__/` lands at
 `packages/native/__name__/`. To add one (say, a native driver group):
 
 1. Create `scripts/templates/<kind>/packages/.../__name__/` with a
-   tokenized `package.json`, `src/`, `tests/`, `README.md`, and `SPECS.md`.
+   tokenized `package.json`, `src/`, `tests/`, `README.md`, and `SPEC.md`.
 2. That's it — the script discovers the created packages from the copied
    `package.json` files and wires them automatically. A package with
    `"private": true` is added to tsconfig `paths` but skipped in the tsdown

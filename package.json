@@ -13,6 +13,8 @@
     "format:check": "oxfmt --check .",
     "knip": "knip",
     "scaffold": "node scripts/scaffold.ts",
+    "dev": "node scripts/sb.js dev",
+    "build-storybook": "node scripts/sb.js build",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:publish": "pnpm build && changeset publish",
