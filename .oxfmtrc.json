@@ -9,5 +9,5 @@
   "semi": false,
   "singleQuote": true,
   "trailingComma": "all",
-  "ignorePatterns": ["scripts/templates/**"]
+  "ignorePatterns": ["**/dist/**", "scripts/templates/**"]
 }
