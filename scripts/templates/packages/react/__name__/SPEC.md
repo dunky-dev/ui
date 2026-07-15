@@ -1,21 +1,32 @@
-# react-__name__ — spec
+# SPEC / React / __Name__
 
-The behavior spec lives with the core primitive:
-[`../../core/__name__/SPEC.md`](../../core/__name__/SPEC.md). This package
-implements it as a React hook and adds nothing to the behavior contract; the
-notes below cover only what is specific to the hook.
+The React implementation of the [core spec](../../core/__name__/SPEC.md).
 
-## Hook contract
+## Docs
 
-<!-- What use__Name__ returns, the ref lifecycle (attach/detach), option re-sync
-each render, and StrictMode safety (create-once + restartable machine). -->
+🔗 [`dunky.dev/ui/components/__name__`](https://dunky.dev/ui/components/__name__).
 
-TODO: describe the hook contract.
 
-## Positions
+## Install
 
-Statuses: `adopted` · `deferred` · `rejected`.
+```sh
+npm install @your-scope/react-__name__
+```
 
-| Position | Why  | Status |
-| -------- | ---- | ------ |
-| TODO     | TODO | TODO   |
+## Usage
+
+
+```tsx
+import { __Name__ } from "@duny.dev/react-__name__";
+
+<__Name__ />
+```
+
+
+## API
+
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `prop` | `number` | `1337` | Magical number. |
+| `...` | `...` | `...` | ... |
