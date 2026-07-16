@@ -10,14 +10,14 @@ The React implementation of the [core spec](../../core/__name__/SPEC.md).
 ## Install
 
 ```sh
-npm install @your-scope/react-__name__
+npm install @dunky.dev/react-__name__
 ```
 
 ## Usage
 
 
 ```tsx
-import { __Name__ } from "@duny.dev/react-__name__";
+import { __Name__ } from "@dunky.dev/react-__name__";
 
 <__Name__ />
 ```

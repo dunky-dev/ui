@@ -2,9 +2,9 @@
 
 ## Reference
 
-The sources that make it work: the W3C/ARIA pattern it follows, the state machine
-it is built on, the used Radix component, the Figma link, and any external package
-it depends on that affects the component API, intent and design.
+The sources that make it work: the W3C/ARIA pattern it follows, prior art the
+API is modeled on (if any), the Figma link, and any external package it
+depends on that affects the primitive's API, intent, and design.
 
 ## Overview
 
@@ -43,7 +43,7 @@ One behavior per subtitle, in plain language: what the consumer does and what
 happens. _Example: "Clicking fires the consumer's handler unless the component
 is disabled."_
 
-## A11y
+## Accessibility
 
 Keyboard, roles, focus, and screen-reader intent — only what isn't already
 implied by Behavior. Don't restate a behavior here just because it happens to

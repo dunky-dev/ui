@@ -120,8 +120,9 @@ where every other substrate inherits it.
 ## Specs
 
 `SPEC.md` in the core package is the behavior contract: reference, overview,
-anatomy, behavior, states, a11y, constraints, design. Substrate SPECs document
-only their own surface (install, usage, API) and link back to the core spec.
+anatomy, behavior, states, accessibility, constraints, design. Substrate SPECs
+document only their own surface (install, usage, API) and link back to the
+core spec.
 
 Work in that order: spec, then tests, then implementation.
 
