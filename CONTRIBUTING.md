@@ -17,6 +17,7 @@ pnpm install
 
 | Command                        | What it does                                               |
 | ------------------------------ | ---------------------------------------------------------- |
+| `pnpm scaffold <name>`         | Stamps a new primitive across every substrate              |
 | `pnpm test`                    | Full test suite, watch mode                                |
 | `pnpm typecheck`               | `tsc --noEmit` across the whole workspace                  |
 | `pnpm lint`                    | `oxlint`                                                   |
