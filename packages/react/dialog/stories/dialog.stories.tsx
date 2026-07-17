@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Dialog } from '@dunky.dev/react-dialog'
 
@@ -69,6 +69,19 @@ const input: CSSProperties = {
   borderRadius: 6,
   font: 'inherit',
 }
+// A scoped dialog opens inside a container instead of over the whole page: it
+// portals into that element, and its overlay layers switch from `fixed`
+// (viewport-pinned) to `absolute` (container-pinned).
+const scopedContainer: CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
+  height: 320,
+  padding: 16,
+  border: '1px solid #ccc',
+  borderRadius: 8,
+}
+const scopedBackdrop: CSSProperties = { ...backdrop, position: 'absolute' }
+const scopedViewport: CSSProperties = { ...viewport, position: 'absolute' }
 
 const DialogActions = () => (
   <div style={actions}>
@@ -230,6 +243,42 @@ export const trigger: StoryType = {
       </Dialog.Portal>
     </Dialog>
   ),
+}
+
+// The container ref lives in state so setting it re-renders — the portal reads
+// a real element on the second render instead of null. The Dialog subtree waits
+// for the container so an open dialog never briefly falls back to document.body.
+const ScopedDialog = () => {
+  const [container, setContainer] = useState<HTMLElement | null>(null)
+  return (
+    <div ref={setContainer} style={scopedContainer}>
+      <p style={{ margin: 0 }}>
+        This panel is the dialog&apos;s boundary — the overlay is pinned to it, not the page.
+      </p>
+      {container && (
+        <Dialog defaultOpen>
+          <Dialog.Trigger>Open in panel</Dialog.Trigger>
+          <Dialog.Portal container={container}>
+            <Dialog.Backdrop style={scopedBackdrop} />
+            <Dialog.Viewport style={scopedViewport}>
+              <Dialog.Content style={content}>
+                <Dialog.Title>Scoped dialog</Dialog.Title>
+                <Dialog.Description>
+                  Portaled into the panel via `Dialog.Portal container=&#123;...&#125;`, with the
+                  backdrop and viewport positioned `absolute` so they fill the panel.
+                </Dialog.Description>
+                <DialogActions />
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>
+      )}
+    </div>
+  )
+}
+
+export const scoped: StoryType = {
+  render: () => <ScopedDialog />,
 }
 
 export const nested: StoryType = {
