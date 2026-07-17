@@ -7,7 +7,8 @@ import {
 } from 'react'
 import type { __Name__Options } from '@dunky.dev/__name__'
 
-import { mergeProps, toDomProps } from './bindings'
+import { toDomProps } from '@dunky.dev/dom-bindings'
+import { mergeProps } from '@dunky.dev/merge-props'
 import { __Name__Context, use__Name__Context } from './context'
 import { use__Name__ } from './use-__name__'
 

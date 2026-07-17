@@ -56,6 +56,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0
 
+  packages/dom/utils/bindings: {}
+
   packages/dom/utils/focus-trap: {}
 
   packages/dom/utils/scroll-lock: {}
@@ -89,6 +91,12 @@ importers:
       '@dunky.dev/dialog':
         specifier: workspace:^
         version: link:../../core/dialog
+      '@dunky.dev/dom-bindings':
+        specifier: workspace:^
+        version: link:../../dom/utils/bindings
+      '@dunky.dev/merge-props':
+        specifier: workspace:^
+        version: link:../../shared/utils/merge-props
       '@dunky.dev/react-use-focus-trap':
         specifier: workspace:^
         version: link:../hooks/use-focus-trap
@@ -158,6 +166,8 @@ importers:
       react-dom:
         specifier: ^19.2.6
         version: 19.2.7(react@19.2.7)
+
+  packages/shared/utils/merge-props: {}
 
 packages:
 

@@ -1,20 +1,3 @@
-import type { __Name__PartBindings } from '@dunky.dev/__name__'
-
-// The core speaks a substrate-neutral vocabulary (`onPress`, ...); this is the
-// React side of the contract: logical bindings -> DOM props. Grow it together
-// with the core's binding vocabulary.
-export function toDomProps(bindings: __Name__PartBindings): Record<string, unknown> {
-  const props: Record<string, unknown> = {}
-  if (bindings.id !== undefined) props.id = bindings.id
-  if (bindings.disabled !== undefined) props.disabled = bindings.disabled
-  if (bindings['data-state'] !== undefined) props['data-state'] = bindings['data-state']
-  if (bindings.onPress !== undefined) {
-    const onPress = bindings.onPress
-    props.onClick = () => onPress()
-  }
-  return props
-}
-
 /**
  * Merge consumer props with behavior props: behavior values win, except
  * handlers, which chain (consumer first, then behavior) so a consumer's

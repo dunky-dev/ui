@@ -1,12 +1,12 @@
 {
-  "name": "@dunky.dev/react-__name__",
+  "name": "@dunky.dev/merge-props",
   "version": "0.0.0",
-  "description": "React binding for @dunky.dev/__name__.",
+  "description": "Merge consumer props with behavior props; handlers chain instead of clobbering.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dunky-dev/ui.git",
-    "directory": "packages/react/__name__"
+    "directory": "packages/shared/utils/merge-props"
   },
   "files": [
     "dist"
@@ -32,21 +32,5 @@
   },
   "scripts": {
     "build": "tsdown"
-  },
-  "dependencies": {
-    "@dunky.dev/__name__": "workspace:^",
-    "@dunky.dev/dom-bindings": "workspace:^",
-    "@dunky.dev/merge-props": "workspace:^",
-    "@dunky.dev/state-machine": "^0.2.0"
-  },
-  "devDependencies": {
-    "@testing-library/react": "^16.1.0",
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
-  },
-  "peerDependencies": {
-    "react": "*"
   }
 }

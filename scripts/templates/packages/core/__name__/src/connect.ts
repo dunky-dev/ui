@@ -8,8 +8,9 @@ import type {
 
 /**
  * Logical bindings for one part. The substrate translates them into its own
- * attribute/handler vocabulary (e.g. `onPress` -> `onClick`). Grow this
- * vocabulary (expanded, controls, labelledBy, ...) as the parts need it.
+ * attribute/handler vocabulary (e.g. `onPress` -> `onClick`). Keep the keys
+ * within @dunky.dev/dom-bindings' LogicalBindings — this local type stays a
+ * structural narrowing of it (core never imports beyond the machine runtime).
  */
 export interface __Name__PartBindings {
   id?: string
