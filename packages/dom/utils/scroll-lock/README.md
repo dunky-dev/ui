@@ -1,4 +1,4 @@
-# @dunky.dev/scroll-lock
+# @dunky.dev/dom-scroll-lock
 
 Framework-free, reference-counted scroll lock for any scroll container — the
 page body by default. The first holder saves the target's inline state and the
@@ -12,13 +12,13 @@ framework inherits identical behavior.
 ## Install
 
 ```sh
-npm install @dunky.dev/scroll-lock
+npm install @dunky.dev/dom-scroll-lock
 ```
 
 ## Usage
 
 ```ts
-import { lockScroll } from '@dunky.dev/scroll-lock'
+import { lockScroll } from '@dunky.dev/dom-scroll-lock'
 
 const releaseBody = lockScroll() // the page body
 const releasePanel = lockScroll(panelElement) // any scroll container

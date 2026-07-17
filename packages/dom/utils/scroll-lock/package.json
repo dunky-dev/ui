@@ -1,5 +1,5 @@
 {
-  "name": "@dunky.dev/scroll-lock",
+  "name": "@dunky.dev/dom-scroll-lock",
   "version": "0.0.0",
   "description": "Framework-free, reference-counted scroll lock for any scroll container.",
   "license": "MIT",

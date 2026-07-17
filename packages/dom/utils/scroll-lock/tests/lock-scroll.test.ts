@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { lockScroll } from '@dunky.dev/scroll-lock'
+import { lockScroll } from '@dunky.dev/dom-scroll-lock'
 
 describe('lockScroll', () => {
   it('locks body scroll by default and releases it', () => {

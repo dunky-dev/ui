@@ -25,8 +25,8 @@ packages/
 |
 +- dom/
 |  +- utils/              framework-free DOM utilities, one package per util
-|     +- focus-trap/      @dunky.dev/focus-trap
-|     +- scroll-lock/     @dunky.dev/scroll-lock
+|     +- focus-trap/      @dunky.dev/dom-focus-trap
+|     +- scroll-lock/     @dunky.dev/dom-scroll-lock
 |     +- ...
 |
 +- <substrate>/           any future host, same shape

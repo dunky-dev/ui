@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from 'react'
-import { lockScroll } from '@dunky.dev/scroll-lock'
+import { lockScroll } from '@dunky.dev/dom-scroll-lock'
 
 /**
  * Locks scrolling while mounted and `locked` — the React lifecycle around

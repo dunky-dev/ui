@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
-import { trapFocus } from '@dunky.dev/focus-trap'
-import type { TrapFocusOptions } from '@dunky.dev/focus-trap'
+import { trapFocus } from '@dunky.dev/dom-focus-trap'
+import type { TrapFocusOptions } from '@dunky.dev/dom-focus-trap'
 
 export interface UseFocusTrapOptions extends TrapFocusOptions {}
 

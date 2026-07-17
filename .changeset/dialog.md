@@ -1,8 +1,8 @@
 ---
 '@dunky.dev/dialog': minor
 '@dunky.dev/react-dialog': minor
-'@dunky.dev/focus-trap': minor
-'@dunky.dev/scroll-lock': minor
+'@dunky.dev/dom-focus-trap': minor
+'@dunky.dev/dom-scroll-lock': minor
 '@dunky.dev/react-use-focus-trap': minor
 '@dunky.dev/react-use-scroll-lock': minor
 ---
@@ -31,8 +31,8 @@ as reusable packages.
   and unreachable by pointer, find-in-page, or programmatic focus.
 - Nested dialogs: each layer stays independent; Escape and outside presses
   dismiss the topmost first, and everything beneath it is hidden and inert.
-- Containment ships as framework-free utils — `@dunky.dev/focus-trap`
-  (`trapFocus`) and `@dunky.dev/scroll-lock` (`lockScroll`, targeting any
+- Containment ships as framework-free utils — `@dunky.dev/dom-focus-trap`
+  (`trapFocus`) and `@dunky.dev/dom-scroll-lock` (`lockScroll`, targeting any
   scroll container — the body by default — shared and
   reference-counted) — wrapped by the React hooks
   `@dunky.dev/react-use-focus-trap` and `@dunky.dev/react-use-scroll-lock`,

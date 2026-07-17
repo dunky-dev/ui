@@ -117,7 +117,7 @@ importers:
 
   packages/react/hooks/use-focus-trap:
     dependencies:
-      '@dunky.dev/focus-trap':
+      '@dunky.dev/dom-focus-trap':
         specifier: workspace:^
         version: link:../../../dom/utils/focus-trap
     devDependencies:
@@ -139,7 +139,7 @@ importers:
 
   packages/react/hooks/use-scroll-lock:
     dependencies:
-      '@dunky.dev/scroll-lock':
+      '@dunky.dev/dom-scroll-lock':
         specifier: workspace:^
         version: link:../../../dom/utils/scroll-lock
     devDependencies:

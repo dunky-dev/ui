@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
-import { trapFocus } from '@dunky.dev/focus-trap'
+import { trapFocus } from '@dunky.dev/dom-focus-trap'
 
 let release: (() => void) | undefined
 

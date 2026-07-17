@@ -1,4 +1,4 @@
-# @dunky.dev/focus-trap
+# @dunky.dev/dom-focus-trap
 
 Framework-free Tab/Shift+Tab containment for a DOM subtree. `trapFocus`
 attaches one keydown listener to a container: focus wraps from the last
@@ -12,13 +12,13 @@ framework inherits identical containment behavior.
 ## Install
 
 ```sh
-npm install @dunky.dev/focus-trap
+npm install @dunky.dev/dom-focus-trap
 ```
 
 ## Usage
 
 ```ts
-import { trapFocus } from '@dunky.dev/focus-trap'
+import { trapFocus } from '@dunky.dev/dom-focus-trap'
 
 const release = trapFocus(container, {
   // Re-evaluated on every Tab press — trapping can follow runtime state,

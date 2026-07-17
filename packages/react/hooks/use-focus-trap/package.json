@@ -1,7 +1,7 @@
 {
   "name": "@dunky.dev/react-use-focus-trap",
   "version": "0.0.0",
-  "description": "React binding for @dunky.dev/focus-trap.",
+  "description": "React binding for @dunky.dev/dom-focus-trap.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -34,7 +34,7 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@dunky.dev/focus-trap": "workspace:^"
+    "@dunky.dev/dom-focus-trap": "workspace:^"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The React lifecycle around @dunky.dev/focus-trap — the wrap/no-op/enabled
+// The React lifecycle around @dunky.dev/dom-focus-trap — the wrap/no-op/enabled
 // behavior itself is covered in the util's own tests.
 import { useRef } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'

@@ -155,8 +155,8 @@ stack of dialogs only the topmost one exists until it closes.
 The dialog ships headless: parts carry behavior and ARIA wiring plus a
 `data-state` attribute (`open` / `closed`) for the consumer's styling and
 animation; visuals belong entirely to the consumer. Focus and scroll
-containment live in shared framework-free utilities (`@dunky.dev/focus-trap`,
-`@dunky.dev/scroll-lock`) so every substrate inherits identical behavior.
+containment live in shared framework-free utilities (`@dunky.dev/dom-focus-trap`,
+`@dunky.dev/dom-scroll-lock`) so every substrate inherits identical behavior.
 
 | Position                                        | Why                                                                                                                                                           | Status     |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The React lifecycle around @dunky.dev/scroll-lock — the refcount/restore
+// The React lifecycle around @dunky.dev/dom-scroll-lock — the refcount/restore
 // behavior itself is covered in the util's own tests.
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'

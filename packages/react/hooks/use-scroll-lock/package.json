@@ -1,7 +1,7 @@
 {
   "name": "@dunky.dev/react-use-scroll-lock",
   "version": "0.0.0",
-  "description": "React binding for @dunky.dev/scroll-lock.",
+  "description": "React binding for @dunky.dev/dom-scroll-lock.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -34,7 +34,7 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@dunky.dev/scroll-lock": "workspace:^"
+    "@dunky.dev/dom-scroll-lock": "workspace:^"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
