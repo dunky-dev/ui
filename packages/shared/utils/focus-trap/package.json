@@ -1,0 +1,36 @@
+{
+  "name": "@dunky.dev/focus-trap",
+  "version": "0.0.0",
+  "description": "Framework-free Tab/Shift+Tab containment for a DOM subtree.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dunky-dev/ui.git",
+    "directory": "packages/shared/utils/focus-trap"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown"
+  }
+}

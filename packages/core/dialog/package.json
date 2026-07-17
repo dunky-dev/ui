@@ -1,0 +1,39 @@
+{
+  "name": "@dunky.dev/dialog",
+  "version": "0.0.0",
+  "description": "Framework-agnostic dialog interaction, modeled as a state machine.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dunky-dev/ui.git",
+    "directory": "packages/core/dialog"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@dunky.dev/state-machine": "^0.2.0"
+  }
+}

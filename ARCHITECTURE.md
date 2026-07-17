@@ -19,18 +19,32 @@ inside it.
 packages/
 |
 +- core/                  substrate-free behavior, one package per primitive
-|  +- dialog/             @dunky.dev/toggle
-|  +- tooltip/            @dunky.dev/press
+|  +- dialog/             @dunky.dev/dialog
+|  +- tooltip/            @dunky.dev/tooltip
 |  +- ...
 |
++- shared/
+|  +- utils/              framework-free DOM utilities, one package per util
+|     +- focus-trap/      @dunky.dev/focus-trap
+|     +- scroll-lock/     @dunky.dev/scroll-lock
+|     +- ...
+|
 +- <substrate>/           any future host, same shape
-   +- dialog/             @dunky.dev/<substrate>-toggle
-   +- tooltip/            @dunky.dev/<substrate>-toggle
+   +- hooks/              thin substrate wrappers over shared utils
+   |  +- use-focus-trap/  @dunky.dev/<substrate>-use-focus-trap
+   |  +- ...
+   +- dialog/             @dunky.dev/<substrate>-dialog
+   +- tooltip/            @dunky.dev/<substrate>-tooltip
    +- ...
 ```
 
 So a primitive is one package in `core` plus one in each substrate:
 `@dunky.dev/<name>` and `@dunky.dev/<substrate>-<name>`.
+
+DOM logic that several primitives or substrates need — focus containment,
+scroll locking — lives once as a framework-free util under `shared/utils/`;
+each substrate wraps it in a thin hook under its own `hooks/` folder. A new
+substrate reuses the utils and only writes the wrappers.
 
 Each substrate directory is itself a private workspace package
 (`@dunky-dev/<substrate>`) that owns the substrate's infrastructure — the dev
@@ -71,9 +85,11 @@ level down. Internal infra uses the `@dunky-dev` scope; published packages use
 
 The rules, stated as imports:
 
-- A substrate package imports its core counterpart and the machine runtime —
-  nothing else from this repo.
+- A substrate package imports its core counterpart, the machine runtime, and
+  its own substrate's hooks — nothing else from this repo.
 - A core package imports only the machine runtime.
+- A shared util imports nothing from this repo; a substrate hook imports only
+  the shared util it wraps.
 - Primitives are independent of each other. If two need to share logic, that
   sharing is a design decision (a new package), never a cross-import.
 
