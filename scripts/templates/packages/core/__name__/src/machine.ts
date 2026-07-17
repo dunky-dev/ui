@@ -6,11 +6,6 @@ import type {
   __Name__StateName,
 } from './types'
 
-// TODO(spec): replace this placeholder lifecycle with the real statechart. The
-// skeleton models a single `idle` state that activates in place — enough to
-// compile, test, and drive end-to-end. Describe the intended behavior in
-// SPEC.md first, then grow the states/transitions to match it.
-
 type __Name__Action = Action<__Name__Context, __Name__MachineEvent>
 type __Name__Guard = Guard<__Name__Context, __Name__MachineEvent>
 
@@ -25,6 +20,10 @@ const notDisabled: __Name__Guard = ({ context }) => !context.disabled
 const isDisableEvent: __Name__Guard = ({ event }) =>
   event.type === 'SET_DISABLED' && event.disabled === true
 
+// Option defaults are resolved HERE and seeded into context at build time —
+// the machine never sees props; live callbacks flow through the connector.
+// When parts need cross-referencing ids (aria-controls, labelledby), take a
+// substrate-minted `ids` argument and seed it into context (see the dialog core).
 export function create__Name__Config(
   options: __Name__Options,
 ): TransitionConfig<__Name__StateName, __Name__Context, __Name__MachineEvent> {

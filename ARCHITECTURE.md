@@ -101,33 +101,99 @@ graph and the connect surface; the runtime owns state storage, transition
 execution, and reactions:
 
 ```
-packages/core/<name>/
-  SPEC.md          the behavior contract (see Specs)
-  src/             the source code of the package
-  tests/           drive the machine with raw events; assert callbacks
+packages/core/<name>/                 @dunky.dev/<name>
+  SPEC.md            the behavior contract (see Specs)
+  src/
+    index.ts         barrel: the headless public surface
+    types.ts         states, context, events, options/callbacks (+ ids when
+                     parts cross-reference each other in ARIA)
+    machine.ts       create<Name>Config(options) -> the state graph; option
+                     defaults are resolved here and seeded into context
+    connect.ts       machine snapshot -> one entry of logical bindings per
+                     part of the anatomy, plus the callback reactions
+  tests/
+    machine.test.ts  transitions, gating, bindings, reactions
 ```
+
+The connect's bindings are substrate-neutral (`expanded`, `controls`,
+`onPress`, ...): the core decides WHAT each part carries, every substrate
+decides HOW that renders on its host.
 
 Two idioms every core package follows (documented in depth per package):
 
-- **Emission mailboxes.** The machine never calls consumer callbacks. An
-  action writes a fresh token into a context slot; a connector reaction fires
-  the callback on the reference change. Reaction registration order is the
-  callback-order contract.
+- **Reactions, not direct calls.** The machine never calls a consumer
+  callback. `connect.ts` declares reactions — a selector over the machine
+  paired with a callback — and the connector fires the callback when the
+  selected value changes, in registration order; that order is the
+  callback-order contract. A callback derivable from state selects it
+  (`m => m.matches('open')`); an event that doesn't move the machine emits
+  through a mailbox: an action writes a fresh token into a context slot for
+  the reaction to select.
 - **The machine never sees props.** Config is seeded into context at build
   time; live callbacks flow through the connector.
 
-A substrate package is a binding in the host's native shape:
+A substrate package is a compound component in the host's native shape
+(react shown):
 
 ```
-packages/<substrate>/<name>/
-  SPEC.md          host-facing surface; defers behavior to the core SPEC
-  src/             the binding
-  tests/           exercise through the host (e.g. render + click)
+packages/<substrate>/<name>/          @dunky.dev/<substrate>-<name>
+  SPEC.md            substrate surface; defers behavior to the core SPEC
+  src/
+    index.ts         barrel: the compound component + prop types
+    context.ts       compound context: the root provides { api, service }
+    use-<name>.ts    the machine owner: create once (StrictMode-safe),
+                     option re-sync each render, context sync via events,
+                     substrate effects (document listeners, platform APIs)
+    bindings.ts      logical bindings -> host props, plus mergeProps
+    <name>.tsx       root + parts: wires behavior onto host elements
+  tests/
+    <name>.test.tsx  substrate behavior through the host (render + interact)
 ```
 
-In react that shape is a hook: `use<Name>()` creates the machine once,
-attaches/detaches via a ref callback (restart-safe for StrictMode), and
-re-syncs options after every render.
+**Render wiring.** `<name>.tsx` assembles the compound component — the root
+and one part per piece of the anatomy. Three patterns to follow.
+
+The **root** builds the machine and shares it. It renders no DOM of its own:
+it calls the owner hook, which returns the connected `api` and the running
+`service`, and hands both to a context that every part reads:
+
+```tsx
+export const Component: ((props: ComponentProps) => ReactNode) & Parts = ({
+  children,
+  ...options
+}) => {
+  const value = useComponent(options)
+  return <ComponentContext.Provider value={value}>{children}</ComponentContext.Provider>
+}
+```
+
+A **part** wires behavior onto its element and does nothing else. It reads
+the context, layers the consumer's props over the part's translated logical
+bindings, and spreads the result onto its element:
+
+```tsx
+export const Trigger: PartComponent<TriggerProps, HTMLButtonElement> = forwardRef((props, ref) => {
+  const { api } = useComponentContext()
+  const merged = mergeProps(props, toDomProps(api.parts.trigger))
+  return <button {...merged} ref={ref} />
+})
+```
+
+Finally, **hang the parts off the root** as statics, typed by a `Parts`
+interface, so consumers reach them as `<Component.Trigger>`:
+
+```tsx
+export interface Parts {
+  Trigger: typeof Trigger
+  // ...one entry per part
+}
+
+Component.Trigger = Trigger
+```
+
+There is no styles layer — the repo ships headless. A part renders its
+natural element; the `data-state` attribute carried by every part's bindings
+is the consumer's styling and animation hook.
 
 A binding adds no behavior — no guards, no ordering, no state of its own. If
 a substrate needs a decision made, the decision moves into the core machine

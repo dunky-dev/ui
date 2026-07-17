@@ -1,8 +1,8 @@
 # @dunky.dev/__name__
 
 The framework-agnostic __name__ interaction, modeled as a state machine on
-`@dunky.dev/state-machine`. Pure logic — no substrate, no framework. Consumers pair it
-with a substrate driver rather than driving the machine directly.
+`@dunky.dev/state-machine`. Pure logic — no substrate, no framework. Consumers
+pair it with a substrate driver rather than driving the machine directly.
 
 The behavior contract — scenarios, guarantees, driver obligations — lives in
 [SPEC.md](./SPEC.md).
@@ -17,23 +17,31 @@ npm install @dunky.dev/__name__
 
 ```
 src/
-  types.ts     public options/callbacks types + machine context/events
+  index.ts     barrel: the headless public surface
+  types.ts     states, context, events, options/callbacks
   machine.ts   create__Name__Config(options) -> the state graph
-  connect.ts   __camelName__Connect (snapshot -> api) + the callback reactions
+  connect.ts   __camelName__Connect (snapshot -> parts bindings) + reactions
 tests/
-  machine.test.ts   drives the machine with raw events; asserts callbacks
+  machine.test.ts   transitions, gating, bindings, reactions
 ```
 
-Two idioms this package is built on (kept identical to `press`):
+`__camelName__Connect` maps a machine snapshot to the view-facing api: one
+entry of logical bindings per part of the anatomy. Bindings are
+substrate-neutral (`onPress`, `expanded`, ...) — the driver translates them
+into its own attribute and handler vocabulary.
 
-- **Emission mailboxes.** The machine never sees consumer callbacks. Context
-  carries one nullable slot per callback; an action fires a callback by writing
-  a NEW value into its slot and suppresses it by keeping the OLD reference.
-  `connect.ts` registers one reaction per slot; reactions run in registration
-  order, so that order IS the callback-order contract. Consequence: every
-  action performs exactly one `setContext`.
-- **The machine never sees props.** Config flags are seeded into context at
-  build time; callbacks fire through the connector. See `ARCHITECTURE.md`.
+Two idioms this package is built on:
+
+- **Reactions, not direct calls.** The machine never calls a consumer
+  callback. The connect declares reactions — a selector over the machine
+  paired with a callback — and the connector fires the callback when the
+  selected value changes, in registration order; that order is the
+  callback-order contract. A callback derivable from state selects it; an
+  event that doesn't move the machine emits through a mailbox: an action
+  writes a fresh token into a context slot for the reaction to select.
+- **The machine never sees props.** Option defaults are resolved in
+  `machine.ts` and seeded into context at build time; live callbacks flow
+  through the connector. See `ARCHITECTURE.md`.
 
 ## Usage
 

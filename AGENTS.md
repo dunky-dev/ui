@@ -44,10 +44,12 @@ architecture:
   cross-import.
 - **The machine never sees props.** Config is seeded into context at build
   time; live callbacks flow through the connector, not into the machine.
-- **Emission mailboxes, not direct calls.** The machine never calls a
-  consumer callback directly. An action writes a fresh token into a context
-  slot; a connector reaction fires the callback on the reference change.
-  Reaction registration order is the callback-order contract.
+- **Reactions, not direct calls.** The machine never calls a consumer
+  callback directly. The connect declares reactions (selector -> callback);
+  the connector fires them on value change, in registration order — that
+  order is the callback-order contract. An event that doesn't move the
+  machine emits through a mailbox: an action writes a fresh token into a
+  context slot for the reaction to select.
 - **A binding adds no behavior.** No guards, ordering, or state of its own —
   if a substrate needs a decision made, the decision moves into the core
   machine so every other substrate inherits it.

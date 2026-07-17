@@ -2,17 +2,25 @@
 // The state machine is substrate-free: all event reading lives in a
 // per-substrate driver.
 
+// TODO(spec): the skeleton models a single placeholder state that activates in
+// place — enough to compile, test, and drive end-to-end. Describe the intended
+// behavior in SPEC.md first, then grow the states/events/context to match it.
+
+export type __Name__StateName = 'idle'
+
 export interface __Name__Callbacks {
   /** Fired when the primitive activates. */
   onActivate?: () => void
 }
 
+/**
+ * The agnostic __name__ options — the behavior a consumer configures. A
+ * substrate's props extend this with its own concerns (e.g. `children`).
+ */
 export interface __Name__Options extends __Name__Callbacks {
   /** No events fire while disabled; an in-flight interaction is cancelled. */
   disabled?: boolean
 }
-
-export type __Name__StateName = 'idle'
 
 /**
  * Machine context. Config flags (`disabled`) are seeded from options at build
