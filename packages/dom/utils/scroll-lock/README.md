@@ -9,6 +9,12 @@ layout doesn't shift sideways.
 Substrate hooks wrap this — e.g. `@dunky.dev/react-use-scroll-lock` — so every
 framework inherits identical behavior.
 
+## Install
+
+```sh
+npm install @dunky.dev/scroll-lock
+```
+
 ## Usage
 
 ```ts

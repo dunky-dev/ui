@@ -6,6 +6,12 @@ mounted — on the page body, or on the container a `target` ref points at. The
 lock behavior itself is framework-free — this hook only owns the React
 lifecycle.
 
+## Install
+
+```sh
+npm install @dunky.dev/react-use-scroll-lock
+```
+
 ## Usage
 
 ```tsx

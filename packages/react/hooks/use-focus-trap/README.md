@@ -5,6 +5,12 @@ React binding for [`@dunky.dev/focus-trap`](../../../dom/utils/focus-trap):
 the component is mounted. The trap behavior itself is framework-free — this
 hook only owns the React lifecycle.
 
+## Install
+
+```sh
+npm install @dunky.dev/react-use-focus-trap
+```
+
 ## Usage
 
 ```tsx

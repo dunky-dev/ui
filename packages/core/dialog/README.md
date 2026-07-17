@@ -7,6 +7,12 @@ pair it with a substrate driver rather than driving the machine directly.
 The behavior contract — scenarios, guarantees, driver obligations — lives in
 [SPEC.md](./SPEC.md).
 
+## Install
+
+```sh
+npm install @dunky.dev/dialog
+```
+
 ## How the package works
 
 ```

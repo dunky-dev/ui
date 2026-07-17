@@ -9,6 +9,12 @@ bindings into DOM attributes and handlers, and wire the DOM-only concerns
 Behavior contract: [`../../core/dialog/SPEC.md`](../../core/dialog/SPEC.md).
 React-specific surface: [SPEC.md](./SPEC.md).
 
+## Install
+
+```sh
+npm install @dunky.dev/react-dialog
+```
+
 ## Usage
 
 ```tsx

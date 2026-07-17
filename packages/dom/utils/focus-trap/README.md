@@ -9,6 +9,12 @@ no-op.
 Substrate hooks wrap this — e.g. `@dunky.dev/react-use-focus-trap` — so every
 framework inherits identical containment behavior.
 
+## Install
+
+```sh
+npm install @dunky.dev/focus-trap
+```
+
 ## Usage
 
 ```ts

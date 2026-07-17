@@ -8,6 +8,12 @@ render so inline callbacks stay fresh.
 Behavior contract: [`../../core/__name__/SPEC.md`](../../core/__name__/SPEC.md).
 Hook-specific guarantees: [SPEC.md](./SPEC.md).
 
+## Install
+
+```sh
+npm install @dunky.dev/react-__name__
+```
+
 ## Usage
 
 ```tsx
