@@ -41,6 +41,34 @@ const actions: CSSProperties = {
   gap: 8,
   marginTop: 16,
 }
+const closeIcon: CSSProperties = {
+  position: 'absolute',
+  top: 12,
+  insetInlineEnd: 12,
+  width: 28,
+  height: 28,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  borderRadius: 6,
+  background: 'transparent',
+  cursor: 'pointer',
+  fontSize: 18,
+  lineHeight: 1,
+}
+const field: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  marginTop: 12,
+}
+const input: CSSProperties = {
+  padding: '8px 10px',
+  border: '1px solid #ccc',
+  borderRadius: 6,
+  font: 'inherit',
+}
 
 const DialogActions = () => (
   <div style={actions}>
@@ -112,6 +140,73 @@ export const longContent: StoryType = {
               </p>
             ))}
             <DialogActions />
+          </Dialog.Content>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog>
+  ),
+}
+
+export const withCloseButton: StoryType = {
+  render: () => (
+    <Dialog defaultOpen>
+      <Dialog.Trigger>Open dialog</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={backdrop} />
+        <Dialog.Viewport style={viewport}>
+          <Dialog.Content style={{ ...content, position: 'relative' }}>
+            <Dialog.Close aria-label='Close' style={closeIcon}>
+              &times;
+            </Dialog.Close>
+            <Dialog.Title>Share board</Dialog.Title>
+            <Dialog.Description>
+              Anyone with the link can view this board. The corner button and Escape both dismiss.
+            </Dialog.Description>
+            <DialogActions />
+          </Dialog.Content>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog>
+  ),
+}
+
+export const loginForm: StoryType = {
+  render: () => (
+    <Dialog defaultOpen>
+      <Dialog.Trigger>Sign in</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={backdrop} />
+        <Dialog.Viewport style={viewport}>
+          <Dialog.Content style={content}>
+            <Dialog.Title>Sign in</Dialog.Title>
+            <Dialog.Description>
+              Focus moves to the first field on open, and stays trapped inside while the dialog is
+              open.
+            </Dialog.Description>
+            <form
+              method='dialog'
+              onSubmit={event => {
+                event.preventDefault()
+              }}
+            >
+              <label style={field}>
+                Login
+                <input style={input} name='login' type='text' autoComplete='username' />
+              </label>
+              <label style={field}>
+                Password
+                <input
+                  style={input}
+                  name='password'
+                  type='password'
+                  autoComplete='current-password'
+                />
+              </label>
+              <div style={actions}>
+                <Dialog.Close>Cancel</Dialog.Close>
+                <button type='submit'>Sign in</button>
+              </div>
+            </form>
           </Dialog.Content>
         </Dialog.Viewport>
       </Dialog.Portal>
