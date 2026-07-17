@@ -157,6 +157,9 @@ packages/<substrate>/<name>/          @dunky.dev/<substrate>-<name>
                      @dunky.dev/dom-bindings + @dunky.dev/merge-props
   tests/
     <name>.test.tsx  substrate behavior through the host (render + interact)
+  stories/
+    <name>.stories.tsx  the dev-harness showcase (`pnpm dev`); the story is
+                     the consumer, so it brings the styles
 ```
 
 **Render wiring.** `<name>.tsx` assembles the compound component — the root

@@ -10,6 +10,15 @@ const config: KnipConfig = {
   // out by scripts/scaffold.ts.
   ignore: ['scripts/templates/**'],
 
+  // Stories are entries: loaded by the substrate's Storybook (the glob in
+  // packages/<substrate>/.storybook/main.ts), not imported by any module.
+  // One line per substrate — extend when the next substrate lands.
+  workspaces: {
+    'packages/react/*': {
+      entry: ['stories/*.stories.tsx'],
+    },
+  },
+
   // Add per-package overrides here as the workspace grows, e.g. a package that
   // re-exports another's surface without importing it directly:
   //   workspaces: { 'packages/native/press': { ignoreDependencies: ['@dunky.dev/press'] } }
