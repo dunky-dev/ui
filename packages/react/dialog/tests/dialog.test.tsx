@@ -217,6 +217,16 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(trigger)
     })
 
+    // jsdom does no layout, so the scroll jump can't be reproduced — assert the
+    // mechanism that prevents it: focus never scrolls the locked surface.
+    it('moves focus without scrolling the locked surface', () => {
+      const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus')
+      render(<DefaultDialog defaultOpen />)
+
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true })
+      focusSpy.mockRestore()
+    })
+
     it('moves focus to the first form field when the dialog contains one', () => {
       render(
         <Dialog defaultOpen>

@@ -179,14 +179,17 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
       modal: machine.context.modal,
     })
 
+    // preventScroll everywhere: the scroll lock already froze the surface, so
+    // moving focus must not scroll it — otherwise opening jumps the (top-of-
+    // container) dialog into view and closing jumps back to the trigger.
     const target = initialFocusRef.current?.current ?? getInitialFocus(content)
-    target.focus()
+    target.focus({ preventScroll: true })
     // A target that can't take focus (disabled, hidden) falls back to the panel.
-    if (document.activeElement !== target) content.focus()
+    if (document.activeElement !== target) content.focus({ preventScroll: true })
 
     return () => {
       unregister()
-      if (previous instanceof HTMLElement) previous.focus()
+      if (previous instanceof HTMLElement) previous.focus({ preventScroll: true })
     }
   }, [machine, depth])
 
