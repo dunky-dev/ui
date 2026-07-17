@@ -1,10 +1,13 @@
-import { setup, type Action, type Guard, type TransitionConfig } from '@dunky.dev/state-machine'
+import { setup, type Action, type Guard, type Machine, type TransitionConfig } from '@dunky.dev/state-machine'
 import type {
   __Name__Context,
   __Name__MachineEvent,
   __Name__Options,
   __Name__StateName,
 } from './types'
+
+/** The running __name__ machine — what a substrate holds and sends events to. */
+export type __Name__Machine = Machine<__Name__StateName, __Name__Context, __Name__MachineEvent>
 
 type __Name__Action = Action<__Name__Context, __Name__MachineEvent>
 type __Name__Guard = Guard<__Name__Context, __Name__MachineEvent>

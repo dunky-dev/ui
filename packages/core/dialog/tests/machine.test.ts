@@ -9,7 +9,7 @@ import type {
   DialogMachineEvent,
   DialogOptions,
   DialogStateName,
-  DismissPayload,
+  PointerPayload,
 } from '@dunky.dev/dialog'
 
 const ids: DialogIds = {
@@ -186,10 +186,10 @@ describe('dialog connect — logical bindings', () => {
   })
 
   it('backdrop press honors the onInteractOutside veto', () => {
-    const onInteractOutside = vi.fn((event?: DismissPayload) => event?.preventDefault())
+    const onInteractOutside = vi.fn((event?: PointerPayload) => event?.preventDefault?.())
     const { service, connection } = build({ defaultOpen: true, onInteractOutside })
 
-    const payload: DismissPayload = {
+    const payload: PointerPayload = {
       defaultPrevented: false,
       preventDefault() {
         this.defaultPrevented = true

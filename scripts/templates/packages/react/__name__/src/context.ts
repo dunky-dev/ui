@@ -1,17 +1,9 @@
 import { createContext, useContext, type Context } from 'react'
-import type { Machine } from '@dunky.dev/state-machine'
-import type {
-  __Name__Api,
-  __Name__Context as __Name__MachineContext,
-  __Name__MachineEvent,
-  __Name__StateName,
-} from '@dunky.dev/__name__'
-
-export type __Name__Service = Machine<__Name__StateName, __Name__MachineContext, __Name__MachineEvent>
+import type { __Name__Api, __Name__Machine } from '@dunky.dev/__name__'
 
 export interface __Name__ContextValue {
   api: __Name__Api
-  service: __Name__Service
+  machine: __Name__Machine
 }
 
 export const __Name__Context: Context<__Name__ContextValue | undefined> = createContext<

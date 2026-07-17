@@ -13,13 +13,11 @@ export default defineConfig({
   workspace: [
     'packages/core',
     'packages/core/dialog',
-    'packages/dom/utils/bindings',
     'packages/dom/utils/focus-trap',
     'packages/dom/utils/scroll-lock',
     'packages/react/dialog',
     'packages/react/hooks/use-focus-trap',
     'packages/react/hooks/use-scroll-lock',
-    'packages/shared/utils/merge-props',
   ],
   entry: ['src/index.ts'],
   format: ['esm'],

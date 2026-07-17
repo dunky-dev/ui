@@ -1,17 +1,9 @@
 import { createContext, useContext, type Context } from 'react'
-import type { Machine } from '@dunky.dev/state-machine'
-import type {
-  DialogApi,
-  DialogContext as DialogMachineContext,
-  DialogMachineEvent,
-  DialogStateName,
-} from '@dunky.dev/dialog'
-
-export type DialogService = Machine<DialogStateName, DialogMachineContext, DialogMachineEvent>
+import type { DialogApi, DialogMachine } from '@dunky.dev/dialog'
 
 export interface DialogContextValue {
   api: DialogApi
-  service: DialogService
+  machine: DialogMachine
 }
 
 export const DialogContext: Context<DialogContextValue | undefined> = createContext<

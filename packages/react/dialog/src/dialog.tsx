@@ -16,8 +16,7 @@ import { useFocusTrap } from '@dunky.dev/react-use-focus-trap'
 import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
-import { toDomProps } from '@dunky.dev/dom-bindings'
-import { mergeProps } from '@dunky.dev/merge-props'
+import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
 import { DialogContext, DialogDepthContext, useDialogContext } from './context'
 import { getInitialFocus } from './get-initial-focus'
 import { isTopmostDialog, registerDialog } from './stack'
@@ -56,7 +55,7 @@ export const Trigger: PartComponent<DialogTriggerProps, HTMLButtonElement> = for
   DialogTriggerProps
 >((props, forwardedRef) => {
   const { api } = useDialogContext()
-  const merged = mergeProps({ type: 'button' as const, ...props }, toDomProps(api.parts.trigger))
+  const merged = mergeProps({ type: 'button' as const, ...props }, normalize(api.parts.trigger))
   return <button {...merged} ref={forwardedRef} />
 })
 
@@ -86,8 +85,8 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
   HTMLDivElement,
   DialogBackdropProps
 >((props, forwardedRef) => {
-  const { api, service } = useDialogContext()
-  const { onClick, ...bindings } = toDomProps(api.parts.backdrop) as {
+  const { api, machine } = useDialogContext()
+  const { onClick, ...bindings } = normalize(api.parts.backdrop) as {
     onClick?: (event: MouseEvent<HTMLDivElement>) => void
   } & Record<string, unknown>
 
@@ -95,12 +94,12 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
     ...bindings,
     // Only the topmost dialog of a stack answers an outside press.
     onClick: (event: MouseEvent<HTMLDivElement>) => {
-      if (isTopmostDialog(service.context.ids.content)) onClick?.(event)
+      if (isTopmostDialog(machine.context.ids.content)) onClick?.(event)
     },
   })
 
   // Only a modal dialog dims the page — non-modal coexists with it.
-  if (!service.context.modal) return null
+  if (!machine.context.modal) return null
 
   return <div {...merged} ref={forwardedRef} />
 })
@@ -115,8 +114,8 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
   HTMLDivElement,
   DialogViewportProps
 >((props, forwardedRef) => {
-  const { api, service } = useDialogContext()
-  const { onClick, ...bindings } = toDomProps(api.parts.viewport) as {
+  const { api, machine } = useDialogContext()
+  const { onClick, ...bindings } = normalize(api.parts.viewport) as {
     onClick?: (event: MouseEvent<HTMLDivElement>) => void
   } & Record<string, unknown>
 
@@ -127,7 +126,7 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
     // of a stack answers it.
     onClick: (event: MouseEvent<HTMLDivElement>) => {
       if (event.target !== event.currentTarget) return
-      if (!isTopmostDialog(service.context.ids.content)) return
+      if (!isTopmostDialog(machine.context.ids.content)) return
       onClick?.(event)
     },
   })
@@ -149,7 +148,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   HTMLDialogElement,
   DialogContentProps
 >(({ initialFocus, ...props }, forwardedRef) => {
-  const { api, service } = useDialogContext()
+  const { api, machine } = useDialogContext()
   const depth = useContext(DialogDepthContext)
   const contentRef = useRef<HTMLDialogElement>(null)
   useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDialogElement)
@@ -166,10 +165,10 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
 
     const previous = document.activeElement
     const unregister = registerDialog({
-      id: service.context.ids.content,
+      id: machine.context.ids.content,
       depth,
       element: content,
-      modal: service.context.modal,
+      modal: machine.context.modal,
     })
 
     const target = initialFocusRef.current?.current ?? getInitialFocus(content)
@@ -181,19 +180,19 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
       unregister()
       if (previous instanceof HTMLElement) previous.focus()
     }
-  }, [service, depth])
+  }, [machine, depth])
 
   // Content only mounts while open, so the lock spans exactly the open state.
-  useScrollLock(service.context.modal)
+  useScrollLock(machine.context.modal)
 
   useFocusTrap(contentRef, {
     // Only a modal dialog traps, and only while topmost — a nested dialog
     // owns focus while open.
-    enabled: () => service.context.modal && isTopmostDialog(service.context.ids.content),
+    enabled: () => machine.context.modal && isTopmostDialog(machine.context.ids.content),
   })
 
   const merged = mergeProps(props as Record<string, unknown>, {
-    ...toDomProps(api.parts.content),
+    ...normalize(api.parts.content),
     // The native <dialog> is display:none without `open`; Content only mounts
     // while the dialog is open, so the attribute is unconditionally true.
     open: true,
@@ -212,14 +211,14 @@ export const Title: PartComponent<DialogTitleProps, HTMLHeadingElement> = forwar
   HTMLHeadingElement,
   DialogTitleProps
 >((props, forwardedRef) => {
-  const { api, service } = useDialogContext()
+  const { api, machine } = useDialogContext()
 
   useEffect(() => {
-    service.send({ type: 'part.presence', part: 'title', present: true })
-    return () => service.send({ type: 'part.presence', part: 'title', present: false })
-  }, [service])
+    machine.send({ type: 'part.presence', part: 'title', present: true })
+    return () => machine.send({ type: 'part.presence', part: 'title', present: false })
+  }, [machine])
 
-  const merged = mergeProps(props as Record<string, unknown>, toDomProps(api.parts.title))
+  const merged = mergeProps(props as Record<string, unknown>, normalize(api.parts.title))
   return <h2 {...merged} ref={forwardedRef} />
 })
 
@@ -233,14 +232,14 @@ export const Description: PartComponent<DialogDescriptionProps, HTMLParagraphEle
   HTMLParagraphElement,
   DialogDescriptionProps
 >((props, forwardedRef) => {
-  const { api, service } = useDialogContext()
+  const { api, machine } = useDialogContext()
 
   useEffect(() => {
-    service.send({ type: 'part.presence', part: 'description', present: true })
-    return () => service.send({ type: 'part.presence', part: 'description', present: false })
-  }, [service])
+    machine.send({ type: 'part.presence', part: 'description', present: true })
+    return () => machine.send({ type: 'part.presence', part: 'description', present: false })
+  }, [machine])
 
-  const merged = mergeProps(props as Record<string, unknown>, toDomProps(api.parts.description))
+  const merged = mergeProps(props as Record<string, unknown>, normalize(api.parts.description))
   return <p {...merged} ref={forwardedRef} />
 })
 
@@ -255,7 +254,7 @@ export const Close: PartComponent<DialogCloseProps, HTMLButtonElement> = forward
   DialogCloseProps
 >((props, forwardedRef) => {
   const { api } = useDialogContext()
-  const merged = mergeProps({ type: 'button' as const, ...props }, toDomProps(api.parts.close))
+  const merged = mergeProps({ type: 'button' as const, ...props }, normalize(api.parts.close))
   return <button {...merged} ref={forwardedRef} />
 })
 

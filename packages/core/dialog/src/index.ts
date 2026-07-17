@@ -1,4 +1,4 @@
-export { createDialogConfig } from './machine'
+export { createDialogConfig, type DialogMachine } from './machine'
 export { dialogConnect, type DialogApi, type DialogPartBindings } from './connect'
 export type {
   DialogCallbacks,
@@ -9,5 +9,5 @@ export type {
   DialogPart,
   DialogRole,
   DialogStateName,
-  DismissPayload,
 } from './types'
+export type { KeyboardPayload, PointerPayload } from '@dunky.dev/state-machine-bindings'

@@ -1,6 +1,7 @@
 // Public + machine-facing types for the framework-agnostic dialog primitive.
 // The state machine is substrate-free: all event reading lives in a
 // per-substrate driver.
+import type { KeyboardPayload, PointerPayload } from '@dunky.dev/state-machine-bindings'
 
 export type DialogStateName = 'closed' | 'open'
 
@@ -18,15 +19,6 @@ export interface DialogIds {
   content: string
   title: string
   description: string
-}
-
-/**
- * The vetoable payload a dismissal callback receives — the DOM event in a
- * browser substrate, or any object honoring the preventDefault contract.
- */
-export interface DismissPayload {
-  defaultPrevented: boolean
-  preventDefault: () => void
 }
 
 export interface DialogContext {
@@ -54,9 +46,9 @@ export interface DialogCallbacks {
   /** Fired on every open/close transition with the new value. */
   onOpenChange?: (open: boolean) => void
   /** Fired before an Escape dismissal; `preventDefault()` vetoes it. */
-  onEscapeKeyDown?: (event: DismissPayload) => void
+  onEscapeKeyDown?: (event: KeyboardPayload) => void
   /** Fired before an outside-press dismissal; `preventDefault()` vetoes it. */
-  onInteractOutside?: (event?: DismissPayload) => void
+  onInteractOutside?: (event?: PointerPayload) => void
 }
 
 /**

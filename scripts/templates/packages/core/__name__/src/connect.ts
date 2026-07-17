@@ -1,4 +1,5 @@
 import { makeReaction, type Connect } from '@dunky.dev/state-machine'
+import type { AttrBindings, EventBindings } from '@dunky.dev/state-machine-bindings'
 import type {
   __Name__Context,
   __Name__MachineEvent,
@@ -6,18 +7,11 @@ import type {
   __Name__StateName,
 } from './types'
 
-/**
- * Logical bindings for one part. The substrate translates them into its own
- * attribute/handler vocabulary (e.g. `onPress` -> `onClick`). Keep the keys
- * within @dunky.dev/dom-bindings' LogicalBindings — this local type stays a
- * structural narrowing of it (core never imports beyond the machine runtime).
- */
-export interface __Name__PartBindings {
-  id?: string
-  disabled?: boolean
-  'data-state'?: __Name__StateName
-  onPress?: () => void
-}
+// The bindings a part carries, drawn from the shared agnostic vocabulary; the
+// index signature keeps parts assignable to the loose shape each substrate's
+// normalize() accepts. `data-state` is the styling/animation hook.
+export type __Name__PartBindings = EventBindings &
+  AttrBindings & { 'data-state'?: __Name__StateName } & Record<string, unknown>
 
 /** The view-facing surface a driver reads from the running __name__ machine. */
 export interface __Name__Api {

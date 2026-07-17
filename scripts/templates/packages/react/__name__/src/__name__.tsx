@@ -7,8 +7,7 @@ import {
 } from 'react'
 import type { __Name__Options } from '@dunky.dev/__name__'
 
-import { toDomProps } from '@dunky.dev/dom-bindings'
-import { mergeProps } from '@dunky.dev/merge-props'
+import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
 import { __Name__Context, use__Name__Context } from './context'
 import { use__Name__ } from './use-__name__'
 
@@ -44,7 +43,7 @@ export const Root: PartComponent<__Name__RootProps, HTMLButtonElement> = forward
   __Name__RootProps
 >((props, forwardedRef) => {
   const { api } = use__Name__Context()
-  const merged = mergeProps({ type: 'button' as const, ...props }, toDomProps(api.parts.root))
+  const merged = mergeProps({ type: 'button' as const, ...props }, normalize(api.parts.root))
   return <button {...merged} ref={forwardedRef} />
 })
 

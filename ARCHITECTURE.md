@@ -25,14 +25,8 @@ packages/
 |
 +- dom/
 |  +- utils/              framework-free DOM utilities, one package per util
-|     +- bindings/        @dunky.dev/dom-bindings
 |     +- focus-trap/      @dunky.dev/dom-focus-trap
 |     +- scroll-lock/     @dunky.dev/dom-scroll-lock
-|     +- ...
-|
-+- shared/
-|  +- utils/              pure, host-free utilities, one package per util
-|     +- merge-props/     @dunky.dev/merge-props
 |     +- ...
 |
 +- <substrate>/           any future host, same shape
@@ -47,12 +41,18 @@ packages/
 So a primitive is one package in `core` plus one in each substrate:
 `@dunky.dev/<name>` and `@dunky.dev/<substrate>-<name>`.
 
+The state-machine layer is external, published from its own repo: the runtime
+(`@dunky.dev/state-machine`), the agnostic binding vocabulary
+(`@dunky.dev/state-machine-bindings` — `EventBindings`/`AttrBindings`), and one
+adapter per substrate (`@dunky.dev/react-state-machine` — `useMachine`,
+`normalize`, `mergeProps`). Core composes its part bindings from the
+vocabulary; each substrate drives the machine and translates bindings through
+its adapter, so that plumbing is never re-implemented here.
+
 DOM logic that several primitives or substrates need — focus containment,
-scroll locking, the logical-bindings translation — lives once as a
-framework-free util under `dom/utils/`; each substrate wraps what needs a
-lifecycle in a thin hook under its own `hooks/` folder. Pure logic with no
-host at all — prop merging — lives under `shared/utils/` with a bare package
-name. A new substrate reuses all of it and only writes the wrappers.
+scroll locking — lives once as a framework-free util under `dom/utils/`; each
+substrate wraps what needs a lifecycle in a thin hook under its own `hooks/`
+folder. A new substrate reuses all of it and only writes the wrappers.
 
 Each substrate directory is itself a private workspace package
 (`@dunky-dev/<substrate>`) that owns the substrate's infrastructure — the dev
@@ -93,12 +93,13 @@ level down. Internal infra uses the `@dunky-dev` scope; published packages use
 
 The rules, stated as imports:
 
-- A substrate package imports its core counterpart, the machine runtime, its
-  own substrate's hooks, and the DOM/shared utils — nothing else from this
-  repo.
-- A core package imports only the machine runtime.
-- A DOM or shared util imports nothing from this repo; a substrate hook
-  imports only the DOM util it wraps.
+- A substrate package imports its core counterpart, its substrate's
+  state-machine adapter, its own hooks, and the DOM utils — nothing else from
+  this repo.
+- A core package imports only the state-machine runtime and the agnostic
+  bindings vocabulary.
+- A DOM util imports nothing from this repo; a substrate hook imports only the
+  DOM util it wraps.
 - Primitives are independent of each other. If two need to share logic, that
   sharing is a design decision (a new package), never a cross-import.
 
@@ -124,9 +125,10 @@ packages/core/<name>/                 @dunky.dev/<name>
     machine.test.ts  transitions, gating, bindings, reactions
 ```
 
-The connect's bindings are substrate-neutral (`expanded`, `controls`,
-`onPress`, ...): the core decides WHAT each part carries, every substrate
-decides HOW that renders on its host.
+The connect's bindings are drawn from the shared agnostic vocabulary
+(`EventBindings & AttrBindings` — `expanded`, `controls`, `onPress`, ...): the
+core decides WHAT each part carries, every substrate's `normalize` decides HOW
+that renders on its host.
 
 Two idioms every core package follows (documented in depth per package):
 
@@ -149,12 +151,12 @@ packages/<substrate>/<name>/          @dunky.dev/<substrate>-<name>
   SPEC.md            substrate surface; defers behavior to the core SPEC
   src/
     index.ts         barrel: the compound component + prop types
-    context.ts       compound context: the root provides { api, service }
-    use-<name>.ts    the machine owner: create once (StrictMode-safe),
-                     option re-sync each render, context sync via events,
-                     substrate effects (document listeners, platform APIs)
+    context.ts       compound context: the root provides { api, machine }
+    use-<name>.ts    the machine owner: wraps the adapter's useMachine
+                     (create once, option re-sync, effects), mints ids
+    effects.ts       ComponentEffects: prop-driven / document-level work
     <name>.tsx       root + parts: wires behavior onto host elements, via
-                     @dunky.dev/dom-bindings + @dunky.dev/merge-props
+                     the adapter's normalize + mergeProps
   tests/
     <name>.test.tsx  substrate behavior through the host (render + interact)
   stories/

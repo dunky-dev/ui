@@ -42,6 +42,6 @@ describe('__Name__', () => {
     render(<Default__Name__ disabled />)
     const root = screen.getByRole('button')
     expect(root.getAttribute('data-state')).toBe('idle')
-    expect(root.hasAttribute('disabled')).toBe(true)
+    expect(root.getAttribute('aria-disabled')).toBe('true')
   })
 })

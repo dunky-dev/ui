@@ -1,4 +1,10 @@
-import { setup, type Action, type Guard, type TransitionConfig } from '@dunky.dev/state-machine'
+import {
+  setup,
+  type Action,
+  type Guard,
+  type Machine,
+  type TransitionConfig,
+} from '@dunky.dev/state-machine'
 import type {
   DialogContext,
   DialogIds,
@@ -6,6 +12,9 @@ import type {
   DialogOptions,
   DialogStateName,
 } from './types'
+
+/** The running dialog machine — what a substrate holds and sends events to. */
+export type DialogMachine = Machine<DialogStateName, DialogContext, DialogMachineEvent>
 
 type DialogAction = Action<DialogContext, DialogMachineEvent>
 type DialogGuard = Guard<DialogContext, DialogMachineEvent>

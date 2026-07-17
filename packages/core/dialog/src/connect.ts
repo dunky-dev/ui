@@ -1,4 +1,5 @@
 import { makeReaction, type Connect } from '@dunky.dev/state-machine'
+import type { AttrBindings, EventBindings, PointerPayload } from '@dunky.dev/state-machine-bindings'
 import type {
   DialogContext,
   DialogIds,
@@ -6,28 +7,13 @@ import type {
   DialogOptions,
   DialogRole,
   DialogStateName,
-  DismissPayload,
 } from './types'
 
-/**
- * Logical bindings for one part. The substrate translates them into its own
- * attribute/handler vocabulary (e.g. `labelledBy` -> `aria-labelledby`,
- * `onPress` -> `onClick`).
- */
-export interface DialogPartBindings {
-  id?: string
-  role?: DialogRole
-  modal?: boolean
-  hasPopup?: 'dialog'
-  expanded?: boolean
-  controls?: string
-  labelledBy?: string
-  describedBy?: string
-  /** `false` marks the initial-focus target: focusable in script, not in the tab order. */
-  focusable?: boolean
-  'data-state'?: DialogStateName
-  onPress?: (event?: DismissPayload) => void
-}
+// The bindings a part carries, drawn from the shared agnostic vocabulary; the
+// index signature keeps parts assignable to the loose shape each substrate's
+// normalize() accepts. `data-state` is the styling/animation hook.
+export type DialogPartBindings = EventBindings &
+  AttrBindings & { 'data-state'?: DialogStateName } & Record<string, unknown>
 
 /** The view-facing surface a driver reads from the running dialog machine. */
 export interface DialogApi {
@@ -59,7 +45,7 @@ export const dialogConnect: Connect<
 
   // An outside press is an intent, not a close command: the consumer may veto
   // it; whether it dismisses is gated in the machine.
-  const onOutsidePress = (event?: DismissPayload): void => {
+  const onOutsidePress = (event?: PointerPayload): void => {
     props.onInteractOutside?.(event)
     if (event?.defaultPrevented !== true) send({ type: 'interact.outside' })
   }

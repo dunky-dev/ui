@@ -1,10 +1,8 @@
 ---
 '@dunky.dev/dialog': minor
 '@dunky.dev/react-dialog': minor
-'@dunky.dev/dom-bindings': minor
 '@dunky.dev/dom-focus-trap': minor
 '@dunky.dev/dom-scroll-lock': minor
-'@dunky.dev/merge-props': minor
 '@dunky.dev/react-use-focus-trap': minor
 '@dunky.dev/react-use-scroll-lock': minor
 ---
@@ -39,10 +37,11 @@ as reusable packages.
   reference-counted) — wrapped by the React hooks
   `@dunky.dev/react-use-focus-trap` and `@dunky.dev/react-use-scroll-lock`,
   so future substrates (vue, solid, ...) reuse the same behavior.
-- The wiring mechanics ship shared too: `@dunky.dev/dom-bindings` (the
-  logical-bindings vocabulary a core connect emits, plus `toDomProps` — its
-  DOM translation) and `@dunky.dev/merge-props` (consumer/behavior prop
-  merging with handler chaining).
+- Built on the published state-machine ecosystem: the core composes its part
+  bindings from `@dunky.dev/state-machine-bindings` (the agnostic
+  `EventBindings`/`AttrBindings` vocabulary), and the React binding drives the
+  machine through `@dunky.dev/react-state-machine` (`useMachine`, `normalize`,
+  `mergeProps`) rather than re-implementing the adapter.
 
 ```tsx
 import { Dialog } from '@dunky.dev/react-dialog'
