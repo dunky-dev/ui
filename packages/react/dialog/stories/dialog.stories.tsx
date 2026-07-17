@@ -72,14 +72,20 @@ const input: CSSProperties = {
 // A scoped dialog opens inside a container instead of over the whole page: it
 // portals into that element, and its overlay layers switch from `fixed`
 // (viewport-pinned) to `absolute` (container-pinned).
-const scopedContainer: CSSProperties = {
+//
+// CSS constraint: an `absolute` overlay can't stay fixed inside a *scrolling*
+// element — it's positioned against the scroll origin and scrolls away. So the
+// scrollable background goes in an inner scroller, wrapped by a NON-scrolling
+// positioned boundary; the overlay pins to the boundary's visible box and the
+// backdrop (a sibling on top of the scroller) blocks scrolling behind it.
+const scopedBoundary: CSSProperties = {
   position: 'relative',
-  overflow: 'hidden',
   height: 320,
-  padding: 16,
+  overflow: 'hidden',
   border: '1px solid #ccc',
   borderRadius: 8,
 }
+const scopedScroller: CSSProperties = { height: '100%', overflow: 'auto', padding: 16 }
 const scopedBackdrop: CSSProperties = { ...backdrop, position: 'absolute' }
 const scopedViewport: CSSProperties = { ...viewport, position: 'absolute' }
 
@@ -249,31 +255,35 @@ export const trigger: StoryType = {
 // a real element on the second render instead of null. The Dialog subtree waits
 // for the container so an open dialog never briefly falls back to document.body.
 const ScopedDialog = () => {
-  const [container, setContainer] = useState<HTMLElement | null>(null)
+  const [boundary, setBoundary] = useState<HTMLElement | null>(null)
   return (
-    <div ref={setContainer} style={scopedContainer}>
-      <p style={{ margin: 0 }}>
-        This panel is the dialog&apos;s boundary — the overlay is pinned to it, not the page.
-      </p>
-      {container && (
-        <Dialog defaultOpen>
-          <Dialog.Trigger>Open in panel</Dialog.Trigger>
-          <Dialog.Portal container={container}>
-            <Dialog.Backdrop style={scopedBackdrop} />
-            <Dialog.Viewport style={scopedViewport}>
-              <Dialog.Content style={content}>
-                <Dialog.Title>Scoped dialog</Dialog.Title>
-                <Dialog.Description>
-                  Portaled into the panel via `Dialog.Portal container=&#123;...&#125;`, with the
-                  backdrop and viewport positioned `absolute` so they fill the panel. The scroll
-                  lock scopes to the panel too, not the page.
-                </Dialog.Description>
-                <DialogActions />
-              </Dialog.Content>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog>
-      )}
+    <div ref={setBoundary} style={scopedBoundary}>
+      <div style={scopedScroller}>
+        {Array.from({ length: 12 }, (_, index) => (
+          <p key={index} style={{ margin: '0 0 8px' }}>
+            {index + 1}. Background content scrolls inside the panel; the trigger sits at the end.
+          </p>
+        ))}
+        {boundary && (
+          <Dialog>
+            <Dialog.Trigger>Open in panel</Dialog.Trigger>
+            <Dialog.Portal container={boundary}>
+              <Dialog.Backdrop style={scopedBackdrop} />
+              <Dialog.Viewport style={scopedViewport}>
+                <Dialog.Content style={content}>
+                  <Dialog.Title>Scoped dialog</Dialog.Title>
+                  <Dialog.Description>
+                    Portaled into the panel boundary; the backdrop and viewport are `absolute`, so
+                    the overlay fills the panel&apos;s visible box and stays put while the
+                    background scrolls behind it.
+                  </Dialog.Description>
+                  <DialogActions />
+                </Dialog.Content>
+              </Dialog.Viewport>
+            </Dialog.Portal>
+          </Dialog>
+        )}
+      </div>
     </div>
   )
 }
