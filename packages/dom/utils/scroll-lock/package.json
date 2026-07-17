@@ -1,12 +1,12 @@
 {
-  "name": "@dunky.dev/focus-trap",
+  "name": "@dunky.dev/scroll-lock",
   "version": "0.0.0",
-  "description": "Framework-free Tab/Shift+Tab containment for a DOM subtree.",
+  "description": "Framework-free, reference-counted body scroll lock.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dunky-dev/ui.git",
-    "directory": "packages/shared/utils/focus-trap"
+    "directory": "packages/dom/utils/scroll-lock"
   },
   "files": [
     "dist"

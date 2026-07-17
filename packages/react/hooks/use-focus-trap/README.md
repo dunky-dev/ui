@@ -1,6 +1,6 @@
 # @dunky.dev/react-use-focus-trap
 
-React binding for [`@dunky.dev/focus-trap`](../../../shared/utils/focus-trap):
+React binding for [`@dunky.dev/focus-trap`](../../../dom/utils/focus-trap):
 `useFocusTrap(ref)` traps Tab / Shift+Tab within the referenced container while
 the component is mounted. The trap behavior itself is framework-free — this
 hook only owns the React lifecycle.

@@ -23,7 +23,7 @@ editing files in that scope — it overrides anything here for that scope
 | Scope      | Path                      | What it is                                               |
 | ---------- | ------------------------- | -------------------------------------------------------- |
 | Core       | `packages/core/**`        | Framework-free state machines, one package per primitive |
-| Shared     | `packages/shared/**`      | Framework-free DOM utilities, one package per util       |
+| DOM        | `packages/dom/**`         | Framework-free DOM utilities, one package per util       |
 | Substrates | `packages/<substrate>/**` | Thin host bindings (e.g. `packages/react`)               |
 
 Some changes are cross-scope. Check what else your change touches before
@@ -37,8 +37,8 @@ architecture:
 - **Dependency direction is one-way.** A substrate package imports its core
   counterpart, `@dunky.dev/state-machine`, and its own substrate's hooks —
   nothing else from this repo. A core package imports only
-  `@dunky.dev/state-machine`. A shared util imports nothing from this repo; a
-  substrate hook imports only the shared util it wraps.
+  `@dunky.dev/state-machine`. A DOM util imports nothing from this repo; a
+  substrate hook imports only the DOM util it wraps.
 - **Primitives are independent.** No cross-imports between primitives. If two
   need to share logic, that's a design decision — a new package — never a
   cross-import.

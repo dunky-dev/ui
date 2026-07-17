@@ -56,6 +56,10 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0
 
+  packages/dom/utils/focus-trap: {}
+
+  packages/dom/utils/scroll-lock: {}
+
   packages/react:
     devDependencies:
       '@storybook/react-vite':
@@ -115,7 +119,7 @@ importers:
     dependencies:
       '@dunky.dev/focus-trap':
         specifier: workspace:^
-        version: link:../../../shared/utils/focus-trap
+        version: link:../../../dom/utils/focus-trap
     devDependencies:
       '@testing-library/react':
         specifier: ^16.1.0
@@ -137,7 +141,7 @@ importers:
     dependencies:
       '@dunky.dev/scroll-lock':
         specifier: workspace:^
-        version: link:../../../shared/utils/scroll-lock
+        version: link:../../../dom/utils/scroll-lock
     devDependencies:
       '@testing-library/react':
         specifier: ^16.1.0
@@ -154,10 +158,6 @@ importers:
       react-dom:
         specifier: ^19.2.6
         version: 19.2.7(react@19.2.7)
-
-  packages/shared/utils/focus-trap: {}
-
-  packages/shared/utils/scroll-lock: {}
 
 packages:
 

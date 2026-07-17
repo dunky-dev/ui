@@ -23,14 +23,14 @@ packages/
 |  +- tooltip/            @dunky.dev/tooltip
 |  +- ...
 |
-+- shared/
++- dom/
 |  +- utils/              framework-free DOM utilities, one package per util
 |     +- focus-trap/      @dunky.dev/focus-trap
 |     +- scroll-lock/     @dunky.dev/scroll-lock
 |     +- ...
 |
 +- <substrate>/           any future host, same shape
-   +- hooks/              thin substrate wrappers over shared utils
+   +- hooks/              thin substrate wrappers over the DOM utils
    |  +- use-focus-trap/  @dunky.dev/<substrate>-use-focus-trap
    |  +- ...
    +- dialog/             @dunky.dev/<substrate>-dialog
@@ -42,7 +42,7 @@ So a primitive is one package in `core` plus one in each substrate:
 `@dunky.dev/<name>` and `@dunky.dev/<substrate>-<name>`.
 
 DOM logic that several primitives or substrates need — focus containment,
-scroll locking — lives once as a framework-free util under `shared/utils/`;
+scroll locking — lives once as a framework-free util under `dom/utils/`;
 each substrate wraps it in a thin hook under its own `hooks/` folder. A new
 substrate reuses the utils and only writes the wrappers.
 
@@ -88,8 +88,8 @@ The rules, stated as imports:
 - A substrate package imports its core counterpart, the machine runtime, and
   its own substrate's hooks — nothing else from this repo.
 - A core package imports only the machine runtime.
-- A shared util imports nothing from this repo; a substrate hook imports only
-  the shared util it wraps.
+- A DOM util imports nothing from this repo; a substrate hook imports only
+  the DOM util it wraps.
 - Primitives are independent of each other. If two need to share logic, that
   sharing is a design decision (a new package), never a cross-import.
 

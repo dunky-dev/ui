@@ -1,6 +1,6 @@
 # @dunky.dev/react-use-scroll-lock
 
-React binding for [`@dunky.dev/scroll-lock`](../../../shared/utils/scroll-lock):
+React binding for [`@dunky.dev/scroll-lock`](../../../dom/utils/scroll-lock):
 `useScrollLock(locked)` locks body scrolling while the component is mounted.
 The lock behavior itself is framework-free — this hook only owns the React
 lifecycle.
