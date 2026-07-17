@@ -1,2 +1,2 @@
 export { trapFocus, type TrapFocusOptions } from './trap-focus'
-export { getFocusables } from './get-focusables'
+export { getFocusables, FOCUSABLE_SELECTOR } from './get-focusables'

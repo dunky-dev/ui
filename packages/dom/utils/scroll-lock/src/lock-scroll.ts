@@ -1,8 +1,8 @@
 interface Lock {
   count: number
   savedOverflow: string
-  savedPaddingRight: string
-  savedPaddingBottom: string
+  savedPaddingInlineEnd: string
+  savedPaddingBlockEnd: string
 }
 
 // One shared lock per scroll container: the first holder saves the target's
@@ -41,8 +41,10 @@ function getScrollbarSizes(target: HTMLElement): ScrollbarSizes {
 
 /**
  * Locks scrolling on `target` — the page body by default — padding for the
- * vanished scrollbars (right for the vertical one, bottom for the horizontal
- * one) so the layout doesn't shift. Returns a release function; the target is
+ * vanished scrollbars so the layout doesn't shift. Compensation uses logical
+ * properties: the vertical scrollbar always sits at `inline-end` (right in
+ * LTR, left in RTL) and the horizontal one at `block-end`, so writing
+ * direction is handled for free. Returns a release function; the target is
  * restored once every holder has released.
  */
 export function lockScroll(target: HTMLElement = document.body): () => void {
@@ -51,13 +53,13 @@ export function lockScroll(target: HTMLElement = document.body): () => void {
     lock = {
       count: 0,
       savedOverflow: target.style.overflow,
-      savedPaddingRight: target.style.paddingRight,
-      savedPaddingBottom: target.style.paddingBottom,
+      savedPaddingInlineEnd: target.style.paddingInlineEnd,
+      savedPaddingBlockEnd: target.style.paddingBlockEnd,
     }
     locks.set(target, lock)
     const scrollbar = getScrollbarSizes(target)
-    if (scrollbar.width > 0) target.style.paddingRight = `${scrollbar.width}px`
-    if (scrollbar.height > 0) target.style.paddingBottom = `${scrollbar.height}px`
+    if (scrollbar.width > 0) target.style.paddingInlineEnd = `${scrollbar.width}px`
+    if (scrollbar.height > 0) target.style.paddingBlockEnd = `${scrollbar.height}px`
     target.style.overflow = 'hidden'
   }
   lock.count++
@@ -72,9 +74,15 @@ export function lockScroll(target: HTMLElement = document.body): () => void {
     // Assigning '' doesn't clear a longhand in jsdom's CSSOM — remove instead.
     if (held.savedOverflow !== '') target.style.overflow = held.savedOverflow
     else target.style.removeProperty('overflow')
-    if (held.savedPaddingRight !== '') target.style.paddingRight = held.savedPaddingRight
-    else target.style.removeProperty('padding-right')
-    if (held.savedPaddingBottom !== '') target.style.paddingBottom = held.savedPaddingBottom
-    else target.style.removeProperty('padding-bottom')
+    if (held.savedPaddingInlineEnd !== '') {
+      target.style.paddingInlineEnd = held.savedPaddingInlineEnd
+    } else {
+      target.style.removeProperty('padding-inline-end')
+    }
+    if (held.savedPaddingBlockEnd !== '') {
+      target.style.paddingBlockEnd = held.savedPaddingBlockEnd
+    } else {
+      target.style.removeProperty('padding-block-end')
+    }
   }
 }
