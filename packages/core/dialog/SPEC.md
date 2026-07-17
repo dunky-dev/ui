@@ -149,16 +149,3 @@ stack of dialogs only the topmost one exists until it closes.
 - Every open ⇄ close transition, whatever its cause, is reported to the
   consumer.
 - The alertdialog role does not dismiss on outside press by default.
-
-## Design
-
-The dialog ships headless: parts carry behavior and ARIA wiring plus a
-`data-state` attribute (`open` / `closed`) for the consumer's styling and
-animation; visuals belong entirely to the consumer. Focus and scroll
-containment live in shared framework-free utilities (`@dunky.dev/dom-focus-trap`,
-`@dunky.dev/dom-scroll-lock`) so every substrate inherits identical behavior.
-
-| Position                                        | Why                                                                                                                                                           | Status     |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Native `<dialog>` element without `showModal()` | Modality, dismissal, and focus stay driven by this contract, consistent across browsers, instead of splitting authority with the browser's built-in behavior. | `adopted`  |
-| No `asChild` composition in v1                  | No slot/composition infrastructure in the repo yet; parts render their natural elements. Revisit with a shared primitive.                                     | `deferred` |

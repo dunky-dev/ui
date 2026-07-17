@@ -85,7 +85,12 @@ const scopedBoundary: CSSProperties = {
   border: '1px solid #ccc',
   borderRadius: 8,
 }
-const scopedScroller: CSSProperties = { height: '100%', overflow: 'auto', padding: 16 }
+const scopedScroller: CSSProperties = {
+  height: '100%',
+  overflow: 'auto',
+  padding: 16,
+  boxSizing: 'border-box',
+}
 const scopedBackdrop: CSSProperties = { ...backdrop, position: 'absolute' }
 const scopedViewport: CSSProperties = { ...viewport, position: 'absolute' }
 

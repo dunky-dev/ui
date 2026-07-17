@@ -53,15 +53,3 @@ be accessibility-relevant.
 
 The non-negotiable invariants that must hold regardless of configuration —
 written so an implementation can be checked against it, not to describe one.
-
-## Design
-
-The design _decisions_ and how the component fits the rest of the system — not
-how it looks. Colors, shapes, spacing, and the visual anatomy live in Figma;
-this is the reasoning: why it exists as its own component, how it relates to
-neighboring ones, which shared patterns or tokens it reuses, and any trade-offs
-made to stay consistent.
-
-_Example: "Reuses the interactive-surface tokens so it reads as the same family
-as Button and Chip; kept single-line to match the density of the toolbar it
-lives in; no new size scale — aligns with the existing small/large rhythm."_
