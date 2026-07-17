@@ -34,9 +34,22 @@ describe('lockScroll', () => {
     expect(document.body.style.overflow).toBe('')
   })
 
+  it('compensates both vanished scrollbars and clears them on release', () => {
+    // jsdom reports window sizes but zero client sizes, so both scrollbar
+    // footprints measure > 0 and both compensation branches run.
+    const release = lockScroll()
+    expect(document.body.style.paddingRight).not.toBe('')
+    expect(document.body.style.paddingBottom).not.toBe('')
+
+    release()
+    expect(document.body.style.paddingRight).toBe('')
+    expect(document.body.style.paddingBottom).toBe('')
+  })
+
   it('restores the inline styles the target already had', () => {
     document.body.style.overflow = 'auto'
     document.body.style.paddingRight = '7px'
+    document.body.style.paddingBottom = '9px'
 
     const release = lockScroll()
     expect(document.body.style.overflow).toBe('hidden')
@@ -44,9 +57,11 @@ describe('lockScroll', () => {
     release()
     expect(document.body.style.overflow).toBe('auto')
     expect(document.body.style.paddingRight).toBe('7px')
+    expect(document.body.style.paddingBottom).toBe('9px')
 
     document.body.style.removeProperty('overflow')
     document.body.style.removeProperty('padding-right')
+    document.body.style.removeProperty('padding-bottom')
   })
 
   it('locks an element target independently of the body', () => {
