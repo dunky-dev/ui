@@ -289,6 +289,26 @@ describe('Dialog', () => {
       render(<DefaultDialog defaultOpen modal={false} />)
       expect(document.body.style.overflow).not.toBe('hidden')
     })
+
+    it('locks the portal container, not the body, when scoped', () => {
+      const panel = document.createElement('div')
+      document.body.append(panel)
+
+      render(
+        <Dialog defaultOpen>
+          <Dialog.Portal container={panel}>
+            <Dialog.Content aria-label='Scoped'>content</Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>,
+      )
+
+      expect(panel.style.overflow).toBe('hidden')
+      expect(document.body.style.overflow).not.toBe('hidden')
+
+      act(pressEscape)
+      expect(panel.style.overflow).not.toBe('hidden')
+      panel.remove()
+    })
   })
 
   describe('nesting', () => {

@@ -34,7 +34,10 @@ import { Dialog } from '@dunky.dev/react-dialog'
 React-specific notes on top of the core contract:
 
 - **`Portal`** teleports the layers to `document.body`, or to a `container`
-  you supply. Nothing is kept mounted while closed.
+  you supply. Nothing is kept mounted while closed. When scoped to a
+  `container`, the scroll lock applies to that container instead of the page —
+  position the backdrop/viewport `absolute` (not `fixed`) so the overlay is
+  pinned to the container too.
 - **`Content`** renders the native `<dialog>` element, always with the `open`
   attribute since it only mounts while the dialog is open. It is shown without
   `showModal()` on purpose: modality, dismissal, and focus stay driven by the

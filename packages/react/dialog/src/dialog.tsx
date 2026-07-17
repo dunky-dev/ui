@@ -17,7 +17,7 @@ import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
 import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
-import { DialogContext, DialogDepthContext, useDialogContext } from './context'
+import { DialogContext, DialogDepthContext, DialogPortalContext, useDialogContext } from './context'
 import { getInitialFocus } from './get-initial-focus'
 import { isTopmostDialog, registerDialog } from './stack'
 import { useDialog } from './use-dialog'
@@ -72,7 +72,14 @@ export interface DialogPortalProps {
 export const Portal = ({ children, container }: DialogPortalProps): ReactNode => {
   const { api } = useDialogContext()
   if (!api.open || typeof document === 'undefined') return null
-  return createPortal(children, container ?? document.body)
+  // Publish the scoped container (null = page body) so Content locks the right
+  // scroll surface.
+  return createPortal(
+    <DialogPortalContext.Provider value={container ?? null}>
+      {children}
+    </DialogPortalContext.Provider>,
+    container ?? document.body,
+  )
 }
 
 // =============================================================================
@@ -150,6 +157,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
 >(({ initialFocus, ...props }, forwardedRef) => {
   const { api, machine } = useDialogContext()
   const depth = useContext(DialogDepthContext)
+  const portalContainer = useContext(DialogPortalContext)
   const contentRef = useRef<HTMLDialogElement>(null)
   useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDialogElement)
   const initialFocusRef = useRef(initialFocus)
@@ -183,7 +191,8 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   }, [machine, depth])
 
   // Content only mounts while open, so the lock spans exactly the open state.
-  useScrollLock(machine.context.modal)
+  // A scoped dialog locks its portal container; a page dialog locks the body.
+  useScrollLock(machine.context.modal, portalContainer)
 
   useFocusTrap(contentRef, {
     // Only a modal dialog traps, and only while topmost — a nested dialog

@@ -2,9 +2,9 @@
 
 React binding for [`@dunky.dev/dom-scroll-lock`](../../../dom/utils/scroll-lock):
 `useScrollLock(locked, target?)` locks scrolling while the component is
-mounted — on the page body, or on the container a `target` ref points at. The
-lock behavior itself is framework-free — this hook only owns the React
-lifecycle.
+mounted — on the page body, or on the `target` element when one is given (e.g.
+a scoped surface locks its own container, not the page). The lock behavior
+itself is framework-free — this hook only owns the React lifecycle.
 
 ## Install
 

@@ -265,7 +265,8 @@ const ScopedDialog = () => {
                 <Dialog.Title>Scoped dialog</Dialog.Title>
                 <Dialog.Description>
                   Portaled into the panel via `Dialog.Portal container=&#123;...&#125;`, with the
-                  backdrop and viewport positioned `absolute` so they fill the panel.
+                  backdrop and viewport positioned `absolute` so they fill the panel. The scroll
+                  lock scopes to the panel too, not the page.
                 </Dialog.Description>
                 <DialogActions />
               </Dialog.Content>
