@@ -1,6 +1,6 @@
 // Selector-based on purpose: visibility probing via offsetParent is always
 // null in jsdom, and the trapped subtree is visible whenever the trap runs.
-const FOCUSABLE_SELECTOR = [
+export const FOCUSABLE_SELECTOR: string = [
   'a[href]',
   'area[href]',
   'button:not([disabled])',
