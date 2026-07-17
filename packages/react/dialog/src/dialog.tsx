@@ -18,8 +18,8 @@ import type { DialogOptions } from '@dunky.dev/dialog'
 
 import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
 import { DialogContext, DialogDepthContext, DialogPortalContext, useDialogContext } from './context'
-import { getInitialFocus } from './get-initial-focus'
-import { isTopmostDialog, registerDialog } from './stack'
+import { getInitialFocus } from './utils/get-initial-focus'
+import { isTopmostDialog, registerDialog } from './utils/stack'
 import { useDialog } from './use-dialog'
 
 // Explicit so the exports satisfy --isolatedDeclarations (a bare forwardRef
