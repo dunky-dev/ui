@@ -1,7 +1,7 @@
 {
   "name": "@dunky.dev/scroll-lock",
   "version": "0.0.0",
-  "description": "Framework-free, reference-counted body scroll lock.",
+  "description": "Framework-free, reference-counted scroll lock for any scroll container.",
   "license": "MIT",
   "repository": {
     "type": "git",

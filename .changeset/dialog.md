@@ -32,7 +32,8 @@ as reusable packages.
 - Nested dialogs: each layer stays independent; Escape and outside presses
   dismiss the topmost first, and everything beneath it is hidden and inert.
 - Containment ships as framework-free utils — `@dunky.dev/focus-trap`
-  (`trapFocus`) and `@dunky.dev/scroll-lock` (`lockBodyScroll`, shared and
+  (`trapFocus`) and `@dunky.dev/scroll-lock` (`lockScroll`, targeting any
+  scroll container — the body by default — shared and
   reference-counted) — wrapped by the React hooks
   `@dunky.dev/react-use-focus-trap` and `@dunky.dev/react-use-scroll-lock`,
   so future substrates (vue, solid, ...) reuse the same behavior.

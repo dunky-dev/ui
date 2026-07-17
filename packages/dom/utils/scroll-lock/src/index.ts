@@ -1,1 +1,1 @@
-export { lockBodyScroll } from './lock-body-scroll'
+export { lockScroll } from './lock-scroll'
