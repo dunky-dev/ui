@@ -143,11 +143,21 @@ describe('Dialog', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
 
-    it('reports internal dismissal intent through onOpenChange', () => {
+    it('reports a dismissal intent but stays open until the prop closes it', () => {
       const onOpenChange = vi.fn()
       render(<DefaultDialog open onOpenChange={onOpenChange} />)
       act(pressEscape)
       expect(onOpenChange).toHaveBeenLastCalledWith(false)
+      // The consumer didn't update `open` — that's the veto.
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('reports a trigger press without opening until the prop does', () => {
+      const onOpenChange = vi.fn()
+      render(<DefaultDialog open={false} onOpenChange={onOpenChange} />)
+      openDialog()
+      expect(onOpenChange).toHaveBeenLastCalledWith(true)
+      expect(screen.queryByRole('dialog')).toBeNull()
     })
   })
 

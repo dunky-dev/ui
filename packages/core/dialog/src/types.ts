@@ -26,6 +26,13 @@ export interface DialogContext {
   modal: boolean
   closeOnEscape: boolean
   closeOnInteractOutside: boolean
+  // Whether the consumer controls `open`. Fixed at build time: a controlled
+  // machine never moves on its own — intents go out through `openIntent` and
+  // only `controlled.sync` (the prop echo) transitions it.
+  controlled: boolean
+  // Emission mailbox for onOpenChange: a fresh token per intent so the
+  // reaction fires even when the intended value repeats.
+  openIntent: { open: boolean } | null
   // The base id (substrate-minted, SSR-safe); the connect derives the per-part
   // ids from it.
   id: string
@@ -35,13 +42,16 @@ export interface DialogContext {
 }
 
 // Dismissal intents (`escape` / `interact.outside`) are distinct from `close`
-// so the machine can gate them.
+// so the machine can gate them. `controlled.sync` is the controlled driver:
+// the substrate sends it when the `open` prop changes, and it is the only
+// event that moves a controlled machine.
 export type DialogMachineEvent =
   | { type: 'open' }
   | { type: 'close' }
   | { type: 'toggle' }
   | { type: 'escape' }
   | { type: 'interact.outside' }
+  | { type: 'controlled.sync'; open: boolean }
   | { type: 'part.presence'; part: DialogPart; present: boolean }
 
 export interface DialogCallbacks {

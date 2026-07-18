@@ -8,5 +8,10 @@ import { dialogEffects } from './effects'
 
 export function useDialog(options: DialogOptions): DialogContextValue {
   const id = useId()
-  return useMachine(dialogMachine, dialogConnect, dialogEffects, { id, ...options })
+  // `?? id` (not spread order): an explicit `id={undefined}` must not knock out
+  // the generated fallback — ids also key the dialog stack, so they must exist.
+  return useMachine(dialogMachine, dialogConnect, dialogEffects, {
+    ...options,
+    id: options.id ?? id,
+  })
 }

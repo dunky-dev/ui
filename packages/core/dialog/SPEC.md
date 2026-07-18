@@ -36,8 +36,11 @@ Using the dialog is a walkthrough of intent, not a prop list:
 
 - The **root** owns open/close state, exposed controlled and uncontrolled,
   mirroring native patterns: an uncontrolled dialog can be seeded open, while a
-  controlled consumer drives it from outside — and every open/close intent is
-  reported back so the consumer stays in sync.
+  controlled consumer drives it from outside. Every open/close intent —
+  trigger press, Escape, outside press, imperative close — is reported back;
+  a controlled dialog stops there and only moves when the `open` prop does,
+  so ignoring a reported intent is how the consumer vetoes it. Whether the
+  dialog is controlled is fixed at mount.
 - The **trigger** toggles the dialog and carries the popup relationship to
   assistive tech. It is also the element focus returns to on close.
 - Pressing the **backdrop** — or the **viewport** area around the dialog window —
@@ -146,6 +149,7 @@ stack of dialogs only the topmost one exists until it closes.
   actually rendered.
 - While open and modal, focus stays trapped within the dialog; on close it
   returns to the element focused before opening.
-- Every open ⇄ close transition, whatever its cause, is reported to the
-  consumer.
+- Every open ⇄ close intent, whatever its source, is reported to the
+  consumer. A controlled dialog never transitions on its own — it follows the
+  `open` prop alone, and a prop-driven transition is not echoed back.
 - The alertdialog role does not dismiss on outside press by default.

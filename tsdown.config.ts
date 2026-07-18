@@ -8,10 +8,8 @@ export default defineConfig({
   // The publishable packages, listed explicitly. A glob (`packages/**`) over-matches
   // src/tests dirs, and `include: 'auto'` walks node_modules — so for this layout an
   // explicit list is the clean choice. Keep in sync with the publish set in
-  // .changeset/config.json. Currently just the placeholder package; the first
-  // real primitive replaces it. tsdown errors on an empty list, so this is never [].
+  // .changeset/config.json.
   workspace: [
-    'packages/core',
     'packages/core/dialog',
     'packages/dom/utils/focus-trap',
     'packages/dom/utils/scroll-lock',

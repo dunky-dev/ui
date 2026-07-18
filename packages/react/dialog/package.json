@@ -47,6 +47,7 @@
     "react-dom": "^19.2.6"
   },
   "peerDependencies": {
-    "react": "*"
+    "react": "*",
+    "react-dom": "*"
   }
 }

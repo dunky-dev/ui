@@ -239,7 +239,3 @@ directory into the templates — the script discovers it. See
   `packages/react/.storybook`, run with `pnpm dev [substrate]`.
 - Publishable packages are listed explicitly in `tsdown.config.ts`; a private
   package gets a tsconfig path but is never published.
-
-`packages/core` currently also holds a placeholder package
-(`@dunky-dev/core`) that keeps the build/test pipeline green; the first real
-primitive replaces it.

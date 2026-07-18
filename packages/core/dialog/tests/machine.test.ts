@@ -235,3 +235,29 @@ describe('dialog connect — reactions', () => {
     expect(onOpenChange).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('dialog machine — controlled', () => {
+  it('reports dismissal intents without moving the machine', () => {
+    const onOpenChange = vi.fn()
+    const { service } = build({ open: true, onOpenChange })
+    service.send({ type: 'escape' })
+    expect(service.state).toBe('open')
+    expect(onOpenChange).toHaveBeenLastCalledWith(false)
+  })
+
+  it('moves only on controlled.sync, and the prop echo is not reported back', () => {
+    const onOpenChange = vi.fn()
+    const { service } = build({ open: true, onOpenChange })
+    service.send({ type: 'controlled.sync', open: false })
+    expect(service.state).toBe('closed')
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('still gates dismissal intents before reporting them', () => {
+    const onOpenChange = vi.fn()
+    const { service } = build({ open: true, closeOnEscape: false, onOpenChange })
+    service.send({ type: 'escape' })
+    expect(service.state).toBe('open')
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+})

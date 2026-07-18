@@ -19,8 +19,7 @@
       "@dunky.dev/dom-focus-trap": ["./packages/dom/utils/focus-trap/src"],
       "@dunky.dev/dom-scroll-lock": ["./packages/dom/utils/scroll-lock/src"],
       "@dunky.dev/react-use-focus-trap": ["./packages/react/hooks/use-focus-trap/src"],
-      "@dunky.dev/react-use-scroll-lock": ["./packages/react/hooks/use-scroll-lock/src"],
-      "@dunky-dev/core": ["./packages/core/src"]
+      "@dunky.dev/react-use-scroll-lock": ["./packages/react/hooks/use-scroll-lock/src"]
     },
     "types": ["@types/node", "vitest/globals"]
   },

@@ -6,6 +6,7 @@ export default defineConfig({
     environment: 'node',
     // scripts/templates holds __name__-tokenized scaffolding stubs — real files,
     // but not runnable tests (their imports resolve only once scaffolded).
-    exclude: ['**/node_modules/**', '**/dist/**', 'scripts/templates/**'],
+    // .worktrees holds local worktree checkouts; lint ignores it, vitest must too.
+    exclude: ['**/node_modules/**', '**/dist/**', 'scripts/templates/**', '**/.worktrees/**'],
   },
 })
