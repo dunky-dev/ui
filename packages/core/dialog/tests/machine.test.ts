@@ -237,27 +237,42 @@ describe('dialog connect — reactions', () => {
 })
 
 describe('dialog machine — controlled', () => {
-  it('reports dismissal intents without moving the machine', () => {
+  it('a dismissal intent moves nothing and reports nothing', () => {
     const onOpenChange = vi.fn()
     const { service } = build({ open: true, onOpenChange })
     service.send({ type: 'escape' })
     expect(service.state).toBe('open')
-    expect(onOpenChange).toHaveBeenLastCalledWith(false)
+    expect(onOpenChange).not.toHaveBeenCalled()
   })
 
-  it('moves only on controlled.sync, and the prop echo is not reported back', () => {
+  it('moves only on controlled.sync, reporting the actual change', () => {
     const onOpenChange = vi.fn()
     const { service } = build({ open: true, onOpenChange })
     service.send({ type: 'controlled.sync', value: false })
     expect(service.state).toBe('closed')
-    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(onOpenChange).toHaveBeenLastCalledWith(false)
+    expect(onOpenChange).toHaveBeenCalledTimes(1)
   })
 
-  it('still gates dismissal intents before reporting them', () => {
-    const onOpenChange = vi.fn()
-    const { service } = build({ open: true, closeOnEscape: false, onOpenChange })
+  it('still gates dismissal intents before recording them', () => {
+    const { service } = build({ open: true, closeOnEscape: false })
     service.send({ type: 'escape' })
+    expect(service.context.open.intent).toBeNull()
+
+    const allowed = build({ open: true })
+    allowed.service.send({ type: 'escape' })
+    expect(allowed.service.context.open.intent).toEqual({ value: false })
+  })
+
+  it('an undefined echo hands the state back, uncontrolled where it stands', () => {
+    const onOpenChange = vi.fn()
+    const { service } = build({ open: true, onOpenChange })
+    service.send({ type: 'controlled.sync', value: undefined })
     expect(service.state).toBe('open')
     expect(onOpenChange).not.toHaveBeenCalled()
+
+    service.send({ type: 'escape' }) // uncontrolled now: dismissal works again
+    expect(service.state).toBe('closed')
+    expect(onOpenChange).toHaveBeenLastCalledWith(false)
   })
 })

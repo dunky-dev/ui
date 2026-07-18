@@ -1,9 +1,10 @@
 import { and, type Action, type Guard, type Transition } from '@dunky.dev/state-machine'
 
 /**
- * A consumer-ownable value. `controlled` is fixed at build time — whether the
- * consumer supplied the value and owns it. `intent` is the last reported
- * intent, written as a fresh token so a reaction on it fires even on repeats.
+ * A consumer-ownable value. `controlled` tracks whether the consumer supplies
+ * the value right now — seeded at build, re-derived live by `recontrol` when
+ * the prop appears or disappears. `intent` is the last declared intent,
+ * written as a fresh token so a reaction on it fires even on repeats.
  */
 export interface Controllable<Value> {
   controlled: boolean
@@ -15,10 +16,14 @@ export function controllable<Value>(value: Value | undefined): Controllable<Valu
   return { controlled: value !== undefined, intent: null }
 }
 
-/** The prop echo a substrate sends on change — the only event that moves a controlled machine. */
+/**
+ * The prop echo a substrate sends on change — the only event that moves a
+ * controlled machine. `undefined` means the prop is gone: the machine stays
+ * where it stands and goes back to owning the value (see `recontrol`).
+ */
 export interface ControlledSync<Value> {
   type: 'controlled.sync'
-  value: Value
+  value: Value | undefined
 }
 
 /** The context keys holding a Controllable slice — what `intent` may target. */
@@ -118,3 +123,47 @@ export function syncControlled<Context extends object, Event extends { type: str
   return ({ event }) =>
     event.type === 'controlled.sync' && 'value' in event && event.value === value
 }
+
+type RecontrolFn<Context extends object, Event extends { type: string }> = <
+  Key extends ControllableKey<Context> & string,
+>(
+  key: Key,
+) => Action<Context, Event>
+
+/**
+ * Action for every `controlled.sync` candidate: re-derives `controlled` from
+ * the echoed value's presence, so dropping the prop (`undefined`) hands the
+ * value back to the machine where it stands, and supplying it takes control.
+ * Pin like `intent`: recontrol.as<Context, Event>().
+ */
+export interface Recontrol {
+  <
+    Context extends object,
+    Event extends { type: string },
+    Key extends ControllableKey<Context> & string,
+  >(
+    key: Key,
+  ): Action<Context, Event>
+  as<Context extends object, Event extends { type: string }>(): RecontrolFn<Context, Event>
+}
+
+function recontrolFn<
+  Context extends object,
+  Event extends { type: string },
+  Key extends ControllableKey<Context> & string,
+>(key: Key): Action<Context, Event> {
+  return ({ event, context, setContext }) => {
+    if (event.type !== 'controlled.sync') return
+    const controlled = ('value' in event ? event.value : undefined) !== undefined
+    // Same narrowing/patch casts as intent — see there.
+    const slice = context[key] as Controllable<unknown>
+    if (slice.controlled === controlled) return
+    setContext({ [key]: { controlled, intent: slice.intent } } as Partial<Context>)
+  }
+}
+
+export const recontrol: Recontrol = Object.assign(recontrolFn, {
+  // Type-level only, like setup.as — the same implementation, generics pinned.
+  as: <Context extends object, Event extends { type: string }>(): RecontrolFn<Context, Event> =>
+    recontrolFn,
+})

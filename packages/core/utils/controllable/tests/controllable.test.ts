@@ -3,6 +3,7 @@ import { machine, setup, type Guard } from '@dunky.dev/state-machine'
 import {
   controllable,
   intent,
+  recontrol,
   syncControlled,
   type Controllable,
   type ControlledSync,
@@ -19,6 +20,7 @@ type ToggleEvent = { type: 'start' } | { type: 'stop' } | ControlledSync<boolean
 const canStop: Guard<ToggleContext, ToggleEvent> = ({ context }) => context.allowStop
 // Unguarded events carry no Context/Event to infer from — the pinned form.
 const request = intent.as<ToggleState, ToggleContext, ToggleEvent>()
+const resync = recontrol.as<ToggleContext, ToggleEvent>()
 
 const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
   const service = machine(
@@ -29,14 +31,20 @@ const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
         off: {
           on: {
             start: request('on', { target: 'on', value: true }),
-            'controlled.sync': { target: 'on', guard: syncControlled(true) },
+            'controlled.sync': [
+              { guard: syncControlled(true), target: 'on', actions: resync('on') },
+              { actions: resync('on') },
+            ],
           },
         },
         on: {
           on: {
             // Bare call: the typed guard carries Context/Event, so it infers.
             stop: intent('on', { guard: canStop, target: 'off', value: false }),
-            'controlled.sync': { target: 'off', guard: syncControlled(false) },
+            'controlled.sync': [
+              { guard: syncControlled(false), target: 'off', actions: resync('on') },
+              { actions: resync('on') },
+            ],
           },
         },
       },
@@ -96,5 +104,16 @@ describe('controlled.sync', () => {
     service.send({ type: 'controlled.sync', value: false })
     expect(service.state).toBe('off')
     expect(service.context.on.intent).toBeNull()
+  })
+
+  it('recontrol tracks the echoed value presence in both directions', () => {
+    const service = build({ on: true })
+    service.send({ type: 'controlled.sync', value: undefined })
+    expect(service.state).toBe('on') // hands back, right where it stands
+    expect(service.context.on.controlled).toBe(false)
+
+    service.send({ type: 'controlled.sync', value: false })
+    expect(service.state).toBe('off') // a value retakes control and moves it
+    expect(service.context.on.controlled).toBe(true)
   })
 })

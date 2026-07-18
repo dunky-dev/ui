@@ -35,12 +35,16 @@ over interaction rather than coexist with the page or merely announce.
 Using the dialog is a walkthrough of intent, not a prop list:
 
 - The **root** owns open/close state, exposed controlled and uncontrolled,
-  mirroring native patterns: an uncontrolled dialog can be seeded open, while a
-  controlled consumer drives it from outside. Every open/close intent —
-  trigger press, Escape, outside press, imperative close — is reported back;
-  a controlled dialog stops there and only moves when the `open` prop does,
-  so ignoring a reported intent is how the consumer vetoes it. Whether the
-  dialog is controlled is fixed at mount.
+  mirroring native patterns: an uncontrolled dialog can be seeded open, while
+  a controlled consumer owns `open` outright — the dialog never moves on its
+  own and follows the prop alone. `onOpenChange` reports actual open ⇄ close
+  changes, whatever drove them; it never fires for a change that didn't
+  happen. A controlled consumer decides dismissals at their source — the
+  dedicated callbacks (`onEscapeKeyDown`, `onInteractOutside`, where
+  `preventDefault()` declines) and their own handlers on Trigger/Close.
+  Controlled-ness follows the prop live: setting `open` to `undefined` hands
+  the state back to the dialog where it stands; supplying it again takes
+  control back.
 - The **trigger** toggles the dialog and carries the popup relationship to
   assistive tech. It is also the element focus returns to on close.
 - Pressing the **backdrop** — or the **viewport** area around the dialog window —
@@ -162,9 +166,10 @@ stack of dialogs only the topmost one exists until it closes.
   actually rendered.
 - While open and modal, focus stays trapped within the dialog; on close it
   returns to the element focused before opening.
-- Every open ⇄ close intent, whatever its source, is reported to the
-  consumer. A controlled dialog never transitions on its own — it follows the
-  `open` prop alone, and a prop-driven transition is not echoed back.
+- `onOpenChange` reports every actual open ⇄ close change, whatever its
+  source, and nothing else — no call without a change. A controlled dialog
+  never transitions on its own; it follows the `open` prop alone, and its
+  controlled-ness tracks the prop's presence live.
 - A stack-scoped close is gated and vetoed only by the dialog that received
   the intent; every layer beneath receives a plain close and reports it.
 - The alertdialog role does not dismiss on outside press by default.

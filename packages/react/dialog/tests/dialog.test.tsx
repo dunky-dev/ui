@@ -143,21 +143,39 @@ describe('Dialog', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
 
-    it('reports a dismissal intent but stays open until the prop closes it', () => {
+    it('a dismissal neither closes nor fires onOpenChange — nothing changed', () => {
       const onOpenChange = vi.fn()
       render(<DefaultDialog open onOpenChange={onOpenChange} />)
       act(pressEscape)
-      expect(onOpenChange).toHaveBeenLastCalledWith(false)
-      // The consumer didn't update `open` — that's the veto.
+      expect(onOpenChange).not.toHaveBeenCalled()
       expect(screen.queryByRole('dialog')).not.toBeNull()
     })
 
-    it('reports a trigger press without opening until the prop does', () => {
+    it('a trigger press neither opens nor fires onOpenChange', () => {
       const onOpenChange = vi.fn()
       render(<DefaultDialog open={false} onOpenChange={onOpenChange} />)
       openDialog()
-      expect(onOpenChange).toHaveBeenLastCalledWith(true)
+      expect(onOpenChange).not.toHaveBeenCalled()
       expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('reports a prop-driven change through onOpenChange', () => {
+      const onOpenChange = vi.fn()
+      const { rerender } = render(<DefaultDialog open={false} onOpenChange={onOpenChange} />)
+      rerender(<DefaultDialog open onOpenChange={onOpenChange} />)
+      expect(onOpenChange).toHaveBeenLastCalledWith(true)
+      expect(onOpenChange).toHaveBeenCalledTimes(1)
+    })
+
+    it('dropping the open prop rewires the dialog uncontrolled where it stands', () => {
+      const onOpenChange = vi.fn()
+      const { rerender } = render(<DefaultDialog open onOpenChange={onOpenChange} />)
+      rerender(<DefaultDialog onOpenChange={onOpenChange} />)
+      expect(screen.queryByRole('dialog')).not.toBeNull() // stays where it was
+
+      act(pressEscape) // uncontrolled now: dismissal works again
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(onOpenChange).toHaveBeenLastCalledWith(false)
     })
   })
 

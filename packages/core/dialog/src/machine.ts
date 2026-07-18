@@ -5,7 +5,7 @@ import {
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
-import { controllable, intent, syncControlled } from '@dunky.dev/controllable'
+import { controllable, intent, recontrol, syncControlled } from '@dunky.dev/controllable'
 import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
@@ -17,10 +17,11 @@ type DialogGuard = Guard<DialogContext, DialogMachineEvent>
 const canEscape: DialogGuard = ({ context }) => context.closeOnEscape
 const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractOutside
 
-// Every open/close intent is reported through `open.intent` (the connect's
-// reaction turns it into onOpenChange); whether it also transitions is
-// intent's controlled/uncontrolled fork.
+// Every open/close intent is recorded in `open.intent`; whether it also
+// transitions is intent's controlled/uncontrolled fork. `resync` keeps the
+// controlled flag tracking the prop's presence on every echo.
 const request = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()
+const resync = recontrol.as<DialogContext, DialogMachineEvent>()
 
 const setPartPresence: DialogAction = ({ event, context, setContext }) => {
   if (event.type !== 'part.presence') return
@@ -57,7 +58,10 @@ export function dialogMachine(
         on: {
           open: request('open', { target: 'open', value: true }),
           toggle: request('open', { target: 'open', value: true }),
-          'controlled.sync': { target: 'open', guard: syncControlled(true) },
+          'controlled.sync': [
+            { guard: syncControlled(true), target: 'open', actions: resync('open') },
+            { actions: resync('open') },
+          ],
         },
       },
       open: {
@@ -70,7 +74,10 @@ export function dialogMachine(
             target: 'closed',
             value: false,
           }),
-          'controlled.sync': { target: 'closed', guard: syncControlled(false) },
+          'controlled.sync': [
+            { guard: syncControlled(false), target: 'closed', actions: resync('open') },
+            { actions: resync('open') },
+          ],
         },
       },
     },

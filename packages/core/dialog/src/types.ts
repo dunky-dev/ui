@@ -27,9 +27,9 @@ export interface DialogContext {
   modal: boolean
   closeOnEscape: boolean
   closeOnInteractOutside: boolean
-  // The consumer-ownable open value: the controlled flag plus the intent
-  // slot onOpenChange reads from. A controlled machine never moves on its
-  // own — only `controlled.sync` (the prop echo) transitions it.
+  // The consumer-ownable open value. A controlled machine never moves on its
+  // own — only `controlled.sync` (the prop echo) transitions it, and the
+  // controlled flag tracks the prop's presence live.
   open: Controllable<boolean>
   // The base id (substrate-minted, SSR-safe); the connect derives the per-part
   // ids from it.
@@ -69,7 +69,9 @@ export interface DialogOptions extends DialogCallbacks {
   /** Base id for the dialog's parts; the substrate supplies a unique, SSR-safe
    * one. The per-part ids (content/title/description) are derived from it. */
   id?: string
-  /** Controlled open state; every open/close intent is reported through `onOpenChange`. */
+  /** Controlled open state: the dialog follows this prop alone and never
+   * moves on its own. Set back to `undefined` to hand the state over —
+   * uncontrolled from there, right where it stands. */
   open?: boolean
   /** Initial open state for the uncontrolled dialog. @default false */
   defaultOpen?: boolean

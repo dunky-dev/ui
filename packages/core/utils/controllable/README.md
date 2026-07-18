@@ -4,12 +4,17 @@ Controlled/uncontrolled machinery for `@dunky.dev/state-machine` machines: the
 piece every dismissible primitive (dialog, popover, tooltip) needs so a
 consumer can own a value from outside.
 
-The contract it encodes: a controlled machine never moves on its own. Every
-intent is reported through the `intent` slot in context — a reaction turns
-it into the consumer callback — and only the substrate's `controlled.sync`
-echo of the prop transitions the machine. Ignoring a reported intent is how
-the consumer vetoes it. Uncontrolled, the same intent also takes the
-transition, so both modes share one transition table and one set of guards.
+The contract it encodes: a controlled machine never moves on its own — only
+the substrate's `controlled.sync` echo of the prop transitions it, so a
+change callback bound to the state fires exactly when the value actually
+changes, never for an intent that changed nothing. Dismissal decisions stay
+at their source (the event-level callbacks and the consumer's own handlers).
+Controlled-ness follows the prop live: an `undefined` echo hands the value
+back to the machine right where it stands. Uncontrolled, the same intent
+event also takes the transition, so both modes share one transition table
+and one set of guards. Each declared intent is recorded in the `intent`
+slot — a fresh token per write, ready for machines that expose a request
+channel.
 
 ## Install
 
@@ -20,7 +25,13 @@ npm install @dunky.dev/controllable
 ## Usage
 
 ```ts
-import { controllable, intent, syncControlled, type ControlledSync } from '@dunky.dev/controllable'
+import {
+  controllable,
+  intent,
+  recontrol,
+  syncControlled,
+  type ControlledSync,
+} from '@dunky.dev/controllable'
 
 // context: seed the slice from the consumer's option
 const context = {
@@ -30,33 +41,34 @@ const context = {
 
 // transitions: fork each intent event into controlled/uncontrolled candidates.
 // Bare `intent` infers from a typed guard; unguarded events have nothing to
-// infer from — pin the generics once with `intent.as` (the `setup.as` idiom).
+// infer from — pin the generics once with `.as` (the `setup.as` idiom).
 const request = intent.as<StateName, Context, MachineEvent>()
+const resync = recontrol.as<Context, MachineEvent>()
 
 states: {
   open: {
     on: {
       close: request('open', { target: 'closed', value: false }),
       escape: intent('open', { guard: canEscape, target: 'closed', value: false }),
-      'controlled.sync': { target: 'closed', guard: syncControlled(false) },
+      // Move on a matching echo; every echo re-derives controlled-ness.
+      'controlled.sync': [
+        { guard: syncControlled(false), target: 'closed', actions: resync('open') },
+        { actions: resync('open') },
+      ],
     },
   },
 }
 
-// connect: the consumer callback reads `intent`, not the state
+// connect: the consumer callback reflects the actual state
 reaction(
-  m => m.context.open.intent,
-  (intent, props) => {
-    if (intent !== null) props.onOpenChange?.(intent.value)
-  },
+  m => m.matches('open'),
+  (open, props) => props.onOpenChange?.(open),
 )
 ```
 
-The substrate sends the echo when the controlled prop changes — the only
-part that knows about props:
+The substrate echoes the prop verbatim whenever it changes — the only part
+that knows about props. `undefined` means uncontrolled again:
 
 ```ts
-if (props.open !== undefined && props.open !== machine.matches('open')) {
-  machine.send({ type: 'controlled.sync', value: props.open })
-}
+machine.send({ type: 'controlled.sync', value: props.open })
 ```
