@@ -3,8 +3,13 @@
 The working contract for anyone — human or agent — modifying code in this
 repo. This file is the canonical entry point: read it first, every time.
 
-<!-- One paragraph on what this repo is: the problem it solves, what it
-ships, and the major moving parts. Delete this comment once filled. -->
+This repo is the UI half of Dunky: the components and everything needed to
+render them. Each primitive's behavior is a framework-free state machine
+(`packages/core/<name>`, built on `@dunky.dev/state-machine`); framework-free
+DOM helpers live in `packages/dom`; and a thin per-substrate binding
+(`packages/<substrate>/<name>`, e.g. `react`) turns that machine into
+something on screen. Behavior is written once and every substrate inherits it.
+`pnpm scaffold <name>` stamps a new primitive across the substrates.
 
 ## Preflight
 
@@ -111,8 +116,7 @@ whenever possible, otherwise open it up for discussion.
 
 Check whether the SPEC still describes the code: loop back or ship it.
 Before shipping: tests, lint, and type-check pass, and the change is
-verified across all scopes. If something's off, loop back to SPEC or
-TEST; if not, ship it!
+verified across all scopes. If something's off, loop back to SPEC; if not, ship it!
 
 ## Code
 
