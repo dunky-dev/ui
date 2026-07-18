@@ -13,11 +13,13 @@ export default defineConfig({
   workspace: [
     'packages/core',
     'packages/core/dialog',
+    'packages/core/drawer',
     'packages/dom/utils/focus-trap',
     'packages/dom/utils/interact-outside',
     'packages/dom/utils/layer-stack',
     'packages/dom/utils/scroll-lock',
     'packages/react/dialog',
+    'packages/react/drawer',
     'packages/react/hooks/use-focus-trap',
     'packages/react/hooks/use-interact-outside',
     'packages/react/hooks/use-layer-stack',
