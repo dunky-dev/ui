@@ -17,13 +17,9 @@ npm install @dunky.dev/react-use-focus-trap
 import { useRef } from 'react'
 import { useFocusTrap } from '@dunky.dev/react-use-focus-trap'
 
-function ModalPanel() {
+function Dialog() {
   const panelRef = useRef<HTMLDivElement>(null)
   useFocusTrap(panelRef, { enabled: () => isTopmost(panelRef.current) })
-  return (
-    <div ref={panelRef} tabIndex={-1} role='dialog'>
-      ...
-    </div>
-  )
+  return <dialog ref={panelRef}>...</dialog>
 }
 ```
