@@ -119,7 +119,7 @@ Per APG Tabs:
 - Registration order is navigation order: a substrate must register triggers
   in DOM order.
 
-## Design
+## Internals
 
 - **The machine decides which, the substrate moves focus.** Navigation is
   modeled entirely in the machine — next/previous/first/last over the
