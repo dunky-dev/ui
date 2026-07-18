@@ -16,26 +16,24 @@ const Default__Name__ = (props: __Name__Props) => (
 afterEach(cleanup)
 
 describe('__Name__', () => {
-  it('activates on press under StrictMode', () => {
-    const onActivate = vi.fn()
+  it('disables on press under StrictMode', () => {
+    const disable = vi.fn()
     render(
       <StrictMode>
-        <Default__Name__ onActivate={onActivate} />
+        <Default__Name__ disable={disable} />
       </StrictMode>,
     )
     act(() => screen.getByRole('button').click())
-    expect(onActivate).toHaveBeenCalledTimes(1)
+    expect(disable).toHaveBeenCalledTimes(1)
   })
 
-  it('gates activation while disabled, and re-syncs the flag across renders', () => {
-    const onActivate = vi.fn()
-    const { rerender } = render(<Default__Name__ onActivate={onActivate} disabled />)
-    act(() => screen.getByRole('button').click())
-    expect(onActivate).not.toHaveBeenCalled()
+  it('fires disable when the controlled disabled prop turns on', () => {
+    const disable = vi.fn()
+    const { rerender } = render(<Default__Name__ disable={disable} />)
+    expect(disable).not.toHaveBeenCalled()
 
-    rerender(<Default__Name__ onActivate={onActivate} />)
-    act(() => screen.getByRole('button').click())
-    expect(onActivate).toHaveBeenCalledTimes(1)
+    rerender(<Default__Name__ disable={disable} disabled />)
+    expect(disable).toHaveBeenCalledTimes(1)
   })
 
   it('translates the core bindings onto the element', () => {

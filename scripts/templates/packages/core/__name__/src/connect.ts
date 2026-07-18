@@ -34,7 +34,7 @@ export const __camelName__Connect: Connect<
     root: {
       disabled: context.disabled || undefined,
       'data-state': state,
-      onPress: () => send({ type: 'ACTIVATE' }),
+      onPress: () => send({ type: 'SET_DISABLED', disabled: true }),
     },
   },
 })
@@ -42,14 +42,15 @@ export const __camelName__Connect: Connect<
 const reaction = makeReaction<__Name__StateName, __Name__Context, __Name__MachineEvent, __Name__Options>()
 
 // One reaction per consumer callback, firing in registration order — that
-// order is the callback-order contract. A callback derivable from state
-// selects it (e.g. `m => m.matches('open')`, see the dialog core); an event
-// that doesn't move the machine emits through a mailbox slot, as here.
+// order is the callback-order contract. Here the selector reads a context
+// field (`disabled`); a callback tied to a state selects `m.matches(...)` (see
+// the dialog core), and an event that doesn't move the machine can emit through
+// a mailbox slot instead.
 __camelName__Connect.reactions = [
   reaction(
-    m => m.context.activateEvent,
-    (event, props) => {
-      if (event) props.onActivate?.()
+    m => m.context.disabled,
+    (disabled, props) => {
+      if (disabled) props.disable?.()
     },
   ),
 ]

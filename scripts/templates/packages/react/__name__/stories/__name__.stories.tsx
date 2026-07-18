@@ -13,7 +13,7 @@ type StoryType = StoryObj<typeof __Name__>
 // styles. `data-state` on every part is the real styling hook.
 export const standard: StoryType = {
   render: () => (
-    <__Name__ onActivate={() => console.log('activated')}>
+    <__Name__ disable={() => console.log('disabled')}>
       <__Name__.Root>go</__Name__.Root>
     </__Name__>
   ),

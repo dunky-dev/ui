@@ -88,6 +88,12 @@ others, just check their specs don't now contradict it; only edit
 another package's `SPEC.md` if it genuinely conflicts (and prefer a
 short cross-reference over restating the decision).
 
+A core `SPEC.md` carries the behavior contract. A substrate `SPEC.md`
+defers behavior to the core spec and documents its own public API: give
+each compound part its own `### <Root>.<Part>` heading with an
+independent props table (prop, type, default, description), rather than
+one combined parts table.
+
 ### TEST
 
 Write behavior tests first. Tests are the executable spec: they capture

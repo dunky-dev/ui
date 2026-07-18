@@ -1,4 +1,4 @@
-import { setup, type Action, type Guard, type Machine, type TransitionConfig } from '@dunky.dev/state-machine'
+import { setup, type Action, type Machine, type TransitionConfig } from '@dunky.dev/state-machine'
 import type {
   __Name__Context,
   __Name__MachineEvent,
@@ -10,44 +10,32 @@ import type {
 export type __Name__Machine = Machine<__Name__StateName, __Name__Context, __Name__MachineEvent>
 
 type __Name__Action = Action<__Name__Context, __Name__MachineEvent>
-type __Name__Guard = Guard<__Name__Context, __Name__MachineEvent>
 
-// Emit onActivate by writing a fresh token; the connector reaction fires on the
-// reference change (see connect.ts). Each action performs exactly one setContext.
-const activate: __Name__Action = ({ setContext }) => setContext({ activateEvent: {} })
-
-const disable: __Name__Action = ({ setContext }) => setContext({ disabled: true })
-const enable: __Name__Action = ({ setContext }) => setContext({ disabled: false })
-
-const notDisabled: __Name__Guard = ({ context }) => !context.disabled
-const isDisableEvent: __Name__Guard = ({ event }) =>
-  event.type === 'SET_DISABLED' && event.disabled === true
+// Each action performs exactly one setContext.
+const setDisabled: __Name__Action = ({ event, setContext }) => {
+  if (event.type !== 'SET_DISABLED') return
+  setContext({ disabled: event.disabled })
+}
 
 // Option defaults are resolved HERE and seeded into context at build time —
 // the machine never sees props; live callbacks flow through the connector.
-// When parts need cross-referencing ids (aria-controls, labelledby), take a
-// substrate-minted `ids` argument and seed it into context (see the dialog core).
-export function create__Name__Config(
+// When parts cross-reference each other (aria-controls, labelledby), take a
+// substrate-minted `id` option and derive the per-part ids in connect (see the
+// dialog core).
+export function __camelName__Machine(
   options: __Name__Options,
 ): TransitionConfig<__Name__StateName, __Name__Context, __Name__MachineEvent> {
-  // Annotated so createMachine infers Context as __Name__Context, not the narrowed literal.
-  const context: __Name__Context = {
-    disabled: options.disabled ?? false,
-    activateEvent: null,
-  }
+  const context: __Name__Context = { disabled: options.disabled ?? false }
 
   return setup.as<__Name__Context, __Name__MachineEvent>().createMachine({
     initial: 'idle',
     context,
-    states: {
-      idle: {
-        on: {
-          ACTIVATE: { guard: notDisabled, actions: activate },
-        },
-      },
-    },
+    // Any-state: the disabled flag is settable from a single top-level handler.
     on: {
-      SET_DISABLED: [{ guard: isDisableEvent, actions: disable }, { actions: enable }],
+      SET_DISABLED: { actions: setDisabled },
+    },
+    states: {
+      idle: {},
     },
   })
 }

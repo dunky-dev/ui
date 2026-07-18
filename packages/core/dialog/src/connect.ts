@@ -15,6 +15,12 @@ import type {
 export type DialogPartBindings = EventBindings &
   AttrBindings & { 'data-state'?: DialogStateName } & Record<string, unknown>
 
+// The cross-part ids all derive from the one base id, so the trigger's
+// aria-controls, Content's id, and the labelledby/describedby always agree.
+function dialogIds(id: string): DialogIds {
+  return { content: `${id}-content`, title: `${id}-title`, description: `${id}-description` }
+}
+
 /** The view-facing surface a driver reads from the running dialog machine. */
 export interface DialogApi {
   open: boolean
@@ -41,7 +47,7 @@ export const dialogConnect: Connect<
 > = ({ state, context, props, send }) => {
   const open = state === 'open'
   const dataState: DialogStateName = open ? 'open' : 'closed'
-  const { ids } = context
+  const ids = dialogIds(context.id)
 
   // An outside press is an intent, not a close command: the consumer may veto
   // it; whether it dismisses is gated in the machine.

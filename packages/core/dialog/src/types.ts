@@ -11,9 +11,9 @@ export type DialogRole = 'dialog' | 'alertdialog'
 export type DialogPart = 'title' | 'description'
 
 /**
- * Ids that cross parts: each renders as `id` on one element and as an ARIA
- * reference (aria-controls / labelledby / describedby) on another, so the
- * substrate mints them once (SSR-safe) and the connect wires both sides.
+ * The cross-part ids, derived from the one `id` on context: each renders as
+ * `id` on one element and as an ARIA reference (aria-controls / labelledby /
+ * describedby) on another, and the connect wires both sides.
  */
 export interface DialogIds {
   content: string
@@ -26,7 +26,9 @@ export interface DialogContext {
   modal: boolean
   closeOnEscape: boolean
   closeOnInteractOutside: boolean
-  ids: DialogIds
+  // The base id (substrate-minted, SSR-safe); the connect derives the per-part
+  // ids from it.
+  id: string
   // Which optional parts are currently present, so Content only references the
   // ones actually rendered.
   parts: Record<DialogPart, boolean>
@@ -56,6 +58,9 @@ export interface DialogCallbacks {
  * substrate's props extend this with its own concerns (e.g. `children`).
  */
 export interface DialogOptions extends DialogCallbacks {
+  /** Base id for the dialog's parts; the substrate supplies a unique, SSR-safe
+   * one. The per-part ids (content/title/description) are derived from it. */
+  id?: string
   /** Controlled open state; every open/close intent is reported through `onOpenChange`. */
   open?: boolean
   /** Initial open state for the uncontrolled dialog. @default false */

@@ -101,7 +101,7 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
     ...bindings,
     // Only the topmost dialog of a stack answers an outside press.
     onClick: (event: MouseEvent<HTMLDivElement>) => {
-      if (isTopmostDialog(machine.context.ids.content)) onClick?.(event)
+      if (isTopmostDialog(machine.context.id)) onClick?.(event)
     },
   })
 
@@ -133,7 +133,7 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
     // of a stack answers it.
     onClick: (event: MouseEvent<HTMLDivElement>) => {
       if (event.target !== event.currentTarget) return
-      if (!isTopmostDialog(machine.context.ids.content)) return
+      if (!isTopmostDialog(machine.context.id)) return
       onClick?.(event)
     },
   })
@@ -173,7 +173,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
 
     const previous = document.activeElement
     const unregister = registerDialog({
-      id: machine.context.ids.content,
+      id: machine.context.id,
       depth,
       element: content,
       modal: machine.context.modal,
@@ -200,7 +200,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   useFocusTrap(contentRef, {
     // Only a modal dialog traps, and only while topmost — a nested dialog
     // owns focus while open.
-    enabled: () => machine.context.modal && isTopmostDialog(machine.context.ids.content),
+    enabled: () => machine.context.modal && isTopmostDialog(machine.context.id),
   })
 
   const merged = mergeProps(props as Record<string, unknown>, {

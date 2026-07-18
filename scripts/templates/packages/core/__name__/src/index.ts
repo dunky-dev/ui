@@ -1,4 +1,4 @@
-export { create__Name__Config, type __Name__Machine } from './machine'
+export { __camelName__Machine, type __Name__Machine } from './machine'
 export {
   __camelName__Connect,
   type __Name__Api,

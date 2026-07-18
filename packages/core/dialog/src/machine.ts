@@ -5,13 +5,7 @@ import {
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
-import type {
-  DialogContext,
-  DialogIds,
-  DialogMachineEvent,
-  DialogOptions,
-  DialogStateName,
-} from './types'
+import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
 export type DialogMachine = Machine<DialogStateName, DialogContext, DialogMachineEvent>
@@ -27,9 +21,8 @@ const setPartPresence: DialogAction = ({ event, context, setContext }) => {
   setContext({ parts: { ...context.parts, [event.part]: event.present } })
 }
 
-export function createDialogConfig(
+export function dialogMachine(
   options: DialogOptions,
-  ids: DialogIds,
 ): TransitionConfig<DialogStateName, DialogContext, DialogMachineEvent> {
   const role = options.role ?? 'dialog'
   // Annotated so createMachine infers Context as DialogContext, not the narrowed literal.
@@ -40,7 +33,8 @@ export function createDialogConfig(
     // An alert dialog interrupts for a response — an outside press must not
     // dismiss it unless explicitly opted in.
     closeOnInteractOutside: options.closeOnInteractOutside ?? role === 'dialog',
-    ids,
+    // The substrate supplies a unique id; `dialog` is only a bare fallback.
+    id: options.id ?? 'dialog',
     parts: { title: false, description: false },
   }
 

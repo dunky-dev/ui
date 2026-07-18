@@ -1,7 +1,7 @@
 // The agnostic core of the Dialog — machine + connect, no DOM, no framework.
 import { describe, expect, it, vi } from 'vitest'
 import { connector, machine, type Connector, type Machine } from '@dunky.dev/state-machine'
-import { createDialogConfig, dialogConnect } from '@dunky.dev/dialog'
+import { dialogMachine, dialogConnect } from '@dunky.dev/dialog'
 import type {
   DialogApi,
   DialogContext,
@@ -12,6 +12,7 @@ import type {
   PointerPayload,
 } from '@dunky.dev/dialog'
 
+// The per-part ids the connect derives from a base id of `dlg`.
 const ids: DialogIds = {
   content: 'dlg-content',
   title: 'dlg-title',
@@ -24,7 +25,7 @@ interface Harness {
 }
 
 const build = (options: DialogOptions = {}): Harness => {
-  const service = machine(createDialogConfig(options, ids))
+  const service = machine(dialogMachine({ id: 'dlg', ...options }))
   const connection = connector(service, dialogConnect, options)
   service.start()
   return { service, connection }

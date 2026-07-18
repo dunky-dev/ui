@@ -54,7 +54,10 @@ React-specific notes on top of the core contract:
 
 ## API
 
-`Dialog` (root) accepts the core `DialogOptions`:
+### `Dialog`
+
+The root: owns open/close state, renders no DOM. Accepts the core
+`DialogOptions`.
 
 | Prop                     | Type                        | Default                                   | Description                                                         |
 | ------------------------ | --------------------------- | ----------------------------------------- | ------------------------------------------------------------------- |
@@ -67,14 +70,71 @@ React-specific notes on top of the core contract:
 | `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether pressing the backdrop/viewport closes the dialog.           |
 | `onEscapeKeyDown`        | `(event) => void`           | —                                         | Fired before an Escape dismissal; `preventDefault()` vetoes.        |
 | `onInteractOutside`      | `(event?) => void`          | —                                         | Fired before an outside-press dismissal; `preventDefault()` vetoes. |
+| `id`                     | `string`                    | auto (`useId`)                            | Base id for the parts; per-part ids are derived from it.            |
+| `children`               | `ReactNode`                 | —                                         | The dialog's parts.                                                 |
 
-Part-specific props:
+### `Dialog.Trigger`
 
-| Part      | Prop           | Type                             | Default           | Description                                 |
-| --------- | -------------- | -------------------------------- | ----------------- | ------------------------------------------- |
-| `Portal`  | `container`    | `HTMLElement \| null`            | `document.body`   | The element to portal into.                 |
-| `Content` | `initialFocus` | `RefObject<HTMLElement \| null>` | the dialog window | The element to focus when the dialog opens. |
+Opens the dialog; focus returns here on close.
 
-Every part also accepts its underlying element's props (`Trigger`/`Close` are
-`<button>`, `Backdrop`/`Viewport` are `<div>`, `Content` is `<dialog>`,
-`Title` is `<h2>`, `Description` is `<p>`).
+| Prop       | Type                       | Default | Description                           |
+| ---------- | -------------------------- | ------- | ------------------------------------- |
+| `...props` | `ComponentProps<'button'>` | —       | Forwarded to the rendered `<button>`. |
+
+### `Dialog.Portal`
+
+Teleports the layers out of the tree while open; unmounts them while closed.
+
+| Prop        | Type                  | Default         | Description                 |
+| ----------- | --------------------- | --------------- | --------------------------- |
+| `container` | `HTMLElement \| null` | `document.body` | The element to portal into. |
+| `children`  | `ReactNode`           | —               | The layers to teleport.     |
+
+### `Dialog.Backdrop`
+
+The layer behind the dialog window; renders nothing when `modal={false}`.
+
+| Prop       | Type                    | Default | Description                        |
+| ---------- | ----------------------- | ------- | ---------------------------------- |
+| `...props` | `ComponentProps<'div'>` | —       | Forwarded to the rendered `<div>`. |
+
+### `Dialog.Viewport`
+
+The positioning + scroll layer around the dialog window.
+
+| Prop       | Type                    | Default | Description                        |
+| ---------- | ----------------------- | ------- | ---------------------------------- |
+| `...props` | `ComponentProps<'div'>` | —       | Forwarded to the rendered `<div>`. |
+
+### `Dialog.Content`
+
+The dialog window; renders the native `<dialog>`.
+
+| Prop           | Type                             | Default           | Description                                 |
+| -------------- | -------------------------------- | ----------------- | ------------------------------------------- |
+| `initialFocus` | `RefObject<HTMLElement \| null>` | the dialog window | The element to focus when the dialog opens. |
+| `...props`     | `ComponentProps<'dialog'>`       | —                 | Forwarded to the rendered `<dialog>`.       |
+
+### `Dialog.Title`
+
+Names the dialog (wires `aria-labelledby` on Content).
+
+| Prop       | Type                   | Default | Description                       |
+| ---------- | ---------------------- | ------- | --------------------------------- |
+| `...props` | `ComponentProps<'h2'>` | —       | Forwarded to the rendered `<h2>`. |
+
+### `Dialog.Description`
+
+Describes the dialog (wires `aria-describedby` on Content).
+
+| Prop       | Type                  | Default | Description                      |
+| ---------- | --------------------- | ------- | -------------------------------- |
+| `...props` | `ComponentProps<'p'>` | —       | Forwarded to the rendered `<p>`. |
+
+### `Dialog.Close`
+
+Dismisses the dialog from inside.
+
+| Prop       | Type                       | Default | Description                           |
+| ---------- | -------------------------- | ------- | ------------------------------------- |
+| `...props` | `ComponentProps<'button'>` | —       | Forwarded to the rendered `<button>`. |

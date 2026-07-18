@@ -21,7 +21,7 @@ import { __Name__ } from '@dunky.dev/react-__name__'
 
 function Example() {
   return (
-    <__Name__ onActivate={() => {}}>
+    <__Name__ disable={() => {}}>
       <__Name__.Root>go</__Name__.Root>
     </__Name__>
   )

@@ -1,50 +1,45 @@
 // The agnostic core of the __name__ — machine + connect, no DOM, no framework.
 import { describe, expect, it, vi } from 'vitest'
 import { connector, machine } from '@dunky.dev/state-machine'
-import { create__Name__Config, __camelName__Connect } from '@dunky.dev/__name__'
+import { __camelName__Machine, __camelName__Connect } from '@dunky.dev/__name__'
 import type { __Name__Options } from '@dunky.dev/__name__'
 
 const build = (options: __Name__Options = {}) => {
-  const service = machine(create__Name__Config(options))
+  const service = machine(__camelName__Machine(options))
   const connection = connector(service, __camelName__Connect, options)
   service.start()
   return { service, connection }
 }
 
 describe('__name__ machine', () => {
-  it('fires onActivate on ACTIVATE', () => {
-    const onActivate = vi.fn()
-    build({ onActivate }).service.send({ type: 'ACTIVATE' })
-    expect(onActivate).toHaveBeenCalledTimes(1)
+  it('fires disable when SET_DISABLED turns it on', () => {
+    const disable = vi.fn()
+    build({ disable }).service.send({ type: 'SET_DISABLED', disabled: true })
+    expect(disable).toHaveBeenCalledTimes(1)
   })
 
-  it('gates ACTIVATE while disabled', () => {
-    const onActivate = vi.fn()
-    build({ onActivate, disabled: true }).service.send({ type: 'ACTIVATE' })
-    expect(onActivate).not.toHaveBeenCalled()
+  it('seeds the disabled flag from options', () => {
+    const { service } = build({ disabled: true })
+    expect(service.context.disabled).toBe(true)
   })
 
-  it('SET_DISABLED flips the gate at runtime', () => {
-    const onActivate = vi.fn()
-    const { service } = build({ onActivate })
-    service.send({ type: 'SET_DISABLED', disabled: true })
-    service.send({ type: 'ACTIVATE' })
-    expect(onActivate).not.toHaveBeenCalled()
-
+  it('does not fire disable on the disabled -> enabled transition', () => {
+    const disable = vi.fn()
+    const { service } = build({ disable, disabled: true })
     service.send({ type: 'SET_DISABLED', disabled: false })
-    service.send({ type: 'ACTIVATE' })
-    expect(onActivate).toHaveBeenCalledTimes(1)
+    expect(disable).not.toHaveBeenCalled()
   })
 })
 
 describe('__name__ connect — logical bindings', () => {
-  it('the root part presses through the machine', () => {
-    const onActivate = vi.fn()
-    const { connection } = build({ onActivate })
+  it('the root part disables through the machine', () => {
+    const disable = vi.fn()
+    const { service, connection } = build({ disable })
     expect(connection.snapshot.parts.root['data-state']).toBe('idle')
 
     connection.snapshot.parts.root.onPress?.()
-    expect(onActivate).toHaveBeenCalledTimes(1)
+    expect(service.context.disabled).toBe(true)
+    expect(disable).toHaveBeenCalledTimes(1)
   })
 
   it('exposes the disabled flag on the api and the part', () => {

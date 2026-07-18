@@ -1,4 +1,4 @@
-export { createDialogConfig, type DialogMachine } from './machine'
+export { dialogMachine, type DialogMachine } from './machine'
 export { dialogConnect, type DialogApi, type DialogPartBindings } from './connect'
 export type {
   DialogCallbacks,

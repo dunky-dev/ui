@@ -26,7 +26,7 @@ const trackEscape: DialogEffect = [
       if (event.key !== 'Escape' || !machine.matches('open')) return
       // Only the topmost dialog answers Escape — a nested stack closes one
       // layer at a time.
-      if (!isTopmostDialog(machine.context.ids.content)) return
+      if (!isTopmostDialog(machine.context.id)) return
       props.onEscapeKeyDown?.(event)
       if (!event.defaultPrevented) machine.send({ type: 'escape' })
     }
