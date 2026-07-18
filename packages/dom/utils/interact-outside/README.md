@@ -7,8 +7,10 @@ presses. `trackInteractOutside` attaches capture-phase `pointerdown` and
 event target falls outside the container's subtree and isn't excused by the
 `ignore` predicate — how the caller excludes nested layers and its
 trigger/anchor. One gesture reports once: the `focusin` a press dispatches by
-moving focus is folded into that press, never a second call. Pure detection:
-dismissal decisions stay with the caller.
+moving focus is folded into that press, never a second call. A touch press
+reports only once its `click` confirms a tap, so a scroll or pan that starts
+outside never dismisses. Pure detection: dismissal decisions stay with the
+caller.
 
 Substrate hooks wrap this — e.g. `@dunky.dev/react-use-interact-outside` — so
 every framework inherits identical detection behavior.

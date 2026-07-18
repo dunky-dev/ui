@@ -1,2 +1,2 @@
-export { LayerDepthContext } from './layer-depth-context'
-export { useLayerDepth } from './use-layer-depth'
+export { LayerPathContext } from './layer-path-context'
+export { useLayerPath } from './use-layer-path'

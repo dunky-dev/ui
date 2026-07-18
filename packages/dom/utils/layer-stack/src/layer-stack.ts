@@ -3,8 +3,13 @@ import { hideOutside } from './hide-outside'
 export interface LayerInit {
   /** The id `isTopmostLayer` / `layerContainsTarget` answer for. */
   id: string
-  /** Logical nesting level — from the substrate's shared depth context. */
-  depth: number
+  /**
+   * The layer's nesting chain — every enclosing layer's id, outermost first,
+   * ending with this layer's own `id`. Comes from the substrate's shared
+   * layer-path context; its length is the nesting depth, its contents the
+   * ancestry `layerContainsTarget` checks.
+   */
+  path: readonly string[]
   /** The layer's DOM subtree (its content panel). */
   element: HTMLElement
   /** Whether the layer hides everything outside itself from assistive tech. */
@@ -18,9 +23,10 @@ interface Layer extends LayerInit {
 // The shared registry of open overlay layers. One module-level instance on
 // purpose: every primitive must agree on which layer is topmost, so one
 // Escape press closes exactly one layer even across primitives. The topmost
-// is the deepest-nested layer, with open order breaking ties between siblings.
+// is the deepest-nested layer — the longest path — with open order breaking
+// ties between siblings.
 //
-// Depth (not DOM order) decides it: React inserts a nested layer's portal
+// Nesting (not DOM order) decides it: React inserts a nested layer's portal
 // into the body *before* its parent's, so document order is the inverse of
 // nesting.
 const layers: Layer[] = []
@@ -28,7 +34,10 @@ let nextOrder = 0
 let undoHide: (() => void) | undefined
 
 function isAbove(layer: Layer, other: Layer): boolean {
-  return layer.depth > other.depth || (layer.depth === other.depth && layer.order > other.order)
+  return (
+    layer.path.length > other.path.length ||
+    (layer.path.length === other.path.length && layer.order > other.order)
+  )
 }
 
 function topmost(): Layer | undefined {
@@ -80,11 +89,12 @@ export function isTopmostLayer(id: string): boolean {
 }
 
 /**
- * Whether `target` falls inside the layer's own subtree or a deeper layer's —
- * outside-press detection uses this so a press in a nested layer never counts
- * as outside the one beneath. Nesting depth decides, not stack position: an
- * independent sibling at the same depth is still outside, so pressing it
- * dismisses this layer.
+ * Whether `target` falls inside the layer's own subtree or a descendant
+ * layer's — outside-press detection uses this so a press in a nested layer
+ * never counts as outside the one beneath. Ancestry decides, not depth or
+ * stack position: a layer counts only when the queried id is on its `path`,
+ * so an independent layer — a sibling, or even a deeper layer of an unrelated
+ * stack — is still outside, and pressing it dismisses this one.
  */
 export function layerContainsTarget(id: string, target: Node): boolean {
   let base: Layer | undefined
@@ -96,7 +106,7 @@ export function layerContainsTarget(id: string, target: Node): boolean {
   }
   if (base === undefined) return false
   for (const layer of layers) {
-    if ((layer === base || layer.depth > base.depth) && layer.element.contains(target)) return true
+    if ((layer === base || layer.path.includes(id)) && layer.element.contains(target)) return true
   }
   return false
 }

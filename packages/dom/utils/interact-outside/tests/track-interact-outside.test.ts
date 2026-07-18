@@ -17,6 +17,18 @@ const pressPointer = (id: string): void => {
   document.getElementById(id)?.dispatchEvent(new Event('pointerdown', { bubbles: true }))
 }
 
+// jsdom has no PointerEvent constructor, so the touch pointerType is grafted
+// onto a plain Event.
+const pressTouch = (id: string): void => {
+  const event = new Event('pointerdown', { bubbles: true })
+  Object.defineProperty(event, 'pointerType', { value: 'touch' })
+  document.getElementById(id)?.dispatchEvent(event)
+}
+
+const click = (id: string): void => {
+  document.getElementById(id)?.dispatchEvent(new Event('click', { bubbles: true }))
+}
+
 afterEach(() => {
   release?.()
   release = undefined
@@ -70,6 +82,32 @@ describe('trackInteractOutside', () => {
     mount({ onInteractOutside, ignore: target => (target as Element).id === 'outside' })
 
     pressPointer('outside')
+    expect(onInteractOutside).not.toHaveBeenCalled()
+  })
+
+  it('reports a touch press only once its click confirms a tap', () => {
+    const onInteractOutside = vi.fn()
+    mount({ onInteractOutside })
+
+    pressTouch('outside')
+    expect(onInteractOutside).not.toHaveBeenCalled()
+
+    click('outside')
+    expect(onInteractOutside).toHaveBeenCalledTimes(1)
+    // The press is what gets reported — the click only confirms it.
+    expect(onInteractOutside.mock.calls[0]?.[0]?.type).toBe('pointerdown')
+  })
+
+  it('never reports a touch gesture the browser turns into a scroll', () => {
+    const onInteractOutside = vi.fn()
+    mount({ onInteractOutside })
+
+    pressTouch('outside')
+    // The browser takes the gesture over for scrolling: `pointercancel`, no
+    // gesture click — and the wait is disarmed, so even a later click (e.g.
+    // keyboard-activated, with no press of its own) reports nothing.
+    document.dispatchEvent(new Event('pointercancel'))
+    click('outside')
     expect(onInteractOutside).not.toHaveBeenCalled()
   })
 

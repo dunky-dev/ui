@@ -54,6 +54,13 @@ scroll locking — lives once as a framework-free util under `dom/utils/`; each
 substrate wraps what needs a lifecycle in a thin hook under its own `hooks/`
 folder. A new substrate reuses all of it and only writes the wrappers.
 
+One recorded exception to hooks-wrap-a-util:
+`@dunky.dev/react-use-layer-stack` wraps no util. Overlay nesting is knowledge
+only the substrate's component tree has, so the React half of
+`@dunky.dev/dom-layer-stack` is a shared context — the layer path that feeds
+`registerLayer` — rather than a lifecycle wrapper. It still imports nothing
+from this repo, so the dependency direction holds.
+
 Each substrate directory is itself a private workspace package
 (`@dunky-dev/<substrate>`) that owns the substrate's infrastructure — the dev
 harness, framework deps, dev/build scripts. The publishable packages live one

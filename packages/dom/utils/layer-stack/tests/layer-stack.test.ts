@@ -41,25 +41,25 @@ afterEach(() => {
 
 describe('topmost ownership', () => {
   it('the deepest layer is topmost, regardless of registration order', () => {
-    register({ id: 'nested', depth: 2, element: mountPanel('nested'), modal: true })
-    register({ id: 'root', depth: 1, element: mountPanel('root'), modal: true })
+    register({ id: 'nested', path: ['root', 'nested'], element: mountPanel('nested'), modal: true })
+    register({ id: 'root', path: ['root'], element: mountPanel('root'), modal: true })
 
     expect(isTopmostLayer('nested')).toBe(true)
     expect(isTopmostLayer('root')).toBe(false)
   })
 
   it('open order breaks ties between layers at the same depth', () => {
-    register({ id: 'first', depth: 1, element: mountPanel('first'), modal: true })
-    register({ id: 'second', depth: 1, element: mountPanel('second'), modal: true })
+    register({ id: 'first', path: ['first'], element: mountPanel('first'), modal: true })
+    register({ id: 'second', path: ['second'], element: mountPanel('second'), modal: true })
 
     expect(isTopmostLayer('second')).toBe(true)
   })
 
   it('unregistering the top layer promotes the one beneath', () => {
-    register({ id: 'root', depth: 1, element: mountPanel('root'), modal: true })
+    register({ id: 'root', path: ['root'], element: mountPanel('root'), modal: true })
     const unregister = register({
       id: 'nested',
-      depth: 2,
+      path: ['root', 'nested'],
       element: mountPanel('nested'),
       modal: true,
     })
@@ -77,7 +77,7 @@ describe('topmost ownership', () => {
 describe('assistive-tech containment', () => {
   it('a modal layer hides everything outside its subtree, with an exact undo', () => {
     const panel = mountPanel('modal')
-    const unregister = register({ id: 'modal', depth: 1, element: panel, modal: true })
+    const unregister = register({ id: 'modal', path: ['modal'], element: panel, modal: true })
 
     expect(hiddenAndInert(page)).toBe(true)
     expect(panel.hasAttribute('aria-hidden')).toBe(false)
@@ -89,7 +89,7 @@ describe('assistive-tech containment', () => {
   })
 
   it('a non-modal layer hides nothing', () => {
-    register({ id: 'popover', depth: 1, element: mountPanel('popover'), modal: false })
+    register({ id: 'popover', path: ['popover'], element: mountPanel('popover'), modal: false })
     expect(page.hasAttribute('aria-hidden')).toBe(false)
   })
 
@@ -101,7 +101,7 @@ describe('assistive-tech containment', () => {
 
     const unregister = register({
       id: 'modal',
-      depth: 1,
+      path: ['modal'],
       element: mountPanel('modal'),
       modal: true,
     })
@@ -116,10 +116,10 @@ describe('assistive-tech containment', () => {
 
   it('a modal layer above another hides the lower layer, and closing restores it', () => {
     const rootPanel = mountPanel('root')
-    register({ id: 'root', depth: 1, element: rootPanel, modal: true })
+    register({ id: 'root', path: ['root'], element: rootPanel, modal: true })
     const unregister = register({
       id: 'nested',
-      depth: 2,
+      path: ['root', 'nested'],
       element: mountPanel('nested'),
       modal: true,
     })
@@ -134,8 +134,8 @@ describe('assistive-tech containment', () => {
   it('keeps a non-modal layer above a modal one reachable while the page stays hidden', () => {
     const dialogPanel = mountPanel('dialog')
     const popoverPanel = mountPanel('popover')
-    register({ id: 'dialog', depth: 1, element: dialogPanel, modal: true })
-    register({ id: 'popover', depth: 2, element: popoverPanel, modal: false })
+    register({ id: 'dialog', path: ['dialog'], element: dialogPanel, modal: true })
+    register({ id: 'popover', path: ['dialog', 'popover'], element: popoverPanel, modal: false })
 
     expect(hiddenAndInert(page)).toBe(true)
     expect(dialogPanel.parentElement?.hasAttribute('aria-hidden')).toBe(false)
@@ -147,8 +147,8 @@ describe('assistive-tech containment', () => {
     const inlinePopover = document.createElement('div')
     const siblingButton = document.createElement('button')
     dialogPanel.append(siblingButton, inlinePopover)
-    register({ id: 'dialog', depth: 1, element: dialogPanel, modal: true })
-    register({ id: 'popover', depth: 2, element: inlinePopover, modal: false })
+    register({ id: 'dialog', path: ['dialog'], element: dialogPanel, modal: true })
+    register({ id: 'popover', path: ['dialog', 'popover'], element: inlinePopover, modal: false })
 
     expect(siblingButton.hasAttribute('aria-hidden')).toBe(false)
   })
@@ -159,17 +159,17 @@ describe('layerContainsTarget', () => {
     const panel = mountPanel('dialog')
     const inside = document.createElement('button')
     panel.append(inside)
-    register({ id: 'dialog', depth: 1, element: panel, modal: true })
+    register({ id: 'dialog', path: ['dialog'], element: panel, modal: true })
 
     expect(layerContainsTarget('dialog', inside)).toBe(true)
     expect(layerContainsTarget('dialog', page)).toBe(false)
   })
 
-  it('reports a target inside a layer stacked above, but not one beneath', () => {
+  it('reports a target inside a descendant layer, but not one inside an ancestor', () => {
     const rootPanel = mountPanel('root')
     const nestedPanel = mountPanel('nested')
-    register({ id: 'root', depth: 1, element: rootPanel, modal: true })
-    register({ id: 'nested', depth: 2, element: nestedPanel, modal: false })
+    register({ id: 'root', path: ['root'], element: rootPanel, modal: true })
+    register({ id: 'nested', path: ['root', 'nested'], element: nestedPanel, modal: false })
 
     expect(layerContainsTarget('root', nestedPanel)).toBe(true)
     expect(layerContainsTarget('nested', rootPanel)).toBe(false)
@@ -178,15 +178,33 @@ describe('layerContainsTarget', () => {
   it('reports an independent sibling at the same depth as outside', () => {
     const firstPanel = mountPanel('first')
     const secondPanel = mountPanel('second')
-    register({ id: 'first', depth: 1, element: firstPanel, modal: false })
-    register({ id: 'second', depth: 1, element: secondPanel, modal: false })
+    register({ id: 'first', path: ['first'], element: firstPanel, modal: false })
+    register({ id: 'second', path: ['second'], element: secondPanel, modal: false })
 
     expect(layerContainsTarget('first', secondPanel)).toBe(false)
   })
 
+  it("reports an unrelated stack's deeper layer as outside", () => {
+    const firstPanel = mountPanel('first')
+    const secondPanel = mountPanel('second')
+    const submenuPanel = mountPanel('submenu')
+    register({ id: 'first', path: ['first'], element: firstPanel, modal: false })
+    register({ id: 'second', path: ['second'], element: secondPanel, modal: false })
+    register({
+      id: 'submenu',
+      path: ['second', 'submenu'],
+      element: submenuPanel,
+      modal: false,
+    })
+
+    // Deeper than `first`, but nested in `second`: only ancestry keeps a
+    // layer inside, so pressing the submenu still dismisses `first`.
+    expect(layerContainsTarget('first', submenuPanel)).toBe(false)
+  })
+
   it('reports nothing for an unregistered id', () => {
     const panel = mountPanel('dialog')
-    register({ id: 'dialog', depth: 1, element: panel, modal: true })
+    register({ id: 'dialog', path: ['dialog'], element: panel, modal: true })
 
     expect(layerContainsTarget('unknown', panel)).toBe(false)
   })

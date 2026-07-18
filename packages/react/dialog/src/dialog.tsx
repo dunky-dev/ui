@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   type ComponentPropsWithoutRef,
   type ForwardRefExoticComponent,
@@ -14,7 +15,7 @@ import {
 import { createPortal } from 'react-dom'
 import { isTopmostLayer, registerLayer } from '@dunky.dev/dom-layer-stack'
 import { useFocusTrap } from '@dunky.dev/react-use-focus-trap'
-import { LayerDepthContext, useLayerDepth } from '@dunky.dev/react-use-layer-stack'
+import { LayerPathContext, useLayerPath } from '@dunky.dev/react-use-layer-stack'
 import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
@@ -36,12 +37,15 @@ export interface DialogProps extends DialogOptions {
 }
 
 export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, ...options }) => {
-  const depth = useLayerDepth() + 1
+  const parentPath = useLayerPath()
   const value = useDialog(options)
+  const id = value.machine.context.id
+  // Memoized: a fresh array every render would re-render every path consumer.
+  const path = useMemo(() => [...parentPath, id], [parentPath, id])
   return (
-    <LayerDepthContext.Provider value={depth}>
+    <LayerPathContext.Provider value={path}>
       <DialogContext.Provider value={value}>{children}</DialogContext.Provider>
-    </LayerDepthContext.Provider>
+    </LayerPathContext.Provider>
   )
 }
 
@@ -157,7 +161,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   DialogContentProps
 >(({ initialFocus, ...props }, forwardedRef) => {
   const { api, machine } = useDialogContext()
-  const depth = useLayerDepth()
+  const path = useLayerPath()
   const portalContainer = useContext(DialogPortalContext)
   const contentRef = useRef<HTMLDialogElement>(null)
   useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDialogElement)
@@ -175,7 +179,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
     const previous = document.activeElement
     const unregister = registerLayer({
       id: machine.context.id,
-      depth,
+      path,
       element: content,
       modal: machine.context.modal,
     })
@@ -192,7 +196,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
       unregister()
       if (previous instanceof HTMLElement) previous.focus({ preventScroll: true })
     }
-  }, [machine, depth])
+  }, [machine, path])
 
   // Content only mounts while open, so the lock spans exactly the open state.
   // A scoped dialog locks its portal container; a page dialog locks the body.

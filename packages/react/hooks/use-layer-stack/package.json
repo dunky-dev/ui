@@ -1,7 +1,7 @@
 {
   "name": "@dunky.dev/react-use-layer-stack",
   "version": "0.0.0",
-  "description": "React half of @dunky.dev/dom-layer-stack: the shared overlay nesting-depth hook and context.",
+  "description": "React half of @dunky.dev/dom-layer-stack: the shared overlay layer-path hook and context.",
   "license": "MIT",
   "repository": {
     "type": "git",

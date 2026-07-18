@@ -1,13 +1,15 @@
 # @dunky.dev/react-use-layer-stack
 
 The React half of [`@dunky.dev/dom-layer-stack`](../../../dom/utils/layer-stack):
-`useLayerDepth()` reads the shared nesting-depth scale for overlay layers
-(0 = outside any layer), and `LayerDepthContext` provides it. Every overlay
-root reads the depth, adds 1, and provides it; the part that mounts while open
-passes the value to `registerLayer`.
+`useLayerPath()` reads the shared nesting chain for overlay layers — the
+enclosing layers' ids, outermost first, empty outside any layer — and
+`LayerPathContext` provides it. Every overlay root reads the path, appends its
+own layer id, and provides it; the part that mounts while open passes the
+value to `registerLayer`, which takes nesting depth from the path's length and
+ancestry from its contents.
 
-React context crosses portals, so the depth reflects logical nesting where
-portaled DOM order inverts it — and one scale shared by every primitive keeps
+React context crosses portals, so the path reflects logical nesting where
+portaled DOM order inverts it — and one chain shared by every primitive keeps
 cross-primitive stacks (a popover inside a dialog) correctly ordered even when
 nested layers mount in the same commit.
 
@@ -20,18 +22,19 @@ npm install @dunky.dev/react-use-layer-stack
 ## Usage
 
 ```tsx
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { registerLayer } from '@dunky.dev/dom-layer-stack'
-import { LayerDepthContext, useLayerDepth } from '@dunky.dev/react-use-layer-stack'
+import { LayerPathContext, useLayerPath } from '@dunky.dev/react-use-layer-stack'
 
-function OverlayRoot({ children }) {
-  const depth = useLayerDepth() + 1
-  return <LayerDepthContext.Provider value={depth}>{children}</LayerDepthContext.Provider>
+function OverlayRoot({ id, children }) {
+  const parentPath = useLayerPath()
+  const path = useMemo(() => [...parentPath, id], [parentPath, id])
+  return <LayerPathContext.Provider value={path}>{children}</LayerPathContext.Provider>
 }
 
 function OverlayContent() {
-  const depth = useLayerDepth()
-  useEffect(() => registerLayer({ id, depth, element, modal }), [depth])
+  const path = useLayerPath()
+  useEffect(() => registerLayer({ id, path, element, modal }), [path])
   // ...
 }
 ```
