@@ -59,20 +59,20 @@ React-specific notes on top of the core contract:
 The root: owns open/close state, renders no DOM. Accepts the core
 `DialogOptions`.
 
-| Prop                     | Type                        | Default                                   | Description                                                         |
-| ------------------------ | --------------------------- | ----------------------------------------- | ------------------------------------------------------------------- |
-| `open`                   | `boolean`                   | —                                         | Controlled open state.                                              |
-| `defaultOpen`            | `boolean`                   | `false`                                   | Initial open state for the uncontrolled dialog.                     |
-| `onOpenChange`           | `(open: boolean) => void`   | —                                         | Fired on every open/close transition with the new value.            |
-| `modal`                  | `boolean`                   | `true`                                    | `aria-modal`, focus trap, scroll lock, backdrop.                    |
-| `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'`                                | The ARIA pattern.                                                   |
-| `closeOnEscape`          | `boolean`                   | `true`                                    | Whether Escape closes the dialog.                                   |
-| `escapeScope`            | `'layer' \| 'stack'`        | `'layer'`                                 | How far an allowed Escape reaches: this dialog, or its whole stack. |
-| `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether pressing the backdrop/viewport closes the dialog.           |
-| `onEscapeKeyDown`        | `(event) => void`           | —                                         | Fired before an Escape dismissal; `preventDefault()` vetoes.        |
-| `onInteractOutside`      | `(event?) => void`          | —                                         | Fired before an outside-press dismissal; `preventDefault()` vetoes. |
-| `id`                     | `string`                    | auto (`useId`)                            | Base id for the parts; per-part ids are derived from it.            |
-| `children`               | `ReactNode`                 | —                                         | The dialog's parts.                                                 |
+| Prop                     | Type                        | Default                                   | Description                                                                                                           |
+| ------------------------ | --------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `open`                   | `boolean`                   | —                                         | Controlled open state — the dialog follows it alone. Back to `undefined` hands the state over, uncontrolled in place. |
+| `defaultOpen`            | `boolean`                   | `false`                                   | Initial open state for the uncontrolled dialog.                                                                       |
+| `onOpenChange`           | `(open: boolean) => void`   | —                                         | Fired on every open/close transition with the new value.                                                              |
+| `modal`                  | `boolean`                   | `true`                                    | `aria-modal`, focus trap, scroll lock, backdrop.                                                                      |
+| `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'`                                | The ARIA pattern.                                                                                                     |
+| `closeOnEscape`          | `boolean`                   | `true`                                    | Whether Escape closes the dialog.                                                                                     |
+| `escapeScope`            | `'layer' \| 'stack'`        | `'layer'`                                 | How far an allowed Escape reaches: this dialog, or its whole stack.                                                   |
+| `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether pressing the backdrop/viewport closes the dialog.                                                             |
+| `onEscapeKeyDown`        | `(event) => void`           | —                                         | Fired before an Escape dismissal; `preventDefault()` vetoes.                                                          |
+| `onInteractOutside`      | `(event?) => void`          | —                                         | Fired before an outside-press dismissal; `preventDefault()` vetoes.                                                   |
+| `id`                     | `string`                    | auto (`useId`)                            | Base id for the parts; per-part ids are derived from it.                                                              |
+| `children`               | `ReactNode`                 | —                                         | The dialog's parts.                                                                                                   |
 
 ### `Dialog.Trigger`
 

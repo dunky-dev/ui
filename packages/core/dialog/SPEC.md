@@ -76,10 +76,10 @@ it, and the stack unwinds one layer at a time. The full contract is
 
 ## States
 
-| State    | Behavior                                                                                                                                        |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `closed` | Nothing is shown beyond the trigger. Open intents (trigger press, imperative open) move to `open`.                                              |
-| `open`   | Backdrop and content are shown. Close intents close unconditionally; Escape and outside-press close only if their respective settings allow it. |
+| State    | Behavior                                                                                                                                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `closed` | Nothing is shown beyond the trigger. Open intents (trigger press, imperative open) move to `open`.                                                                                                                       |
+| `open`   | Backdrop and content are shown. Close intents are never gated; Escape and outside-press pass only if their settings allow it. Whether an allowed intent actually moves the dialog follows the controlled contract above. |
 
 ### Title/Description presence
 
