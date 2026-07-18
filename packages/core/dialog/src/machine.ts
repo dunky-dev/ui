@@ -17,7 +17,7 @@ type DialogGuard = Guard<DialogContext, DialogMachineEvent>
 const canEscape: DialogGuard = ({ context }) => context.closeOnEscape
 const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractOutside
 
-// Every open/close intent goes through the `open` mailbox (the connect's
+// Every open/close intent is reported through `open.intent` (the connect's
 // reaction turns it into onOpenChange); whether it also transitions is
 // intent's controlled/uncontrolled fork.
 const request = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()

@@ -91,7 +91,7 @@ describe('intent', () => {
 })
 
 describe('controlled.sync', () => {
-  it('moves the machine to the echoed value without writing the mailbox', () => {
+  it('moves the machine to the echoed value without reporting an intent', () => {
     const service = build({ on: true })
     service.send({ type: 'controlled.sync', value: false })
     expect(service.state).toBe('off')

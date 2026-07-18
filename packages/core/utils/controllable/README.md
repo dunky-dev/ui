@@ -5,7 +5,7 @@ piece every dismissible primitive (dialog, popover, tooltip) needs so a
 consumer can own a value from outside.
 
 The contract it encodes: a controlled machine never moves on its own. Every
-intent is reported through an `intent` mailbox in context — a reaction turns
+intent is reported through the `intent` slot in context — a reaction turns
 it into the consumer callback — and only the substrate's `controlled.sync`
 echo of the prop transitions the machine. Ignoring a reported intent is how
 the consumer vetoes it. Uncontrolled, the same intent also takes the
@@ -43,7 +43,7 @@ states: {
   },
 }
 
-// connect: the consumer callback reads the mailbox, not the state
+// connect: the consumer callback reads `intent`, not the state
 reaction(
   m => m.context.open.intent,
   (intent, props) => {

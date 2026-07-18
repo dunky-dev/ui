@@ -28,7 +28,7 @@ export interface DialogContext {
   closeOnEscape: boolean
   closeOnInteractOutside: boolean
   // The consumer-ownable open value: the controlled flag plus the intent
-  // mailbox onOpenChange reads from. A controlled machine never moves on its
+  // slot onOpenChange reads from. A controlled machine never moves on its
   // own — only `controlled.sync` (the prop echo) transitions it.
   open: Controlled<boolean>
   // The base id (substrate-minted, SSR-safe); the connect derives the per-part

@@ -5,7 +5,7 @@
 New package: controlled/uncontrolled machinery for `@dunky.dev/state-machine`
 machines. It encodes one contract every consumer-ownable value shares: a
 controlled machine never moves on its own — intents are reported through a
-mailbox the consumer may veto by ignoring, and only the substrate's
+slot the consumer may veto by ignoring, and only the substrate's
 `controlled.sync` echo of the prop transitions it. Uncontrolled, the same
 intent also takes the transition, so both modes share one transition table
 and one set of guards.
@@ -24,7 +24,7 @@ close: request('open', { target: 'closed', value: false }),
 escape: intent('open', { guard: canEscape, target: 'closed', value: false }),
 'controlled.sync': { target: 'closed', guard: syncControlled(false) },
 
-// connect — the consumer callback reads the mailbox, not the state
+// connect — the consumer callback reads `intent`, not the state
 reaction(m => m.context.open.intent, (intent, props) => {
   if (intent !== null) props.onOpenChange?.(intent.value)
 })

@@ -104,9 +104,9 @@ const reaction = makeReaction<DialogStateName, DialogContext, DialogMachineEvent
 
 // One reaction per consumer callback. Reactions fire in registration order within
 // a single setContext — that order is the callback-order contract. See SPEC.md.
-// onOpenChange reads the intent mailbox, not the state: a controlled machine
+// onOpenChange reads `open.intent`, not the state: a controlled machine
 // reports intents without moving, and the prop-driven `controlled.sync`
-// transition never writes the mailbox — the consumer's own change isn't echoed.
+// transition never writes an intent — the consumer's own change isn't echoed.
 dialogConnect.reactions = [
   reaction(
     m => m.context.open.intent,
