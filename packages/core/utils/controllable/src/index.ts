@@ -1,5 +1,5 @@
 export {
-  controlled,
+  controllable,
   intent,
   syncControlled,
   type Controllable,

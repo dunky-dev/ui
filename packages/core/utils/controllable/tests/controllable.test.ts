@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { machine, setup, type Guard } from '@dunky.dev/state-machine'
 import {
-  controlled,
+  controllable,
   intent,
   syncControlled,
   type Controllable,
@@ -24,7 +24,7 @@ const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
   const service = machine(
     setup.as<ToggleContext, ToggleEvent>().createMachine({
       initial: options.on === true ? 'on' : 'off',
-      context: { on: controlled(options.on), allowStop: options.allowStop ?? true },
+      context: { on: controllable(options.on), allowStop: options.allowStop ?? true },
       states: {
         off: {
           on: {
@@ -46,11 +46,11 @@ const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
   return service
 }
 
-describe('controlled', () => {
+describe('controllable', () => {
   it('derives the controlled flag from whether a value was supplied', () => {
-    expect(controlled(undefined).controlled).toBe(false)
-    expect(controlled(false).controlled).toBe(true)
-    expect(controlled(undefined).intent).toBeNull()
+    expect(controllable(undefined).controlled).toBe(false)
+    expect(controllable(false).controlled).toBe(true)
+    expect(controllable(undefined).intent).toBeNull()
   })
 })
 

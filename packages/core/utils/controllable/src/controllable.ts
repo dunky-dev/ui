@@ -10,8 +10,8 @@ export interface Controllable<Value> {
   intent: { value: Value } | null
 }
 
-/** Seed a controlled slice from the consumer's option (undefined = uncontrolled). */
-export function controlled<Value>(value: Value | undefined): Controllable<Value> {
+/** Seed a controllable slice from the consumer's option (undefined = uncontrolled). */
+export function controllable<Value>(value: Value | undefined): Controllable<Value> {
   return { controlled: value !== undefined, intent: null }
 }
 

@@ -5,7 +5,7 @@ import {
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
-import { controlled, intent, syncControlled } from '@dunky.dev/controllable'
+import { controllable, intent, syncControlled } from '@dunky.dev/controllable'
 import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
@@ -39,7 +39,7 @@ export function dialogMachine(
     // An alert dialog interrupts for a response — an outside press must not
     // dismiss it unless explicitly opted in.
     closeOnInteractOutside: options.closeOnInteractOutside ?? role === 'dialog',
-    open: controlled(options.open),
+    open: controllable(options.open),
     // The substrate supplies a unique id; `dialog` is only a bare fallback.
     id: options.id ?? 'dialog',
     parts: { title: false, description: false },

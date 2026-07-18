@@ -20,11 +20,11 @@ npm install @dunky.dev/controllable
 ## Usage
 
 ```ts
-import { controlled, intent, syncControlled, type ControlledSync } from '@dunky.dev/controllable'
+import { controllable, intent, syncControlled, type ControlledSync } from '@dunky.dev/controllable'
 
 // context: seed the slice from the consumer's option
 const context = {
-  open: controlled(options.open), // { controlled, intent }
+  open: controllable(options.open), // { controlled, intent }
   closeOnEscape: options.closeOnEscape ?? true,
 }
 

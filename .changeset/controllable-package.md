@@ -11,10 +11,10 @@ intent also takes the transition, so both modes share one transition table
 and one set of guards.
 
 ```ts
-import { controlled, intent, syncControlled } from '@dunky.dev/controllable'
+import { controllable, intent, syncControlled } from '@dunky.dev/controllable'
 
 // context
-open: controlled(options.open) // { controlled, intent }
+open: controllable(options.open) // { controlled, intent }
 
 // transitions — bare `intent` infers from a typed guard; unguarded events
 // have nothing to infer from, so pin the generics once (the `setup.as` idiom)
