@@ -11,18 +11,18 @@ intent also takes the transition, so both modes share one transition table
 and one set of guards.
 
 ```ts
-import { controllable, gated, syncTo } from '@dunky.dev/controllable'
+import { controlled, intent, syncControlled } from '@dunky.dev/controllable'
 
 // context
-open: controllable(options.open) // { controlled, intent }
+open: controlled(options.open) // { controlled, intent }
 
-// transitions — bare `gated` infers from a typed guard; unguarded events
+// transitions — bare `intent` infers from a typed guard; unguarded events
 // have nothing to infer from, so pin the generics once (the `setup.as` idiom)
-const gate = gated.as<StateName, Context, MachineEvent>()
+const request = intent.as<StateName, Context, MachineEvent>()
 
-close: gate('open', { target: 'closed', value: false }),
-escape: gated('open', { guard: canEscape, target: 'closed', value: false }),
-'controlled.sync': { target: 'closed', guard: syncTo(false) },
+close: request('open', { target: 'closed', value: false }),
+escape: intent('open', { guard: canEscape, target: 'closed', value: false }),
+'controlled.sync': { target: 'closed', guard: syncControlled(false) },
 
 // connect — the consumer callback reads the mailbox, not the state
 reaction(m => m.context.open.intent, (intent, props) => {

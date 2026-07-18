@@ -1,8 +1,8 @@
 export {
-  controllable,
-  gated,
-  syncTo,
-  type Controllable,
+  controlled,
+  intent,
+  syncControlled,
+  type Controlled,
   type ControlledSync,
-  type Gated,
+  type Intent,
 } from './controllable'

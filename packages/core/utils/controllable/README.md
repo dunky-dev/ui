@@ -20,25 +20,25 @@ npm install @dunky.dev/controllable
 ## Usage
 
 ```ts
-import { controllable, gated, syncTo, type ControlledSync } from '@dunky.dev/controllable'
+import { controlled, intent, syncControlled, type ControlledSync } from '@dunky.dev/controllable'
 
 // context: seed the slice from the consumer's option
 const context = {
-  open: controllable(options.open), // { controlled, intent }
+  open: controlled(options.open), // { controlled, intent }
   closeOnEscape: options.closeOnEscape ?? true,
 }
 
 // transitions: fork each intent event into controlled/uncontrolled candidates.
-// Bare `gated` infers from a typed guard; unguarded events have nothing to
-// infer from — pin the generics once with `gated.as` (the `setup.as` idiom).
-const gate = gated.as<StateName, Context, MachineEvent>()
+// Bare `intent` infers from a typed guard; unguarded events have nothing to
+// infer from — pin the generics once with `intent.as` (the `setup.as` idiom).
+const request = intent.as<StateName, Context, MachineEvent>()
 
 states: {
   open: {
     on: {
-      close: gate('open', { target: 'closed', value: false }),
-      escape: gated('open', { guard: canEscape, target: 'closed', value: false }),
-      'controlled.sync': { target: 'closed', guard: syncTo(false) },
+      close: request('open', { target: 'closed', value: false }),
+      escape: intent('open', { guard: canEscape, target: 'closed', value: false }),
+      'controlled.sync': { target: 'closed', guard: syncControlled(false) },
     },
   },
 }

@@ -1,42 +1,42 @@
 import { describe, expect, it } from 'vitest'
 import { machine, setup, type Guard } from '@dunky.dev/state-machine'
 import {
-  controllable,
-  gated,
-  syncTo,
-  type Controllable,
+  controlled,
+  intent,
+  syncControlled,
+  type Controlled,
   type ControlledSync,
 } from '@dunky.dev/controllable'
 
 // A minimal on/off machine — just enough surface to exercise the contract.
 type ToggleState = 'off' | 'on'
 interface ToggleContext {
-  on: Controllable<boolean>
+  on: Controlled<boolean>
   allowStop: boolean
 }
 type ToggleEvent = { type: 'start' } | { type: 'stop' } | ControlledSync<boolean>
 
 const canStop: Guard<ToggleContext, ToggleEvent> = ({ context }) => context.allowStop
 // Unguarded events carry no Context/Event to infer from — the pinned form.
-const gate = gated.as<ToggleState, ToggleContext, ToggleEvent>()
+const request = intent.as<ToggleState, ToggleContext, ToggleEvent>()
 
 const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
   const service = machine(
     setup.as<ToggleContext, ToggleEvent>().createMachine({
       initial: options.on === true ? 'on' : 'off',
-      context: { on: controllable(options.on), allowStop: options.allowStop ?? true },
+      context: { on: controlled(options.on), allowStop: options.allowStop ?? true },
       states: {
         off: {
           on: {
-            start: gate('on', { target: 'on', value: true }),
-            'controlled.sync': { target: 'on', guard: syncTo(true) },
+            start: request('on', { target: 'on', value: true }),
+            'controlled.sync': { target: 'on', guard: syncControlled(true) },
           },
         },
         on: {
           on: {
             // Bare call: the typed guard carries Context/Event, so it infers.
-            stop: gated('on', { guard: canStop, target: 'off', value: false }),
-            'controlled.sync': { target: 'off', guard: syncTo(false) },
+            stop: intent('on', { guard: canStop, target: 'off', value: false }),
+            'controlled.sync': { target: 'off', guard: syncControlled(false) },
           },
         },
       },
@@ -46,15 +46,15 @@ const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
   return service
 }
 
-describe('controllable', () => {
+describe('controlled', () => {
   it('derives the controlled flag from whether a value was supplied', () => {
-    expect(controllable(undefined).controlled).toBe(false)
-    expect(controllable(false).controlled).toBe(true)
-    expect(controllable(undefined).intent).toBeNull()
+    expect(controlled(undefined).controlled).toBe(false)
+    expect(controlled(false).controlled).toBe(true)
+    expect(controlled(undefined).intent).toBeNull()
   })
 })
 
-describe('gated', () => {
+describe('intent', () => {
   it('uncontrolled: transitions and writes the intent', () => {
     const service = build()
     service.send({ type: 'start' })

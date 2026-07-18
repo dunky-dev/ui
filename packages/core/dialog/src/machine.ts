@@ -5,7 +5,7 @@ import {
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
-import { controllable, gated, syncTo } from '@dunky.dev/controllable'
+import { controlled, intent, syncControlled } from '@dunky.dev/controllable'
 import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
@@ -19,8 +19,8 @@ const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractO
 
 // Every open/close intent goes through the `open` mailbox (the connect's
 // reaction turns it into onOpenChange); whether it also transitions is
-// gated's controlled/uncontrolled fork.
-const gate = gated.as<DialogStateName, DialogContext, DialogMachineEvent>()
+// intent's controlled/uncontrolled fork.
+const request = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()
 
 const setPartPresence: DialogAction = ({ event, context, setContext }) => {
   if (event.type !== 'part.presence') return
@@ -39,7 +39,7 @@ export function dialogMachine(
     // An alert dialog interrupts for a response — an outside press must not
     // dismiss it unless explicitly opted in.
     closeOnInteractOutside: options.closeOnInteractOutside ?? role === 'dialog',
-    open: controllable(options.open),
+    open: controlled(options.open),
     // The substrate supplies a unique id; `dialog` is only a bare fallback.
     id: options.id ?? 'dialog',
     parts: { title: false, description: false },
@@ -55,22 +55,22 @@ export function dialogMachine(
     states: {
       closed: {
         on: {
-          open: gate('open', { target: 'open', value: true }),
-          toggle: gate('open', { target: 'open', value: true }),
-          'controlled.sync': { target: 'open', guard: syncTo(true) },
+          open: request('open', { target: 'open', value: true }),
+          toggle: request('open', { target: 'open', value: true }),
+          'controlled.sync': { target: 'open', guard: syncControlled(true) },
         },
       },
       open: {
         on: {
-          close: gate('open', { target: 'closed', value: false }),
-          toggle: gate('open', { target: 'closed', value: false }),
-          escape: gate('open', { guard: canEscape, target: 'closed', value: false }),
-          'interact.outside': gate('open', {
+          close: request('open', { target: 'closed', value: false }),
+          toggle: request('open', { target: 'closed', value: false }),
+          escape: request('open', { guard: canEscape, target: 'closed', value: false }),
+          'interact.outside': request('open', {
             guard: canDismissOutside,
             target: 'closed',
             value: false,
           }),
-          'controlled.sync': { target: 'closed', guard: syncTo(false) },
+          'controlled.sync': { target: 'closed', guard: syncControlled(false) },
         },
       },
     },

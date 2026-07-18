@@ -7,13 +7,13 @@ import { and, type Action, type Guard, type Transition } from '@dunky.dev/state-
  * equivalent) intent, so a reaction on it fires even when the intended value
  * repeats.
  */
-export interface Controllable<Value> {
+export interface Controlled<Value> {
   controlled: boolean
   intent: { value: Value } | null
 }
 
-/** Seed a controllable slice from the consumer's option (undefined = uncontrolled). */
-export function controllable<Value>(value: Value | undefined): Controllable<Value> {
+/** Seed a controlled slice from the consumer's option (undefined = uncontrolled). */
+export function controlled<Value>(value: Value | undefined): Controlled<Value> {
   return { controlled: value !== undefined, intent: null }
 }
 
@@ -27,12 +27,12 @@ export interface ControlledSync<Value> {
   value: Value
 }
 
-/** The context keys holding a Controllable slice — what `gated` may target. */
-type ControllableKey<Context> = {
-  [Key in keyof Context]: Context[Key] extends Controllable<infer _V> ? Key : never
+/** The context keys holding a Controlled slice — what `intent` may target. */
+type ControlledKey<Context> = {
+  [Key in keyof Context]: Context[Key] extends Controlled<infer _V> ? Key : never
 }[keyof Context]
 
-interface GatedOptions<State extends string, Context extends object, Event, Value> {
+interface IntentOptions<State extends string, Context extends object, Event, Value> {
   /** The behavior gate (e.g. closeOnEscape) applied in both modes. */
   guard?: Guard<Context, Event>
   /** Where the uncontrolled machine goes when the intent lands. */
@@ -41,12 +41,12 @@ interface GatedOptions<State extends string, Context extends object, Event, Valu
   value: Value
 }
 
-type GatedFn<State extends string, Context extends object, Event extends { type: string }> = <
-  Key extends ControllableKey<Context> & string,
+type IntentFn<State extends string, Context extends object, Event extends { type: string }> = <
+  Key extends ControlledKey<Context> & string,
   Value,
 >(
   key: Key,
-  options: GatedOptions<State, Context, Event, Value>,
+  options: IntentOptions<State, Context, Event, Value>,
 ) => Array<Transition<State, Context, Event>>
 
 /**
@@ -57,48 +57,48 @@ type GatedFn<State extends string, Context extends object, Event extends { type:
  *
  * Call it bare when the options carry the machine's types (a typed guard):
  *
- *   escape: gated('open', { guard: canEscape, target: 'closed', value: false })
+ *   escape: intent('open', { guard: canEscape, target: 'closed', value: false })
  *
  * An unguarded call has nothing to infer Context/Event from — pin them once
  * with the `setup.as` idiom and reuse:
  *
- *   const gate = gated.as<DialogStateName, DialogContext, DialogMachineEvent>()
- *   close: gate('open', { target: 'closed', value: false })
+ *   const request = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()
+ *   close: request('open', { target: 'closed', value: false })
  */
-export interface Gated {
+export interface Intent {
   <
     // `const` pins the target to its literal — plain inference widens it to
     // `string`, which no state union accepts.
     const State extends string,
     Context extends object,
     Event extends { type: string },
-    Key extends ControllableKey<Context> & string,
+    Key extends ControlledKey<Context> & string,
     Value,
   >(
     key: Key,
-    options: GatedOptions<State, Context, Event, Value>,
+    options: IntentOptions<State, Context, Event, Value>,
   ): Array<Transition<State, Context, Event>>
-  as<State extends string, Context extends object, Event extends { type: string }>(): GatedFn<
+  as<State extends string, Context extends object, Event extends { type: string }>(): IntentFn<
     State,
     Context,
     Event
   >
 }
 
-function gatedFn<
+function intentFn<
   State extends string,
   Context extends object,
   Event extends { type: string },
-  Key extends ControllableKey<Context> & string,
+  Key extends ControlledKey<Context> & string,
   Value,
 >(
   key: Key,
-  { guard, target, value }: GatedOptions<State, Context, Event, Value>,
+  { guard, target, value }: IntentOptions<State, Context, Event, Value>,
 ): Array<Transition<State, Context, Event>> {
   // The one assertion the string-key API costs: TS can't connect
-  // `Key extends ControllableKey<Context>` back to the shape of
+  // `Key extends ControlledKey<Context>` back to the shape of
   // `Context[Key]`, so the slice read is narrowed here, once.
-  const sliceOf = (context: Context): Controllable<Value> => context[key] as Controllable<Value>
+  const sliceOf = (context: Context): Controlled<Value> => context[key] as Controlled<Value>
 
   const isControlled: Guard<Context, Event> = ({ context }) => sliceOf(context).controlled
   const request: Action<Context, Event> = ({ context, setContext }) => {
@@ -115,17 +115,17 @@ function gatedFn<
   ]
 }
 
-export const gated: Gated = Object.assign(gatedFn, {
+export const intent: Intent = Object.assign(intentFn, {
   // Purely type-level, like setup.as — the same implementation, generics pinned.
-  as: <State extends string, Context extends object, Event extends { type: string }>(): GatedFn<
+  as: <State extends string, Context extends object, Event extends { type: string }>(): IntentFn<
     State,
     Context,
     Event
-  > => gatedFn,
+  > => intentFn,
 })
 
 /** Guard for the `controlled.sync` transitions: does the echoed value match? */
-export function syncTo<Context extends object, Event extends { type: string }, Value>(
+export function syncControlled<Context extends object, Event extends { type: string }, Value>(
   value: Value,
 ): Guard<Context, Event> {
   return ({ event }) =>
