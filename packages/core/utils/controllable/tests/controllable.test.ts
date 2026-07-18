@@ -4,14 +4,14 @@ import {
   controlled,
   intent,
   syncControlled,
-  type Controlled,
+  type Controllable,
   type ControlledSync,
 } from '@dunky.dev/controllable'
 
 // A minimal on/off machine — just enough surface to exercise the contract.
 type ToggleState = 'off' | 'on'
 interface ToggleContext {
-  on: Controlled<boolean>
+  on: Controllable<boolean>
   allowStop: boolean
 }
 type ToggleEvent = { type: 'start' } | { type: 'stop' } | ControlledSync<boolean>

@@ -1,7 +1,7 @@
 // Public + machine-facing types for the framework-agnostic dialog primitive.
 // The state machine is substrate-free: all event reading lives in a
 // per-substrate driver.
-import type { Controlled, ControlledSync } from '@dunky.dev/controllable'
+import type { Controllable, ControlledSync } from '@dunky.dev/controllable'
 import type { KeyboardPayload, PointerPayload } from '@dunky.dev/state-machine-bindings'
 
 export type DialogStateName = 'closed' | 'open'
@@ -30,7 +30,7 @@ export interface DialogContext {
   // The consumer-ownable open value: the controlled flag plus the intent
   // slot onOpenChange reads from. A controlled machine never moves on its
   // own — only `controlled.sync` (the prop echo) transitions it.
-  open: Controlled<boolean>
+  open: Controllable<boolean>
   // The base id (substrate-minted, SSR-safe); the connect derives the per-part
   // ids from it.
   id: string

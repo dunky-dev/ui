@@ -2,7 +2,7 @@ export {
   controlled,
   intent,
   syncControlled,
-  type Controlled,
+  type Controllable,
   type ControlledSync,
   type Intent,
 } from './controllable'

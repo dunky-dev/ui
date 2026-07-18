@@ -5,13 +5,13 @@ import { and, type Action, type Guard, type Transition } from '@dunky.dev/state-
  * consumer supplied the value and owns it. `intent` is the last reported
  * intent, written as a fresh token so a reaction on it fires even on repeats.
  */
-export interface Controlled<Value> {
+export interface Controllable<Value> {
   controlled: boolean
   intent: { value: Value } | null
 }
 
 /** Seed a controlled slice from the consumer's option (undefined = uncontrolled). */
-export function controlled<Value>(value: Value | undefined): Controlled<Value> {
+export function controlled<Value>(value: Value | undefined): Controllable<Value> {
   return { controlled: value !== undefined, intent: null }
 }
 
@@ -21,9 +21,9 @@ export interface ControlledSync<Value> {
   value: Value
 }
 
-/** The context keys holding a Controlled slice — what `intent` may target. */
-type ControlledKey<Context> = {
-  [Key in keyof Context]: Context[Key] extends Controlled<infer _V> ? Key : never
+/** The context keys holding a Controllable slice — what `intent` may target. */
+type ControllableKey<Context> = {
+  [Key in keyof Context]: Context[Key] extends Controllable<infer _V> ? Key : never
 }[keyof Context]
 
 interface IntentOptions<State extends string, Context extends object, Event, Value> {
@@ -36,7 +36,7 @@ interface IntentOptions<State extends string, Context extends object, Event, Val
 }
 
 type IntentFn<State extends string, Context extends object, Event extends { type: string }> = <
-  Key extends ControlledKey<Context> & string,
+  Key extends ControllableKey<Context> & string,
   Value,
 >(
   key: Key,
@@ -62,7 +62,7 @@ export interface Intent {
     const State extends string,
     Context extends object,
     Event extends { type: string },
-    Key extends ControlledKey<Context> & string,
+    Key extends ControllableKey<Context> & string,
     Value,
   >(
     key: Key,
@@ -79,14 +79,14 @@ function intentFn<
   State extends string,
   Context extends object,
   Event extends { type: string },
-  Key extends ControlledKey<Context> & string,
+  Key extends ControllableKey<Context> & string,
   Value,
 >(
   key: Key,
   { guard, target, value }: IntentOptions<State, Context, Event, Value>,
 ): Array<Transition<State, Context, Event>> {
   // TS can't relate Context[Key] back to Key's constraint — narrowed here, once.
-  const sliceOf = (context: Context): Controlled<Value> => context[key] as Controlled<Value>
+  const sliceOf = (context: Context): Controllable<Value> => context[key] as Controllable<Value>
 
   const isControlled: Guard<Context, Event> = ({ context }) => sliceOf(context).controlled
   const request: Action<Context, Event> = ({ context, setContext }) => {
