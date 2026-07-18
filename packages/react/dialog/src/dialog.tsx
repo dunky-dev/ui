@@ -238,9 +238,9 @@ export const Title: PartComponent<DialogTitleProps, HTMLHeadingElement> = forwar
 // <Dialog.Description> — the dialog's accessible description
 // =============================================================================
 
-export interface DialogDescriptionProps extends ComponentPropsWithoutRef<'p'> {}
+export interface DialogDescriptionProps extends ComponentPropsWithoutRef<'div'> {}
 
-export const Description: PartComponent<DialogDescriptionProps, HTMLParagraphElement> = forwardRef<
+export const Description: PartComponent<DialogDescriptionProps, HTMLDivElement> = forwardRef<
   HTMLParagraphElement,
   DialogDescriptionProps
 >((props, forwardedRef) => {
@@ -252,7 +252,7 @@ export const Description: PartComponent<DialogDescriptionProps, HTMLParagraphEle
   }, [machine])
 
   const merged = mergeProps(props as Record<string, unknown>, normalize(api.parts.description))
-  return <p {...merged} ref={forwardedRef} />
+  return <div {...merged} ref={forwardedRef} />
 })
 
 // =============================================================================

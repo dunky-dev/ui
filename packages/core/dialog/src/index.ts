@@ -10,4 +10,3 @@ export type {
   DialogRole,
   DialogStateName,
 } from './types'
-export type { KeyboardPayload, PointerPayload } from '@dunky.dev/state-machine-bindings'

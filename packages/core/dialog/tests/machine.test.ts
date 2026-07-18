@@ -9,8 +9,8 @@ import type {
   DialogMachineEvent,
   DialogOptions,
   DialogStateName,
-  PointerPayload,
 } from '@dunky.dev/dialog'
+import type { PointerPayload } from '@dunky.dev/state-machine-bindings'
 
 // The per-part ids the connect derives from a base id of `dlg`.
 const ids: DialogIds = {
