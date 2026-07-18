@@ -1,10 +1,10 @@
 export {
   controllable,
   intent,
-  recontrol,
+  actControlled,
   syncControlled,
   type Controllable,
   type ControlledSync,
   type Intent,
-  type Recontrol,
+  type ActControlled,
 } from './controllable'

@@ -2,7 +2,7 @@ import { and, type Action, type Guard, type Transition } from '@dunky.dev/state-
 
 /**
  * A consumer-ownable value. `controlled` tracks whether the consumer supplies
- * the value right now — seeded at build, re-derived live by `recontrol` when
+ * the value right now — seeded at build, re-derived live by `actControlled` when
  * the prop appears or disappears. `intent` is the last declared intent,
  * written as a fresh token so a reaction on it fires even on repeats.
  */
@@ -19,7 +19,7 @@ export function controllable<Value>(value: Value | undefined): Controllable<Valu
 /**
  * The prop echo a substrate sends on change — the only event that moves a
  * controlled machine. `undefined` means the prop is gone: the machine stays
- * where it stands and goes back to owning the value (see `recontrol`).
+ * where it stands and goes back to owning the value (see `actControlled`).
  */
 export interface ControlledSync<Value> {
   type: 'controlled.sync'
@@ -58,8 +58,8 @@ type IntentFn<State extends string, Context extends object, Event extends { type
  *
  *   escape: intent('open', { guard: canEscape, target: 'closed', value: false })
  *
- *   const request = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()
- *   close: request('open', { target: 'closed', value: false })
+ *   const intend = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()
+ *   close: intend('open', { target: 'closed', value: false })
  */
 export interface Intent {
   <
@@ -124,7 +124,7 @@ export function syncControlled<Context extends object, Event extends { type: str
     event.type === 'controlled.sync' && 'value' in event && event.value === value
 }
 
-type RecontrolFn<Context extends object, Event extends { type: string }> = <
+type ActControlledFn<Context extends object, Event extends { type: string }> = <
   Key extends ControllableKey<Context> & string,
 >(
   key: Key,
@@ -134,9 +134,9 @@ type RecontrolFn<Context extends object, Event extends { type: string }> = <
  * Action for every `controlled.sync` candidate: re-derives `controlled` from
  * the echoed value's presence, so dropping the prop (`undefined`) hands the
  * value back to the machine where it stands, and supplying it takes control.
- * Pin like `intent`: recontrol.as<Context, Event>().
+ * Pin like `intent`: actControlled.as<Context, Event>().
  */
-export interface Recontrol {
+export interface ActControlled {
   <
     Context extends object,
     Event extends { type: string },
@@ -144,10 +144,10 @@ export interface Recontrol {
   >(
     key: Key,
   ): Action<Context, Event>
-  as<Context extends object, Event extends { type: string }>(): RecontrolFn<Context, Event>
+  as<Context extends object, Event extends { type: string }>(): ActControlledFn<Context, Event>
 }
 
-function recontrolFn<
+function actControlledFn<
   Context extends object,
   Event extends { type: string },
   Key extends ControllableKey<Context> & string,
@@ -162,8 +162,8 @@ function recontrolFn<
   }
 }
 
-export const recontrol: Recontrol = Object.assign(recontrolFn, {
+export const actControlled: ActControlled = Object.assign(actControlledFn, {
   // Type-level only, like setup.as — the same implementation, generics pinned.
-  as: <Context extends object, Event extends { type: string }>(): RecontrolFn<Context, Event> =>
-    recontrolFn,
+  as: <Context extends object, Event extends { type: string }>(): ActControlledFn<Context, Event> =>
+    actControlledFn,
 })

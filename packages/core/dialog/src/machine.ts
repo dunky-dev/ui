@@ -5,7 +5,7 @@ import {
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
-import { controllable, intent, recontrol, syncControlled } from '@dunky.dev/controllable'
+import { controllable, intent, actControlled, syncControlled } from '@dunky.dev/controllable'
 import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
@@ -18,10 +18,10 @@ const canEscape: DialogGuard = ({ context }) => context.closeOnEscape
 const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractOutside
 
 // Every open/close intent is recorded in `open.intent`; whether it also
-// transitions is intent's controlled/uncontrolled fork. `resync` keeps the
-// controlled flag tracking the prop's presence on every echo.
-const request = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()
-const resync = recontrol.as<DialogContext, DialogMachineEvent>()
+// transitions is intent's controlled/uncontrolled fork. One shared action
+// keeps the controlled flag tracking the prop's presence on every echo.
+const intend = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()
+const actControlledOpen = actControlled.as<DialogContext, DialogMachineEvent>()('open')
 
 const setPartPresence: DialogAction = ({ event, context, setContext }) => {
   if (event.type !== 'part.presence') return
@@ -56,27 +56,27 @@ export function dialogMachine(
     states: {
       closed: {
         on: {
-          open: request('open', { target: 'open', value: true }),
-          toggle: request('open', { target: 'open', value: true }),
+          open: intend('open', { target: 'open', value: true }),
+          toggle: intend('open', { target: 'open', value: true }),
           'controlled.sync': [
-            { guard: syncControlled(true), target: 'open', actions: resync('open') },
-            { actions: resync('open') },
+            { guard: syncControlled(true), target: 'open', actions: actControlledOpen },
+            { actions: actControlledOpen },
           ],
         },
       },
       open: {
         on: {
-          close: request('open', { target: 'closed', value: false }),
-          toggle: request('open', { target: 'closed', value: false }),
-          escape: request('open', { guard: canEscape, target: 'closed', value: false }),
-          'interact.outside': request('open', {
+          close: intend('open', { target: 'closed', value: false }),
+          toggle: intend('open', { target: 'closed', value: false }),
+          escape: intend('open', { guard: canEscape, target: 'closed', value: false }),
+          'interact.outside': intend('open', {
             guard: canDismissOutside,
             target: 'closed',
             value: false,
           }),
           'controlled.sync': [
-            { guard: syncControlled(false), target: 'closed', actions: resync('open') },
-            { actions: resync('open') },
+            { guard: syncControlled(false), target: 'closed', actions: actControlledOpen },
+            { actions: actControlledOpen },
           ],
         },
       },

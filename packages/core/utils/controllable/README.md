@@ -28,7 +28,7 @@ npm install @dunky.dev/controllable
 import {
   controllable,
   intent,
-  recontrol,
+  actControlled,
   syncControlled,
   type ControlledSync,
 } from '@dunky.dev/controllable'
@@ -42,18 +42,18 @@ const context = {
 // transitions: fork each intent event into controlled/uncontrolled candidates.
 // Bare `intent` infers from a typed guard; unguarded events have nothing to
 // infer from — pin the generics once with `.as` (the `setup.as` idiom).
-const request = intent.as<StateName, Context, MachineEvent>()
-const resync = recontrol.as<Context, MachineEvent>()
+const intend = intent.as<StateName, Context, MachineEvent>()
+const actControlledOpen = actControlled.as<Context, MachineEvent>()('open')
 
 states: {
   open: {
     on: {
-      close: request('open', { target: 'closed', value: false }),
+      close: intend('open', { target: 'closed', value: false }),
       escape: intent('open', { guard: canEscape, target: 'closed', value: false }),
       // Move on a matching echo; every echo re-derives controlled-ness.
       'controlled.sync': [
-        { guard: syncControlled(false), target: 'closed', actions: resync('open') },
-        { actions: resync('open') },
+        { guard: syncControlled(false), target: 'closed', actions: actControlledOpen },
+        { actions: actControlledOpen },
       ],
     },
   },
