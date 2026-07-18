@@ -1,7 +1,8 @@
 export {
   controllable,
-  makeGated,
+  gated,
   syncTo,
   type Controllable,
   type ControlledSync,
+  type Gated,
 } from './controllable'

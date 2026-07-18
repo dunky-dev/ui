@@ -5,7 +5,7 @@ import {
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
-import { controllable, makeGated, syncTo } from '@dunky.dev/controllable'
+import { controllable, gated, syncTo } from '@dunky.dev/controllable'
 import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
@@ -20,7 +20,7 @@ const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractO
 // Every open/close intent goes through the `open` mailbox (the connect's
 // reaction turns it into onOpenChange); whether it also transitions is
 // gated's controlled/uncontrolled fork.
-const gated = makeGated<DialogStateName, DialogContext, DialogMachineEvent>()
+const gate = gated.as<DialogStateName, DialogContext, DialogMachineEvent>()
 
 const setPartPresence: DialogAction = ({ event, context, setContext }) => {
   if (event.type !== 'part.presence') return
@@ -55,17 +55,17 @@ export function dialogMachine(
     states: {
       closed: {
         on: {
-          open: gated('open', { target: 'open', value: true }),
-          toggle: gated('open', { target: 'open', value: true }),
+          open: gate('open', { target: 'open', value: true }),
+          toggle: gate('open', { target: 'open', value: true }),
           'controlled.sync': { target: 'open', guard: syncTo(true) },
         },
       },
       open: {
         on: {
-          close: gated('open', { target: 'closed', value: false }),
-          toggle: gated('open', { target: 'closed', value: false }),
-          escape: gated('open', { guard: canEscape, target: 'closed', value: false }),
-          'interact.outside': gated('open', {
+          close: gate('open', { target: 'closed', value: false }),
+          toggle: gate('open', { target: 'closed', value: false }),
+          escape: gate('open', { guard: canEscape, target: 'closed', value: false }),
+          'interact.outside': gate('open', {
             guard: canDismissOutside,
             target: 'closed',
             value: false,

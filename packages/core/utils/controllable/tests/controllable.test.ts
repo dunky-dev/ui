@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { machine, setup, type Guard } from '@dunky.dev/state-machine'
 import {
   controllable,
-  makeGated,
+  gated,
   syncTo,
   type Controllable,
   type ControlledSync,
@@ -17,7 +17,8 @@ interface ToggleContext {
 type ToggleEvent = { type: 'start' } | { type: 'stop' } | ControlledSync<boolean>
 
 const canStop: Guard<ToggleContext, ToggleEvent> = ({ context }) => context.allowStop
-const gated = makeGated<ToggleState, ToggleContext, ToggleEvent>()
+// Unguarded events carry no Context/Event to infer from — the pinned form.
+const gate = gated.as<ToggleState, ToggleContext, ToggleEvent>()
 
 const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
   const service = machine(
@@ -27,12 +28,13 @@ const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
       states: {
         off: {
           on: {
-            start: gated('on', { target: 'on', value: true }),
+            start: gate('on', { target: 'on', value: true }),
             'controlled.sync': { target: 'on', guard: syncTo(true) },
           },
         },
         on: {
           on: {
+            // Bare call: the typed guard carries Context/Event, so it infers.
             stop: gated('on', { guard: canStop, target: 'off', value: false }),
             'controlled.sync': { target: 'off', guard: syncTo(false) },
           },

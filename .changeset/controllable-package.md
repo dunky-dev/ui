@@ -11,14 +11,16 @@ intent also takes the transition, so both modes share one transition table
 and one set of guards.
 
 ```ts
-import { controllable, makeGated, syncTo } from '@dunky.dev/controllable'
-
-const gated = makeGated<StateName, Context, MachineEvent>()
+import { controllable, gated, syncTo } from '@dunky.dev/controllable'
 
 // context
 open: controllable(options.open) // { controlled, intent }
 
-// transitions
+// transitions — bare `gated` infers from a typed guard; unguarded events
+// have nothing to infer from, so pin the generics once (the `setup.as` idiom)
+const gate = gated.as<StateName, Context, MachineEvent>()
+
+close: gate('open', { target: 'closed', value: false }),
 escape: gated('open', { guard: canEscape, target: 'closed', value: false }),
 'controlled.sync': { target: 'closed', guard: syncTo(false) },
 
