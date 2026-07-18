@@ -173,3 +173,23 @@ stack of dialogs only the topmost one exists until it closes.
 - A stack-scoped close is gated and vetoed only by the dialog that received
   the intent; every layer beneath receives a plain close and reports it.
 - The alertdialog role does not dismiss on outside press by default.
+
+## Internals
+
+The dialog ships headless: parts carry behavior and ARIA wiring plus a
+`data-state` attribute (`open` / `closed`) for the consumer's styling and
+animation; visuals belong entirely to the consumer. Cross-primitive machinery
+lives in shared framework-free packages — focus and scroll containment in
+`@dunky.dev/dom-focus-trap` / `@dunky.dev/dom-scroll-lock`, the
+controlled/uncontrolled mechanics in `@dunky.dev/controllable` — so every
+substrate inherits identical behavior.
+
+| Position                                                             | Why                                                                                                                                                                                                  | Status     |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `open` is a `Controllable` slice (`@dunky.dev/controllable`)         | A controlled machine records intents but only moves on the substrate's prop echo — `onOpenChange`, bound to the actual state, can never report a change that didn't happen; controlled-ness is live. | `adopted`  |
+| Dismissal intents are distinct events (`escape`, `interact.outside`) | The dismissal settings gate them as machine guards — decided once, in the core, for every substrate.                                                                                                 | `adopted`  |
+| One base id, per-part ids derived from it                            | The cross-part ARIA references (controls / labelledby / describedby) can never disagree.                                                                                                             | `adopted`  |
+| Part presence tracked in machine context (`part.presence`)           | Title/Description report mount/unmount as events, so the ARIA relationships follow what is actually rendered — in every substrate, with no substrate bookkeeping.                                    | `adopted`  |
+| This contract owns modality, dismissal, and focus                    | A substrate must not hand authority to host built-ins (e.g. the browser's `showModal()`) — behavior stays identical across hosts instead of splitting between the spec and the platform.             | `adopted`  |
+| The `intent` slot is recorded but drives no consumer callback        | Reserved as the request channel — the piece a stack-scoped close needs to traverse controlled layers. No consumer surface until that contract is spec'd.                                             | `reserved` |
+| No `asChild` composition in v1                                       | No slot/composition infrastructure in the repo yet; parts render their natural elements. Revisit with a shared primitive.                                                                            | `deferred` |
