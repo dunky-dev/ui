@@ -97,7 +97,7 @@ Per APG Checkbox:
   `required`, form reset) and checkbox groups (select-all wiring stays the
   consumer's).
 
-## Design
+## Internals
 
 - **Label association is ARIA, not the native `<label for>`.** The core mints
   the control and label ids from the one root id and wires `aria-labelledby`,
