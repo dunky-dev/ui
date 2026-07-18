@@ -97,7 +97,7 @@ Per APG Switch:
 - Form integration (name/value, hidden input, form reset) is out of scope for
   v0 — the switch is a pure setting control.
 
-## Design
+## Internals
 
 - **The Label is not a substrate-native `<label>`.** A native label forwards
   activation to its control, which would double-fire next to the part's own
