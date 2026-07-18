@@ -4,7 +4,7 @@ import {
   controllable,
   intent,
   actControlled,
-  syncControlled,
+  guardControlled,
   type Controllable,
   type ControlledSync,
 } from '@dunky.dev/controllable'
@@ -32,7 +32,7 @@ const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
           on: {
             start: intend('on', { target: 'on', value: true }),
             'controlled.sync': [
-              { guard: syncControlled(true), target: 'on', actions: actControlledOn },
+              { guard: guardControlled(true), target: 'on', actions: actControlledOn },
               { actions: actControlledOn },
             ],
           },
@@ -42,7 +42,7 @@ const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
             // Bare call: the typed guard carries Context/Event, so it infers.
             stop: intent('on', { guard: canStop, target: 'off', value: false }),
             'controlled.sync': [
-              { guard: syncControlled(false), target: 'off', actions: actControlledOn },
+              { guard: guardControlled(false), target: 'off', actions: actControlledOn },
               { actions: actControlledOn },
             ],
           },

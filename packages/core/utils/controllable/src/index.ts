@@ -2,7 +2,7 @@ export {
   controllable,
   intent,
   actControlled,
-  syncControlled,
+  guardControlled,
   type Controllable,
   type ControlledSync,
   type Intent,

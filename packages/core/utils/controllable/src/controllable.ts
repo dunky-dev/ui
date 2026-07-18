@@ -117,7 +117,7 @@ export const intent: Intent = Object.assign(intentFn, {
 })
 
 /** Guard for the `controlled.sync` transitions: does the echoed value match? */
-export function syncControlled<Context extends object, Event extends { type: string }, Value>(
+export function guardControlled<Context extends object, Event extends { type: string }, Value>(
   value: Value,
 ): Guard<Context, Event> {
   return ({ event }) =>

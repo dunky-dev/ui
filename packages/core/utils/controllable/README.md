@@ -29,7 +29,7 @@ import {
   controllable,
   intent,
   actControlled,
-  syncControlled,
+  guardControlled,
   type ControlledSync,
 } from '@dunky.dev/controllable'
 
@@ -52,7 +52,7 @@ states: {
       escape: intent('open', { guard: canEscape, target: 'closed', value: false }),
       // Move on a matching echo; every echo re-derives controlled-ness.
       'controlled.sync': [
-        { guard: syncControlled(false), target: 'closed', actions: actControlledOpen },
+        { guard: guardControlled(false), target: 'closed', actions: actControlledOpen },
         { actions: actControlledOpen },
       ],
     },

@@ -5,7 +5,7 @@ import {
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
-import { controllable, intent, actControlled, syncControlled } from '@dunky.dev/controllable'
+import { controllable, intent, actControlled, guardControlled } from '@dunky.dev/controllable'
 import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
@@ -59,7 +59,7 @@ export function dialogMachine(
           open: intend('open', { target: 'open', value: true }),
           toggle: intend('open', { target: 'open', value: true }),
           'controlled.sync': [
-            { guard: syncControlled(true), target: 'open', actions: actControlledOpen },
+            { guard: guardControlled(true), target: 'open', actions: actControlledOpen },
             { actions: actControlledOpen },
           ],
         },
@@ -75,7 +75,7 @@ export function dialogMachine(
             value: false,
           }),
           'controlled.sync': [
-            { guard: syncControlled(false), target: 'closed', actions: actControlledOpen },
+            { guard: guardControlled(false), target: 'closed', actions: actControlledOpen },
             { actions: actControlledOpen },
           ],
         },

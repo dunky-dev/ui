@@ -13,7 +13,7 @@ same intent event also takes the transition, so both modes share one
 transition table and one set of guards.
 
 ```ts
-import { controllable, intent, actControlled, syncControlled } from '@dunky.dev/controllable'
+import { controllable, intent, actControlled, guardControlled } from '@dunky.dev/controllable'
 
 // context
 open: controllable(options.open) // { controlled, intent }
@@ -26,7 +26,7 @@ const actControlledOpen = actControlled.as<Context, MachineEvent>()('open')
 close: intend('open', { target: 'closed', value: false }),
 escape: intent('open', { guard: canEscape, target: 'closed', value: false }),
 'controlled.sync': [
-  { guard: syncControlled(false), target: 'closed', actions: actControlledOpen },
+  { guard: guardControlled(false), target: 'closed', actions: actControlledOpen },
   { actions: actControlledOpen }, // every echo re-derives controlled-ness
 ],
 
