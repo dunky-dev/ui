@@ -1,4 +1,5 @@
 import { makeReaction, type Connect } from '@dunky.dev/state-machine'
+import type { AttrBindings, EventBindings } from '@dunky.dev/state-machine-bindings'
 import type {
   __Name__Context,
   __Name__MachineEvent,
@@ -6,9 +7,19 @@ import type {
   __Name__StateName,
 } from './types'
 
+// The bindings a part carries, drawn from the shared agnostic vocabulary; the
+// index signature keeps parts assignable to the loose shape each substrate's
+// normalize() accepts. `data-state` is the styling/animation hook.
+export type __Name__PartBindings = EventBindings &
+  AttrBindings & { 'data-state'?: __Name__StateName } & Record<string, unknown>
+
 /** The view-facing surface a driver reads from the running __name__ machine. */
 export interface __Name__Api {
   disabled: boolean
+  parts: {
+    // TODO(spec): one entry of logical bindings per part of the anatomy.
+    root: __Name__PartBindings
+  }
 }
 
 export const __camelName__Connect: Connect<
@@ -17,22 +28,29 @@ export const __camelName__Connect: Connect<
   __Name__MachineEvent,
   __Name__Options,
   __Name__Api
-> = ({ context }) => ({ disabled: context.disabled })
+> = ({ state, context, send }) => ({
+  disabled: context.disabled,
+  parts: {
+    root: {
+      disabled: context.disabled || undefined,
+      'data-state': state,
+      onPress: () => send({ type: 'SET_DISABLED', disabled: true }),
+    },
+  },
+})
 
-const reaction = makeReaction<
-  __Name__StateName,
-  __Name__Context,
-  __Name__MachineEvent,
-  __Name__Options
->()
+const reaction = makeReaction<__Name__StateName, __Name__Context, __Name__MachineEvent, __Name__Options>()
 
-// One reaction per consumer callback. Reactions fire in registration order within
-// a single setContext — that order is the callback-order contract. See SPEC.md.
+// One reaction per consumer callback, firing in registration order — that
+// order is the callback-order contract. Here the selector reads a context
+// field (`disabled`); a callback tied to a state selects `m.matches(...)` (see
+// the dialog core), and an event that doesn't move the machine can emit through
+// a mailbox slot instead.
 __camelName__Connect.reactions = [
   reaction(
-    m => m.context.activateEvent,
-    (event, props) => {
-      if (event) props.onActivate?.()
+    m => m.context.disabled,
+    (disabled, props) => {
+      if (disabled) props.disable?.()
     },
   ),
 ]
