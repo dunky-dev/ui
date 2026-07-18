@@ -15,14 +15,15 @@ pnpm install
 
 ## Commands
 
-| Command                        | What it does                                              |
-| ------------------------------- | ---------------------------------------------------------- |
-| `pnpm test`                     | Full test suite, watch mode                                |
-| `pnpm typecheck`                | `tsc --noEmit` across the whole workspace                  |
-| `pnpm lint`                     | `oxlint`                                                    |
-| `pnpm format` / `format:check`  | `oxfmt`                                                     |
-| `pnpm knip`                     | Unused exports/dependencies                                 |
-| `pnpm changeset`                | Add a changeset — see [Versioning](./AGENTS.md#versioning) |
+| Command                        | What it does                                               |
+| ------------------------------ | ---------------------------------------------------------- |
+| `pnpm scaffold <name>`         | Stamps a new primitive across every substrate              |
+| `pnpm test`                    | Full test suite, watch mode                                |
+| `pnpm typecheck`               | `tsc --noEmit` across the whole workspace                  |
+| `pnpm lint`                    | `oxlint`                                                   |
+| `pnpm format` / `format:check` | `oxfmt`                                                    |
+| `pnpm knip`                    | Unused exports/dependencies                                |
+| `pnpm changeset`               | Add a changeset — see [Versioning](./AGENTS.md#versioning) |
 
 Target one package or one file instead of the whole workspace:
 

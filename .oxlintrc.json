@@ -50,5 +50,5 @@
     }
   },
   "globals": {},
-  "ignorePatterns": ["**/dist/**"]
+  "ignorePatterns": ["**/dist/**", "scripts/templates/**"]
 }
