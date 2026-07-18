@@ -297,9 +297,19 @@ export const scoped: StoryType = {
   render: () => <ScopedDialog />,
 }
 
-export const nested: StoryType = {
-  render: () => (
-    <Dialog defaultOpen>
+// "Close all" is consumer-side for now — `Close scope="stack"` is spec-only, so
+// the three layers are controlled and one handler drops them together.
+const NestedDialogs = () => {
+  const [outerOpen, setOuterOpen] = useState(true)
+  const [innerOpen, setInnerOpen] = useState(false)
+  const [innermostOpen, setInnermostOpen] = useState(false)
+  const closeAll = () => {
+    setInnermostOpen(false)
+    setInnerOpen(false)
+    setOuterOpen(false)
+  }
+  return (
+    <Dialog open={outerOpen} onOpenChange={setOuterOpen}>
       <Dialog.Trigger>Open outer</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop style={backdrop} />
@@ -310,7 +320,7 @@ export const nested: StoryType = {
               Escape and outside presses dismiss the topmost dialog only — the stack unwinds one
               layer at a time.
             </Dialog.Description>
-            <Dialog>
+            <Dialog open={innerOpen} onOpenChange={setInnerOpen}>
               <Dialog.Trigger>Open inner</Dialog.Trigger>
               <Dialog.Portal>
                 <Dialog.Backdrop style={backdrop} />
@@ -321,6 +331,25 @@ export const nested: StoryType = {
                       While open, everything beneath — including the outer dialog — is inert and
                       hidden from assistive tech.
                     </Dialog.Description>
+                    <Dialog open={innermostOpen} onOpenChange={setInnermostOpen}>
+                      <Dialog.Trigger>Open innermost</Dialog.Trigger>
+                      <Dialog.Portal>
+                        <Dialog.Backdrop style={backdrop} />
+                        <Dialog.Viewport style={viewport}>
+                          <Dialog.Content style={content}>
+                            <Dialog.Title>Innermost dialog</Dialog.Title>
+                            <Dialog.Description>
+                              Three layers deep. Escape and Close dismiss this layer only; Close all
+                              unwinds the whole stack at once.
+                            </Dialog.Description>
+                            <div style={actions}>
+                              <button onClick={closeAll}>Close all</button>
+                              <Dialog.Close>Close</Dialog.Close>
+                            </div>
+                          </Dialog.Content>
+                        </Dialog.Viewport>
+                      </Dialog.Portal>
+                    </Dialog>
                     <DialogActions />
                   </Dialog.Content>
                 </Dialog.Viewport>
@@ -331,5 +360,9 @@ export const nested: StoryType = {
         </Dialog.Viewport>
       </Dialog.Portal>
     </Dialog>
-  ),
+  )
+}
+
+export const nested: StoryType = {
+  render: () => <NestedDialogs />,
 }

@@ -1,12 +1,12 @@
 {
-  "name": "@dunky.dev/react-dialog",
+  "name": "@dunky.dev/controllable",
   "version": "0.0.0",
-  "description": "React binding for @dunky.dev/dialog.",
+  "description": "Controlled/uncontrolled machinery for state machines: a controllable context slice and gated transitions.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dunky-dev/ui.git",
-    "directory": "packages/react/dialog"
+    "directory": "packages/core/utils/controllable"
   },
   "files": [
     "dist"
@@ -34,20 +34,6 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@dunky.dev/dialog": "workspace:^",
-    "@dunky.dev/react-state-machine": "^0.1.0",
-    "@dunky.dev/react-use-focus-trap": "workspace:^",
-    "@dunky.dev/react-use-scroll-lock": "workspace:^"
-  },
-  "devDependencies": {
-    "@testing-library/react": "^16.1.0",
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
-  },
-  "peerDependencies": {
-    "react": "*",
-    "react-dom": "*"
+    "@dunky.dev/state-machine": "^0.1.0"
   }
 }

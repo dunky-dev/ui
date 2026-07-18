@@ -7,13 +7,13 @@ import { isTopmostDialog } from './utils/stack'
 // useMachine runs one useEffect per entry, keyed on the listed prop deps.
 type DialogEffect = ComponentEffect<DialogMachine, DialogOptions>
 
-// Controlled open: follow the `open` prop in both directions.
+// Controlled open: the machine never moves on its own when controlled — this
+// echo of the `open` prop is the only thing that transitions it. It carries
+// the prop verbatim: `undefined` hands the state back to the machine
+// (uncontrolled again), a value (re)takes control. The mount echo no-ops.
 const syncControlledOpen: DialogEffect = [
   (machine, props) => {
-    if (props.open === undefined) return
-    if (props.open !== machine.matches('open')) {
-      machine.send({ type: props.open ? 'open' : 'close' })
-    }
+    machine.send({ type: 'controlled.sync', value: props.open })
   },
   ['open'],
 ]

@@ -48,14 +48,21 @@ importers:
         specifier: ^4.1.7
         version: 4.1.9(@types/node@22.19.21)(jsdom@26.1.0)(vite@8.1.4(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
-  packages/core: {}
-
   packages/core/dialog:
     dependencies:
+      '@dunky.dev/controllable':
+        specifier: workspace:^
+        version: link:../utils/controllable
       '@dunky.dev/state-machine':
         specifier: ^0.1.0
         version: 0.1.0
       '@dunky.dev/state-machine-bindings':
+        specifier: ^0.1.0
+        version: 0.1.0
+
+  packages/core/utils/controllable:
+    dependencies:
+      '@dunky.dev/state-machine':
         specifier: ^0.1.0
         version: 0.1.0
 

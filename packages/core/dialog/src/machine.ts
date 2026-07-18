@@ -5,6 +5,7 @@ import {
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
+import { controllable, intent, syncControlled } from '@dunky.dev/controllable'
 import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
@@ -15,6 +16,12 @@ type DialogGuard = Guard<DialogContext, DialogMachineEvent>
 
 const canEscape: DialogGuard = ({ context }) => context.closeOnEscape
 const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractOutside
+
+// Every open/close intent is recorded in `open.intent`; whether it also
+// transitions is intent's controlled/uncontrolled fork. `synced` is the full
+// prop-echo handling: move on a matching echo, re-derive ownership on every one.
+const intend = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()
+const synced = syncControlled.as<DialogStateName, DialogContext, DialogMachineEvent>()
 
 const setPartPresence: DialogAction = ({ event, context, setContext }) => {
   if (event.type !== 'part.presence') return
@@ -33,6 +40,7 @@ export function dialogMachine(
     // An alert dialog interrupts for a response — an outside press must not
     // dismiss it unless explicitly opted in.
     closeOnInteractOutside: options.closeOnInteractOutside ?? role === 'dialog',
+    open: controllable(options.open),
     // The substrate supplies a unique id; `dialog` is only a bare fallback.
     id: options.id ?? 'dialog',
     parts: { title: false, description: false },
@@ -48,16 +56,22 @@ export function dialogMachine(
     states: {
       closed: {
         on: {
-          open: { target: 'open' },
-          toggle: { target: 'open' },
+          open: intend('open', { target: 'open', value: true }),
+          toggle: intend('open', { target: 'open', value: true }),
+          'controlled.sync': synced('open', { value: true, target: 'open' }),
         },
       },
       open: {
         on: {
-          close: { target: 'closed' },
-          toggle: { target: 'closed' },
-          escape: { target: 'closed', guard: canEscape },
-          'interact.outside': { target: 'closed', guard: canDismissOutside },
+          close: intend('open', { target: 'closed', value: false }),
+          toggle: intend('open', { target: 'closed', value: false }),
+          escape: intend('open', { guard: canEscape, target: 'closed', value: false }),
+          'interact.outside': intend('open', {
+            guard: canDismissOutside,
+            target: 'closed',
+            value: false,
+          }),
+          'controlled.sync': synced('open', { value: false, target: 'closed' }),
         },
       },
     },

@@ -1,6 +1,7 @@
 // Public + machine-facing types for the framework-agnostic dialog primitive.
 // The state machine is substrate-free: all event reading lives in a
 // per-substrate driver.
+import type { Controllable, ControlledSync } from '@dunky.dev/controllable'
 import type { KeyboardPayload, PointerPayload } from '@dunky.dev/state-machine-bindings'
 
 export type DialogStateName = 'closed' | 'open'
@@ -26,6 +27,10 @@ export interface DialogContext {
   modal: boolean
   closeOnEscape: boolean
   closeOnInteractOutside: boolean
+  // The consumer-ownable open value. A controlled machine never moves on its
+  // own — only `controlled.sync` (the prop echo) transitions it, and the
+  // controlled flag tracks the prop's presence live.
+  open: Controllable<boolean>
   // The base id (substrate-minted, SSR-safe); the connect derives the per-part
   // ids from it.
   id: string
@@ -35,13 +40,16 @@ export interface DialogContext {
 }
 
 // Dismissal intents (`escape` / `interact.outside`) are distinct from `close`
-// so the machine can gate them.
+// so the machine can gate them. `controlled.sync` is the controlled driver:
+// the substrate sends it when the `open` prop changes, and it is the only
+// event that moves a controlled machine.
 export type DialogMachineEvent =
   | { type: 'open' }
   | { type: 'close' }
   | { type: 'toggle' }
   | { type: 'escape' }
   | { type: 'interact.outside' }
+  | ControlledSync<boolean>
   | { type: 'part.presence'; part: DialogPart; present: boolean }
 
 export interface DialogCallbacks {
@@ -61,7 +69,9 @@ export interface DialogOptions extends DialogCallbacks {
   /** Base id for the dialog's parts; the substrate supplies a unique, SSR-safe
    * one. The per-part ids (content/title/description) are derived from it. */
   id?: string
-  /** Controlled open state; every open/close intent is reported through `onOpenChange`. */
+  /** Controlled open state: the dialog follows this prop alone and never
+   * moves on its own. Set back to `undefined` to hand the state over —
+   * uncontrolled from there, right where it stands. */
   open?: boolean
   /** Initial open state for the uncontrolled dialog. @default false */
   defaultOpen?: boolean

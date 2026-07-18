@@ -35,9 +35,16 @@ over interaction rather than coexist with the page or merely announce.
 Using the dialog is a walkthrough of intent, not a prop list:
 
 - The **root** owns open/close state, exposed controlled and uncontrolled,
-  mirroring native patterns: an uncontrolled dialog can be seeded open, while a
-  controlled consumer drives it from outside — and every open/close intent is
-  reported back so the consumer stays in sync.
+  mirroring native patterns: an uncontrolled dialog can be seeded open, while
+  a controlled consumer owns `open` outright — the dialog never moves on its
+  own and follows the prop alone. `onOpenChange` reports actual open ⇄ close
+  changes, whatever drove them; it never fires for a change that didn't
+  happen. A controlled consumer decides dismissals at their source — the
+  dedicated callbacks (`onEscapeKeyDown`, `onInteractOutside`, where
+  `preventDefault()` declines) and their own handlers on Trigger/Close.
+  Controlled-ness follows the prop live: setting `open` to `undefined` hands
+  the state back to the dialog where it stands; supplying it again takes
+  control back.
 - The **trigger** toggles the dialog and carries the popup relationship to
   assistive tech. It is also the element focus returns to on close.
 - Pressing the **backdrop** — or the **viewport** area around the dialog window —
@@ -52,11 +59,14 @@ Using the dialog is a walkthrough of intent, not a prop list:
   requires an accessible name); when it genuinely can't, an accessible label
   goes on the content instead.
 - **Close** dismisses from inside — the visible close affordance the APG
-  strongly recommends alongside Escape.
+  strongly recommends alongside Escape. In a nested stack it can be scoped:
+  its own dialog by default, or the whole stack (see [Nesting](#nesting)).
 
 Dismissal is configurable at the root: Escape closing and outside-press closing
 can each be toggled off, and the consumer can veto a single occurrence of
-either from its handler. Opting into the alert-dialog role changes the defaults
+either from its handler. Escape's reach is configurable too — one layer by
+default, or the whole nested stack (the contract is [Nesting](#nesting)).
+Opting into the alert-dialog role changes the defaults
 for urgent, destructive interruptions — modality is inherent and outside
 presses don't dismiss by default, so the user must choose an action.
 
@@ -66,15 +76,15 @@ it, and the stack unwinds one layer at a time. The full contract is
 
 ## States
 
-| State    | Behavior                                                                                                                                        |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `closed` | Nothing is shown beyond the trigger. Open intents (trigger press, imperative open) move to `open`.                                              |
-| `open`   | Backdrop and content are shown. Close intents close unconditionally; Escape and outside-press close only if their respective settings allow it. |
+| State    | Behavior                                                                                                                                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `closed` | Nothing is shown beyond the trigger. Open intents (trigger press, imperative open) move to `open`.                                                                                                                       |
+| `open`   | Backdrop and content are shown. Close intents are never gated; Escape and outside-press pass only if their settings allow it. Whether an allowed intent actually moves the dialog follows the controlled contract above. |
 
 ### Title/Description presence
 
 A Title or Description can appear or disappear at any time, open or closed —
-the ARIA relationships on Content always follow what is actually rendered.
+the relationships on Content update either way.
 
 ## Accessibility
 
@@ -127,14 +137,24 @@ stack of dialogs only the topmost one exists until it closes.
   assistive technology. Everything beneath it — the page and every dialog it
   was opened from — is hidden and unreachable, by pointer, keyboard, or screen
   reader.
-- **Escape**: dismisses only the topmost dialog, subject to that dialog's own
-  dismissal settings — a nested stack unwinds one layer per press.
+- **Escape**: lands only on the topmost dialog, subject to that dialog's own
+  dismissal settings and veto. Its reach is that dialog's escape scope: one
+  layer (the default — the stack unwinds one layer per press) or the whole
+  stack.
 - **Outside press**: pressing around the topmost dialog is an outside
   interaction for that dialog alone, following its own dismissal settings; the
   dialogs beneath are unaffected.
 - **Unwinding**: when the topmost dialog closes, the one beneath becomes
   topmost again — re-exposed, interactive, with focus restored to the element
   focused before the closed dialog opened (normally its trigger).
+- **Closing the stack**: a close intent can be scoped to the whole stack — an
+  Escape whose scope is the stack, or a stack-scoped Close press. Only the
+  dialog that received the intent gates or vetoes it; once allowed, the stack
+  unwinds top-down, every layer beneath receiving a plain close — no Escape or
+  outside-press gating — and reporting it through its own callback, a
+  controlled layer following its `open` prop as always. After a full unwind,
+  focus lands where it was before the bottom-most dialog opened (normally the
+  original trigger).
 - **Scroll**: the page stays scroll-locked until the last modal dialog in the
   stack closes.
 
@@ -146,6 +166,26 @@ stack of dialogs only the topmost one exists until it closes.
   actually rendered.
 - While open and modal, focus stays trapped within the dialog; on close it
   returns to the element focused before opening.
-- Every open ⇄ close transition, whatever its cause, is reported to the
-  consumer.
+- `onOpenChange` reports every actual open ⇄ close change, whatever its
+  source, and nothing else — no call without a change. A controlled dialog
+  never transitions on its own; it follows the `open` prop alone, and its
+  controlled-ness tracks the prop's presence live.
+- A stack-scoped close is gated and vetoed only by the dialog that received
+  the intent; every layer beneath receives a plain close and reports it.
 - The alertdialog role does not dismiss on outside press by default.
+
+## Internals
+
+The design positions behind the implementation — each Why explains the
+choice, not the behavior it produces (that's spec'd above). The dialog ships
+headless: parts carry behavior and ARIA wiring plus a `data-state` attribute
+(`open` / `closed`) for styling and animation; visuals belong to the consumer.
+
+| Position                                                                                          | Why                                                                                                            |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `open` delegates to `@dunky.dev/controllable`; `onOpenChange` reacts to the state, not to intents | One shared mechanic across primitives, and the callback structurally can't drift from the controlled contract. |
+| Dismissal intents are distinct events (`escape`, `interact.outside`)                              | Their gating lives in core guards — no substrate re-implements the settings.                                   |
+| One base id, per-part ids derived from it                                                         | The cross-part ARIA references (controls / labelledby / describedby) can never disagree.                       |
+| Part presence lives in machine context (`part.presence` events)                                   | The rendered-parts rule holds in every substrate with no substrate bookkeeping.                                |
+| This contract owns modality, dismissal, and focus                                                 | A substrate must not hand authority to host built-ins (e.g. `showModal()`) — behavior can't fork per host.     |
+| The `intent` slot records every declared intent, drives no callback                               | Reserved as the request channel a stack-scoped close needs to traverse controlled layers.                      |

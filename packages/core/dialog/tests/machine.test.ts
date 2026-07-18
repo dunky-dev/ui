@@ -9,8 +9,8 @@ import type {
   DialogMachineEvent,
   DialogOptions,
   DialogStateName,
-  PointerPayload,
 } from '@dunky.dev/dialog'
+import type { PointerPayload } from '@dunky.dev/state-machine-bindings'
 
 // The per-part ids the connect derives from a base id of `dlg`.
 const ids: DialogIds = {
@@ -233,5 +233,46 @@ describe('dialog connect — reactions', () => {
     service.send({ type: 'escape' })
     expect(onOpenChange).toHaveBeenLastCalledWith(false)
     expect(onOpenChange).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('dialog machine — controlled', () => {
+  it('a dismissal intent moves nothing and reports nothing', () => {
+    const onOpenChange = vi.fn()
+    const { service } = build({ open: true, onOpenChange })
+    service.send({ type: 'escape' })
+    expect(service.state).toBe('open')
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('moves only on controlled.sync, reporting the actual change', () => {
+    const onOpenChange = vi.fn()
+    const { service } = build({ open: true, onOpenChange })
+    service.send({ type: 'controlled.sync', value: false })
+    expect(service.state).toBe('closed')
+    expect(onOpenChange).toHaveBeenLastCalledWith(false)
+    expect(onOpenChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('still gates dismissal intents before recording them', () => {
+    const { service } = build({ open: true, closeOnEscape: false })
+    service.send({ type: 'escape' })
+    expect(service.context.open.intent).toBeNull()
+
+    const allowed = build({ open: true })
+    allowed.service.send({ type: 'escape' })
+    expect(allowed.service.context.open.intent).toEqual({ value: false })
+  })
+
+  it('an undefined echo hands the state back, uncontrolled where it stands', () => {
+    const onOpenChange = vi.fn()
+    const { service } = build({ open: true, onOpenChange })
+    service.send({ type: 'controlled.sync', value: undefined })
+    expect(service.state).toBe('open')
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    service.send({ type: 'escape' }) // uncontrolled now: dismissal works again
+    expect(service.state).toBe('closed')
+    expect(onOpenChange).toHaveBeenLastCalledWith(false)
   })
 })

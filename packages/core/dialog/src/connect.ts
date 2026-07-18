@@ -104,6 +104,9 @@ const reaction = makeReaction<DialogStateName, DialogContext, DialogMachineEvent
 
 // One reaction per consumer callback. Reactions fire in registration order within
 // a single setContext — that order is the callback-order contract. See SPEC.md.
+// onOpenChange reflects the actual open state — never an intent that changed
+// nothing. A controlled machine only moves via `controlled.sync`, so a
+// prop-driven change reports and an undelivered dismissal doesn't.
 dialogConnect.reactions = [
   reaction(
     m => m.matches('open'),

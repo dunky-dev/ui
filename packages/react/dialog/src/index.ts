@@ -10,10 +10,4 @@ export {
   type DialogDescriptionProps,
   type DialogCloseProps,
 } from './dialog'
-export type {
-  DialogCallbacks,
-  DialogOptions,
-  DialogRole,
-  KeyboardPayload,
-  PointerPayload,
-} from '@dunky.dev/dialog'
+export type { DialogCallbacks, DialogOptions, DialogRole } from '@dunky.dev/dialog'

@@ -17,7 +17,7 @@ import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
 import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
-import { DialogContext, DialogDepthContext, DialogPortalContext, useDialogContext } from './context'
+import { DialogContext, useDialogContext } from './context'
 import { getInitialFocus } from './utils/get-initial-focus'
 import { isTopmostDialog, registerDialog } from './utils/stack'
 import { useDialog } from './use-dialog'
@@ -35,12 +35,13 @@ export interface DialogProps extends DialogOptions {
 }
 
 export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, ...options }) => {
-  const depth = useContext(DialogDepthContext) + 1
-  const value = useDialog(options)
+  // Nesting derives from the parent dialog's context (undefined = top-level).
+  const depth = (useContext(DialogContext)?.depth ?? 0) + 1
+  const { api, machine } = useDialog(options)
   return (
-    <DialogDepthContext.Provider value={depth}>
-      <DialogContext.Provider value={value}>{children}</DialogContext.Provider>
-    </DialogDepthContext.Provider>
+    <DialogContext.Provider value={{ api, machine, depth, container: null }}>
+      {children}
+    </DialogContext.Provider>
   )
 }
 
@@ -70,14 +71,14 @@ export interface DialogPortalProps {
 }
 
 export const Portal = ({ children, container }: DialogPortalProps): ReactNode => {
-  const { api } = useDialogContext()
-  if (!api.open || typeof document === 'undefined') return null
-  // Publish the scoped container (null = page body) so Content locks the right
-  // scroll surface.
+  const context = useDialogContext()
+  if (!context.api.open || typeof document === 'undefined') return null
+  // Re-provide the context with the scoped container (null = page body) so
+  // Content locks the right scroll surface.
   return createPortal(
-    <DialogPortalContext.Provider value={container ?? null}>
+    <DialogContext.Provider value={{ ...context, container: container ?? null }}>
       {children}
-    </DialogPortalContext.Provider>,
+    </DialogContext.Provider>,
     container ?? document.body,
   )
 }
@@ -155,9 +156,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   HTMLDialogElement,
   DialogContentProps
 >(({ initialFocus, ...props }, forwardedRef) => {
-  const { api, machine } = useDialogContext()
-  const depth = useContext(DialogDepthContext)
-  const portalContainer = useContext(DialogPortalContext)
+  const { api, machine, depth, container } = useDialogContext()
   const contentRef = useRef<HTMLDialogElement>(null)
   useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDialogElement)
   const initialFocusRef = useRef(initialFocus)
@@ -195,7 +194,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
 
   // Content only mounts while open, so the lock spans exactly the open state.
   // A scoped dialog locks its portal container; a page dialog locks the body.
-  useScrollLock(machine.context.modal, portalContainer)
+  useScrollLock(machine.context.modal, container)
 
   useFocusTrap(contentRef, {
     // Only a modal dialog traps, and only while topmost — a nested dialog
@@ -238,9 +237,9 @@ export const Title: PartComponent<DialogTitleProps, HTMLHeadingElement> = forwar
 // <Dialog.Description> — the dialog's accessible description
 // =============================================================================
 
-export interface DialogDescriptionProps extends ComponentPropsWithoutRef<'p'> {}
+export interface DialogDescriptionProps extends ComponentPropsWithoutRef<'div'> {}
 
-export const Description: PartComponent<DialogDescriptionProps, HTMLParagraphElement> = forwardRef<
+export const Description: PartComponent<DialogDescriptionProps, HTMLDivElement> = forwardRef<
   HTMLParagraphElement,
   DialogDescriptionProps
 >((props, forwardedRef) => {
@@ -252,7 +251,7 @@ export const Description: PartComponent<DialogDescriptionProps, HTMLParagraphEle
   }, [machine])
 
   const merged = mergeProps(props as Record<string, unknown>, normalize(api.parts.description))
-  return <p {...merged} ref={forwardedRef} />
+  return <div {...merged} ref={forwardedRef} />
 })
 
 // =============================================================================

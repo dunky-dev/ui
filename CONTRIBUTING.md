@@ -28,8 +28,8 @@ pnpm install
 Target one package or one file instead of the whole workspace:
 
 ```bash
-pnpm --filter @dunky-dev/core test
-pnpm test packages/core/src/some-file.test.ts
+pnpm --filter @dunky.dev/dialog test
+pnpm test packages/core/dialog/tests/machine.test.ts
 ```
 
 ## Storybook
