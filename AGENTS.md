@@ -23,6 +23,7 @@ editing files in that scope — it overrides anything here for that scope
 | Scope      | Path                      | What it is                                               |
 | ---------- | ------------------------- | -------------------------------------------------------- |
 | Core       | `packages/core/**`        | Framework-free state machines, one package per primitive |
+| DOM        | `packages/dom/**`         | Framework-free DOM utilities, one package per util       |
 | Substrates | `packages/<substrate>/**` | Thin host bindings (e.g. `packages/react`)               |
 
 Some changes are cross-scope. Check what else your change touches before
@@ -34,17 +35,24 @@ These are invariants, not preferences. Violating them breaks the
 architecture:
 
 - **Dependency direction is one-way.** A substrate package imports its core
-  counterpart and `@dunky.dev/state-machine` — nothing else from this repo. A
-  core package imports only `@dunky.dev/state-machine`.
+  counterpart, its substrate's state-machine adapter
+  (`@dunky.dev/<substrate>-state-machine`), its own hooks, and the DOM utils —
+  nothing else from this repo. A core package imports only the state-machine
+  runtime and the agnostic bindings vocabulary
+  (`@dunky.dev/state-machine` + `@dunky.dev/state-machine-bindings`). A DOM
+  util imports nothing from this repo; a substrate hook imports only the DOM
+  util it wraps.
 - **Primitives are independent.** No cross-imports between primitives. If two
   need to share logic, that's a design decision — a new package — never a
   cross-import.
 - **The machine never sees props.** Config is seeded into context at build
   time; live callbacks flow through the connector, not into the machine.
-- **Emission mailboxes, not direct calls.** The machine never calls a
-  consumer callback directly. An action writes a fresh token into a context
-  slot; a connector reaction fires the callback on the reference change.
-  Reaction registration order is the callback-order contract.
+- **Reactions, not direct calls.** The machine never calls a consumer
+  callback directly. The connect declares reactions (selector -> callback);
+  the connector fires them on value change, in registration order — that
+  order is the callback-order contract. An event that doesn't move the
+  machine emits through a mailbox: an action writes a fresh token into a
+  context slot for the reaction to select.
 - **A binding adds no behavior.** No guards, ordering, or state of its own —
   if a substrate needs a decision made, the decision moves into the core
   machine so every other substrate inherits it.
@@ -79,6 +87,12 @@ Don't copy it into every package it touches. When a decision affects
 others, just check their specs don't now contradict it; only edit
 another package's `SPEC.md` if it genuinely conflicts (and prefer a
 short cross-reference over restating the decision).
+
+A core `SPEC.md` carries the behavior contract. A substrate `SPEC.md`
+defers behavior to the core spec and documents its own public API: give
+each compound part its own `### <Root>.<Part>` heading with an
+independent props table (prop, type, default, description), rather than
+one combined parts table.
 
 ### TEST
 

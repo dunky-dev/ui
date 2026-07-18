@@ -10,7 +10,15 @@ export default defineConfig({
   // explicit list is the clean choice. Keep in sync with the publish set in
   // .changeset/config.json. Currently just the placeholder package; the first
   // real primitive replaces it. tsdown errors on an empty list, so this is never [].
-  workspace: ['packages/core'],
+  workspace: [
+    'packages/core',
+    'packages/core/dialog',
+    'packages/dom/utils/focus-trap',
+    'packages/dom/utils/scroll-lock',
+    'packages/react/dialog',
+    'packages/react/hooks/use-focus-trap',
+    'packages/react/hooks/use-scroll-lock',
+  ],
   entry: ['src/index.ts'],
   format: ['esm'],
   // Every package is `"type": "module"`, so a plain `.js` is already ESM — emit
