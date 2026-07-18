@@ -61,14 +61,22 @@ export function makeGated<
   key: Key,
   options: GatedOptions<State, Context, Event, Value>,
 ) => Array<Transition<State, Context, Event>> {
-  return (key, { guard, target, value }) => {
-    const isControlled: Guard<Context, Event> = ({ context }) =>
-      (context[key] as Controllable<unknown>).controlled
+  return <Key extends ControllableKey<Context> & string, Value>(
+    key: Key,
+    { guard, target, value }: GatedOptions<State, Context, Event, Value>,
+  ) => {
+    // The one assertion the string-key API costs: TS can't connect
+    // `Key extends ControllableKey<Context>` back to the shape of
+    // `Context[Key]`, so the slice read is narrowed here, once.
+    const sliceOf = (context: Context): Controllable<Value> => context[key] as Controllable<Value>
+
+    const isControlled: Guard<Context, Event> = ({ context }) => sliceOf(context).controlled
     const request: Action<Context, Event> = ({ context, setContext }) => {
-      const slice = context[key] as Controllable<unknown>
-      // Fresh slice + fresh token: the mailbox fires on reference change.
+      // Fresh slice + fresh token: the mailbox fires on reference change. The
+      // patch cast is TS again — a computed generic key widens to a string
+      // index, which never satisfies Partial<Context> on its own.
       setContext({
-        [key]: { controlled: slice.controlled, intent: { value } },
+        [key]: { controlled: sliceOf(context).controlled, intent: { value } },
       } as Partial<Context>)
     }
     return [
@@ -83,5 +91,5 @@ export function syncTo<Context extends object, Event extends { type: string }, V
   value: Value,
 ): Guard<Context, Event> {
   return ({ event }) =>
-    event.type === 'controlled.sync' && (event as unknown as ControlledSync<Value>).value === value
+    event.type === 'controlled.sync' && 'value' in event && event.value === value
 }
