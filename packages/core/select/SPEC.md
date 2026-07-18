@@ -147,3 +147,23 @@ Per the APG select-only combobox:
   hidden-input integration; a Label part (label the trigger via
   `aria-label`/`aria-labelledby`); typeahead while closed; modifier-key
   chords (a printable key is a typeahead key regardless of held modifiers).
+
+## Internals
+
+- **The highlight and typeahead live in the machine.** Both are context, not
+  substrate state: navigation, pointer moves, and the typeahead buffer (with
+  its one-second reset) resolve inside the machine, so every substrate
+  inherits the same matching and timing instead of re-implementing it.
+- **Items are machine context, kept fresh by lifecycle events.** Options
+  register, re-register in place, and unregister through machine events sent
+  by the substrate as they mount and change; every decision that reads the
+  registry — first/last enabled, disabled skipping, late-registration
+  highlight repair — is the machine's.
+- **Callback order is a reaction-order contract.** `onValueChange`,
+  `onHighlightChange`, and `onOpenChange` are connect reactions registered in
+  that order — within one interaction they always fire value, then highlight,
+  then open.
+- **The listbox never unmounts.** Closing hides it (`hidden` + `aria-hidden`)
+  rather than removing it, so option registration and derived ids stay stable
+  across open/close and `aria-activedescendant` can never name a
+  not-yet-rendered node.
