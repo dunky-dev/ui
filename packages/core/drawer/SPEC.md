@@ -155,7 +155,7 @@ dismissal settings, and open/close reporting.
   non-modal mode. A drawer is always modal — `aria-modal`, focus trap, scroll
   lock, backdrop — until a future version says otherwise.
 
-## Design
+## Internals
 
 - **A drawer is a dialog with placement, not a dialog option.** The overlap
   with the dialog core is intentional and the packages stay independent —
