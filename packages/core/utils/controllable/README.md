@@ -25,13 +25,7 @@ npm install @dunky.dev/controllable
 ## Usage
 
 ```ts
-import {
-  controllable,
-  intent,
-  actControlled,
-  guardControlled,
-  type ControlledSync,
-} from '@dunky.dev/controllable'
+import { controllable, intent, syncControlled, type ControlledSync } from '@dunky.dev/controllable'
 
 // context: seed the slice from the consumer's option
 const context = {
@@ -43,7 +37,7 @@ const context = {
 // Bare `intent` infers from a typed guard; unguarded events have nothing to
 // infer from — pin the generics once with `.as` (the `setup.as` idiom).
 const intend = intent.as<StateName, Context, MachineEvent>()
-const actControlledOpen = actControlled.as<Context, MachineEvent>()('open')
+const synced = syncControlled.as<StateName, Context, MachineEvent>()
 
 states: {
   open: {
@@ -51,10 +45,7 @@ states: {
       close: intend('open', { target: 'closed', value: false }),
       escape: intent('open', { guard: canEscape, target: 'closed', value: false }),
       // Move on a matching echo; every echo re-derives controlled-ness.
-      'controlled.sync': [
-        { guard: guardControlled(false), target: 'closed', actions: actControlledOpen },
-        { actions: actControlledOpen },
-      ],
+      'controlled.sync': synced('open', { value: false, target: 'closed' }),
     },
   },
 }

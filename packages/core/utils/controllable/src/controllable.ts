@@ -2,9 +2,9 @@ import { and, type Action, type Guard, type Transition } from '@dunky.dev/state-
 
 /**
  * A consumer-ownable value. `controlled` tracks whether the consumer supplies
- * the value right now — seeded at build, re-derived live by `actControlled` when
- * the prop appears or disappears. `intent` is the last declared intent,
- * written as a fresh token so a reaction on it fires even on repeats.
+ * the value right now — seeded at build, re-derived on every echo (see
+ * `syncControlled`). `intent` is the last declared intent, written as a
+ * fresh token so a reaction on it fires even on repeats.
  */
 export interface Controllable<Value> {
   controlled: boolean
@@ -19,7 +19,7 @@ export function controllable<Value>(value: Value | undefined): Controllable<Valu
 /**
  * The prop echo a substrate sends on change — the only event that moves a
  * controlled machine. `undefined` means the prop is gone: the machine stays
- * where it stands and goes back to owning the value (see `actControlled`).
+ * where it stands and goes back to owning the value (see `syncControlled`).
  */
 export interface ControlledSync<Value> {
   type: 'controlled.sync'
@@ -116,38 +116,17 @@ export const intent: Intent = Object.assign(intentFn, {
   > => intentFn,
 })
 
-/** Guard for the `controlled.sync` transitions: does the echoed value match? */
-export function guardControlled<Context extends object, Event extends { type: string }, Value>(
+// Does the echoed value match?
+function guardEcho<Context extends object, Event extends { type: string }, Value>(
   value: Value,
 ): Guard<Context, Event> {
   return ({ event }) =>
     event.type === 'controlled.sync' && 'value' in event && event.value === value
 }
 
-type ActControlledFn<Context extends object, Event extends { type: string }> = <
-  Key extends ControllableKey<Context> & string,
->(
-  key: Key,
-) => Action<Context, Event>
-
-/**
- * Action for every `controlled.sync` candidate: re-derives `controlled` from
- * the echoed value's presence, so dropping the prop (`undefined`) hands the
- * value back to the machine where it stands, and supplying it takes control.
- * Pin like `intent`: actControlled.as<Context, Event>().
- */
-export interface ActControlled {
-  <
-    Context extends object,
-    Event extends { type: string },
-    Key extends ControllableKey<Context> & string,
-  >(
-    key: Key,
-  ): Action<Context, Event>
-  as<Context extends object, Event extends { type: string }>(): ActControlledFn<Context, Event>
-}
-
-function actControlledFn<
+// Re-derives `controlled` from the echoed value's presence: `undefined` hands
+// the value back to the machine where it stands, a value takes control.
+function actEcho<
   Context extends object,
   Event extends { type: string },
   Key extends ControllableKey<Context> & string,
@@ -162,8 +141,68 @@ function actControlledFn<
   }
 }
 
-export const actControlled: ActControlled = Object.assign(actControlledFn, {
+interface SyncControlledOptions<State extends string, Value> {
+  /** The echoed value that enters this transition's `target`. */
+  value: Value
+  /** Where a matching echo moves the machine. */
+  target: State
+}
+
+type SyncControlledFn<
+  State extends string,
+  Context extends object,
+  Event extends { type: string },
+> = <Key extends ControllableKey<Context> & string, Value>(
+  key: Key,
+  options: SyncControlledOptions<State, Value>,
+) => Array<Transition<State, Context, Event>>
+
+/**
+ * The full `controlled.sync` handling for one state: a matching echo moves to
+ * `target`, and every echo — matching, opposite, or `undefined` — re-derives
+ * who owns the value. Pin like `intent`:
+ *
+ *   const synced = syncControlled.as<DialogStateName, DialogContext, DialogMachineEvent>()
+ *   closed: { on: { 'controlled.sync': synced('open', { value: true, target: 'open' }) } }
+ */
+export interface SyncControlled {
+  <
+    // `const` keeps the target literal — inference otherwise widens it to string.
+    const State extends string,
+    Context extends object,
+    Event extends { type: string },
+    Key extends ControllableKey<Context> & string,
+    Value,
+  >(
+    key: Key,
+    options: SyncControlledOptions<State, Value>,
+  ): Array<Transition<State, Context, Event>>
+  as<
+    State extends string,
+    Context extends object,
+    Event extends { type: string },
+  >(): SyncControlledFn<State, Context, Event>
+}
+
+function syncControlledFn<
+  State extends string,
+  Context extends object,
+  Event extends { type: string },
+  Key extends ControllableKey<Context> & string,
+  Value,
+>(
+  key: Key,
+  { value, target }: SyncControlledOptions<State, Value>,
+): Array<Transition<State, Context, Event>> {
+  const act = actEcho<Context, Event, Key>(key)
+  return [{ guard: guardEcho(value), target, actions: act }, { actions: act }]
+}
+
+export const syncControlled: SyncControlled = Object.assign(syncControlledFn, {
   // Type-level only, like setup.as — the same implementation, generics pinned.
-  as: <Context extends object, Event extends { type: string }>(): ActControlledFn<Context, Event> =>
-    actControlledFn,
+  as: <
+    State extends string,
+    Context extends object,
+    Event extends { type: string },
+  >(): SyncControlledFn<State, Context, Event> => syncControlledFn,
 })

@@ -5,7 +5,7 @@ import {
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
-import { controllable, intent, actControlled, guardControlled } from '@dunky.dev/controllable'
+import { controllable, intent, syncControlled } from '@dunky.dev/controllable'
 import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
@@ -18,10 +18,10 @@ const canEscape: DialogGuard = ({ context }) => context.closeOnEscape
 const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractOutside
 
 // Every open/close intent is recorded in `open.intent`; whether it also
-// transitions is intent's controlled/uncontrolled fork. One shared action
-// keeps the controlled flag tracking the prop's presence on every echo.
+// transitions is intent's controlled/uncontrolled fork. `synced` is the full
+// prop-echo handling: move on a matching echo, re-derive ownership on every one.
 const intend = intent.as<DialogStateName, DialogContext, DialogMachineEvent>()
-const actControlledOpen = actControlled.as<DialogContext, DialogMachineEvent>()('open')
+const synced = syncControlled.as<DialogStateName, DialogContext, DialogMachineEvent>()
 
 const setPartPresence: DialogAction = ({ event, context, setContext }) => {
   if (event.type !== 'part.presence') return
@@ -58,10 +58,7 @@ export function dialogMachine(
         on: {
           open: intend('open', { target: 'open', value: true }),
           toggle: intend('open', { target: 'open', value: true }),
-          'controlled.sync': [
-            { guard: guardControlled(true), target: 'open', actions: actControlledOpen },
-            { actions: actControlledOpen },
-          ],
+          'controlled.sync': synced('open', { value: true, target: 'open' }),
         },
       },
       open: {
@@ -74,10 +71,7 @@ export function dialogMachine(
             target: 'closed',
             value: false,
           }),
-          'controlled.sync': [
-            { guard: guardControlled(false), target: 'closed', actions: actControlledOpen },
-            { actions: actControlledOpen },
-          ],
+          'controlled.sync': synced('open', { value: false, target: 'closed' }),
         },
       },
     },

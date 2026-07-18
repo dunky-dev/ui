@@ -3,8 +3,7 @@ import { machine, setup, type Guard } from '@dunky.dev/state-machine'
 import {
   controllable,
   intent,
-  actControlled,
-  guardControlled,
+  syncControlled,
   type Controllable,
   type ControlledSync,
 } from '@dunky.dev/controllable'
@@ -20,7 +19,7 @@ type ToggleEvent = { type: 'start' } | { type: 'stop' } | ControlledSync<boolean
 const canStop: Guard<ToggleContext, ToggleEvent> = ({ context }) => context.allowStop
 // Unguarded events carry no Context/Event to infer from — the pinned form.
 const intend = intent.as<ToggleState, ToggleContext, ToggleEvent>()
-const actControlledOn = actControlled.as<ToggleContext, ToggleEvent>()('on')
+const synced = syncControlled.as<ToggleState, ToggleContext, ToggleEvent>()
 
 const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
   const service = machine(
@@ -31,20 +30,14 @@ const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
         off: {
           on: {
             start: intend('on', { target: 'on', value: true }),
-            'controlled.sync': [
-              { guard: guardControlled(true), target: 'on', actions: actControlledOn },
-              { actions: actControlledOn },
-            ],
+            'controlled.sync': synced('on', { value: true, target: 'on' }),
           },
         },
         on: {
           on: {
             // Bare call: the typed guard carries Context/Event, so it infers.
             stop: intent('on', { guard: canStop, target: 'off', value: false }),
-            'controlled.sync': [
-              { guard: guardControlled(false), target: 'off', actions: actControlledOn },
-              { actions: actControlledOn },
-            ],
+            'controlled.sync': synced('on', { value: false, target: 'off' }),
           },
         },
       },
@@ -106,7 +99,7 @@ describe('controlled.sync', () => {
     expect(service.context.on.intent).toBeNull()
   })
 
-  it('actControlled tracks the echoed value presence in both directions', () => {
+  it('re-derives controlled-ness from the echoed value presence, both directions', () => {
     const service = build({ on: true })
     service.send({ type: 'controlled.sync', value: undefined })
     expect(service.state).toBe('on') // hands back, right where it stands
