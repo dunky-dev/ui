@@ -124,7 +124,7 @@ the ARIA relationships on Content always follow what is actually rendered.
   consumer positions the panel; `data-state` and the ARIA wiring are the
   hooks) and scroll locking (even a modal popover leaves the page scrollable).
 
-## Design
+## Internals
 
 - **Outside interaction is detected by the substrate, decided by the machine.**
   A popover has no backdrop to catch presses, so detection is document-level
