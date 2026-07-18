@@ -151,7 +151,7 @@ Per APG Menu Button:
   `data-state` on trigger/content and `data-highlighted` / `data-disabled` on
   items are the styling hooks.
 
-## Design
+## Internals
 
 - **`aria-activedescendant` over roving DOM focus.** The highlight is machine
   state: one context value that every substrate renders as one attribute plus
