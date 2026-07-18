@@ -68,7 +68,7 @@ clear the selection.
 
 | State  | Behavior                                                                                                                                       |
 | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `idle` | The single machine state. Select and navigate intents are gated by guards; which value is checked is context, not a finite state (see Design). |
+| `idle` | The single machine state. Select and navigate intents are gated by guards; which value is checked is context, not a finite state (see Internals). |
 
 ### Item states
 
@@ -119,7 +119,7 @@ Per APG Radio Group:
   value into native form submission), required/validation states, and
   reading-direction (RTL) aware arrow keys.
 
-## Design
+## Internals
 
 - **One state, context-driven.** A radio group's interesting state is _which
   value is checked_ — a value, not a finite state — so the machine is a
