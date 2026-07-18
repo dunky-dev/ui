@@ -85,7 +85,7 @@ Per APG Disclosure (Show/Hide):
   region.
 - The content is never unmounted by the primitive; closed means hidden.
 
-## Design
+## Internals
 
 - **Controlled open is follow + report, not source-of-truth.** The `open`
   option drives the machine whenever its value changes, and a user toggle
