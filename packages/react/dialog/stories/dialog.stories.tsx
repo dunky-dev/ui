@@ -321,6 +321,22 @@ export const nested: StoryType = {
                       While open, everything beneath — including the outer dialog — is inert and
                       hidden from assistive tech.
                     </Dialog.Description>
+                    <Dialog>
+                      <Dialog.Trigger>Open innermost</Dialog.Trigger>
+                      <Dialog.Portal>
+                        <Dialog.Backdrop style={backdrop} />
+                        <Dialog.Viewport style={viewport}>
+                          <Dialog.Content style={content}>
+                            <Dialog.Title>Innermost dialog</Dialog.Title>
+                            <Dialog.Description>
+                              Three layers deep. Escape and Close dismiss this layer only — each
+                              close returns focus to the trigger beneath.
+                            </Dialog.Description>
+                            <DialogActions />
+                          </Dialog.Content>
+                        </Dialog.Viewport>
+                      </Dialog.Portal>
+                    </Dialog>
                     <DialogActions />
                   </Dialog.Content>
                 </Dialog.Viewport>

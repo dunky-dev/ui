@@ -55,11 +55,14 @@ Using the dialog is a walkthrough of intent, not a prop list:
   requires an accessible name); when it genuinely can't, an accessible label
   goes on the content instead.
 - **Close** dismisses from inside — the visible close affordance the APG
-  strongly recommends alongside Escape.
+  strongly recommends alongside Escape. In a nested stack it can be scoped:
+  its own dialog by default, or the whole stack (see [Nesting](#nesting)).
 
 Dismissal is configurable at the root: Escape closing and outside-press closing
 can each be toggled off, and the consumer can veto a single occurrence of
-either from its handler. Opting into the alert-dialog role changes the defaults
+either from its handler. Escape's reach is configurable too — one layer by
+default, or the whole nested stack (the contract is [Nesting](#nesting)).
+Opting into the alert-dialog role changes the defaults
 for urgent, destructive interruptions — modality is inherent and outside
 presses don't dismiss by default, so the user must choose an action.
 
@@ -130,14 +133,24 @@ stack of dialogs only the topmost one exists until it closes.
   assistive technology. Everything beneath it — the page and every dialog it
   was opened from — is hidden and unreachable, by pointer, keyboard, or screen
   reader.
-- **Escape**: dismisses only the topmost dialog, subject to that dialog's own
-  dismissal settings — a nested stack unwinds one layer per press.
+- **Escape**: lands only on the topmost dialog, subject to that dialog's own
+  dismissal settings and veto. Its reach is that dialog's escape scope: one
+  layer (the default — the stack unwinds one layer per press) or the whole
+  stack.
 - **Outside press**: pressing around the topmost dialog is an outside
   interaction for that dialog alone, following its own dismissal settings; the
   dialogs beneath are unaffected.
 - **Unwinding**: when the topmost dialog closes, the one beneath becomes
   topmost again — re-exposed, interactive, with focus restored to the element
   focused before the closed dialog opened (normally its trigger).
+- **Closing the stack**: a close intent can be scoped to the whole stack — an
+  Escape whose scope is the stack, or a stack-scoped Close press. Only the
+  dialog that received the intent gates or vetoes it; once allowed, the stack
+  unwinds top-down, every layer beneath receiving a plain close — no Escape or
+  outside-press gating — and reporting it through its own callback, a
+  controlled layer following its `open` prop as always. After a full unwind,
+  focus lands where it was before the bottom-most dialog opened (normally the
+  original trigger).
 - **Scroll**: the page stays scroll-locked until the last modal dialog in the
   stack closes.
 
@@ -152,4 +165,6 @@ stack of dialogs only the topmost one exists until it closes.
 - Every open ⇄ close intent, whatever its source, is reported to the
   consumer. A controlled dialog never transitions on its own — it follows the
   `open` prop alone, and a prop-driven transition is not echoed back.
+- A stack-scoped close is gated and vetoed only by the dialog that received
+  the intent; every layer beneath receives a plain close and reports it.
 - The alertdialog role does not dismiss on outside press by default.

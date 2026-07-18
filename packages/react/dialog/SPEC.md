@@ -67,6 +67,7 @@ The root: owns open/close state, renders no DOM. Accepts the core
 | `modal`                  | `boolean`                   | `true`                                    | `aria-modal`, focus trap, scroll lock, backdrop.                    |
 | `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'`                                | The ARIA pattern.                                                   |
 | `closeOnEscape`          | `boolean`                   | `true`                                    | Whether Escape closes the dialog.                                   |
+| `escapeScope`            | `'layer' \| 'stack'`        | `'layer'`                                 | How far an allowed Escape reaches: this dialog, or its whole stack. |
 | `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether pressing the backdrop/viewport closes the dialog.           |
 | `onEscapeKeyDown`        | `(event) => void`           | —                                         | Fired before an Escape dismissal; `preventDefault()` vetoes.        |
 | `onInteractOutside`      | `(event?) => void`          | —                                         | Fired before an outside-press dismissal; `preventDefault()` vetoes. |
@@ -135,6 +136,7 @@ Describes the dialog (wires `aria-describedby` on Content).
 
 Dismisses the dialog from inside.
 
-| Prop       | Type                       | Default | Description                           |
-| ---------- | -------------------------- | ------- | ------------------------------------- |
-| `...props` | `ComponentProps<'button'>` | —       | Forwarded to the rendered `<button>`. |
+| Prop       | Type                       | Default   | Description                                                    |
+| ---------- | -------------------------- | --------- | -------------------------------------------------------------- |
+| `scope`    | `'layer' \| 'stack'`       | `'layer'` | Dismiss just its own dialog, or unwind the whole nested stack. |
+| `...props` | `ComponentProps<'button'>` | —         | Forwarded to the rendered `<button>`.                          |
