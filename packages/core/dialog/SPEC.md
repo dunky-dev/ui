@@ -176,20 +176,16 @@ stack of dialogs only the topmost one exists until it closes.
 
 ## Internals
 
-The dialog ships headless: parts carry behavior and ARIA wiring plus a
-`data-state` attribute (`open` / `closed`) for the consumer's styling and
-animation; visuals belong entirely to the consumer. Cross-primitive machinery
-lives in shared framework-free packages — focus and scroll containment in
-`@dunky.dev/dom-focus-trap` / `@dunky.dev/dom-scroll-lock`, the
-controlled/uncontrolled mechanics in `@dunky.dev/controllable` — so every
-substrate inherits identical behavior.
+The design positions behind the implementation — each Why explains the
+choice, not the behavior it produces (that's spec'd above). The dialog ships
+headless: parts carry behavior and ARIA wiring plus a `data-state` attribute
+(`open` / `closed`) for styling and animation; visuals belong to the consumer.
 
-| Position                                                             | Why                                                                                                                                                                                                  | Status     |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `open` is a `Controllable` slice (`@dunky.dev/controllable`)         | A controlled machine records intents but only moves on the substrate's prop echo — `onOpenChange`, bound to the actual state, can never report a change that didn't happen; controlled-ness is live. | `adopted`  |
-| Dismissal intents are distinct events (`escape`, `interact.outside`) | The dismissal settings gate them as machine guards — decided once, in the core, for every substrate.                                                                                                 | `adopted`  |
-| One base id, per-part ids derived from it                            | The cross-part ARIA references (controls / labelledby / describedby) can never disagree.                                                                                                             | `adopted`  |
-| Part presence tracked in machine context (`part.presence`)           | Title/Description report mount/unmount as events, so the ARIA relationships follow what is actually rendered — in every substrate, with no substrate bookkeeping.                                    | `adopted`  |
-| This contract owns modality, dismissal, and focus                    | A substrate must not hand authority to host built-ins (e.g. the browser's `showModal()`) — behavior stays identical across hosts instead of splitting between the spec and the platform.             | `adopted`  |
-| The `intent` slot is recorded but drives no consumer callback        | Reserved as the request channel — the piece a stack-scoped close needs to traverse controlled layers. No consumer surface until that contract is spec'd.                                             | `reserved` |
-| No `asChild` composition in v1                                       | No slot/composition infrastructure in the repo yet; parts render their natural elements. Revisit with a shared primitive.                                                                            | `deferred` |
+| Position                                                                                          | Why                                                                                                            |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `open` delegates to `@dunky.dev/controllable`; `onOpenChange` reacts to the state, not to intents | One shared mechanic across primitives, and the callback structurally can't drift from the controlled contract. |
+| Dismissal intents are distinct events (`escape`, `interact.outside`)                              | Their gating lives in core guards — no substrate re-implements the settings.                                   |
+| One base id, per-part ids derived from it                                                         | The cross-part ARIA references (controls / labelledby / describedby) can never disagree.                       |
+| Part presence lives in machine context (`part.presence` events)                                   | The rendered-parts rule holds in every substrate with no substrate bookkeeping.                                |
+| This contract owns modality, dismissal, and focus                                                 | A substrate must not hand authority to host built-ins (e.g. `showModal()`) — behavior can't fork per host.     |
+| The `intent` slot records every declared intent, drives no callback                               | Reserved as the request channel a stack-scoped close needs to traverse controlled layers.                      |
