@@ -96,7 +96,7 @@ Per APG Tooltip:
   relative to the trigger) and cross-tooltip skip-delay coordination (moving
   between adjacent triggers always re-runs the open delay).
 
-## Design
+## Internals
 
 - **Timers live in the machine.** `opening`/`closing` are explicit states whose
   durations (`openDelay`/`closeDelay`, defaults 700/300 ms) are seeded into
