@@ -14,6 +14,8 @@
     "skipLibCheck": true,
     "strict": true,
     "paths": {
+      "@dunky.dev/collapsible": ["./packages/core/collapsible/src"],
+      "@dunky.dev/react-collapsible": ["./packages/react/collapsible/src"],
       "@dunky.dev/dialog": ["./packages/core/dialog/src"],
       "@dunky.dev/react-dialog": ["./packages/react/dialog/src"],
       "@dunky.dev/dom-focus-trap": ["./packages/dom/utils/focus-trap/src"],
