@@ -132,7 +132,7 @@ Per WAI-ARIA `status` and the Radix mapping:
   readers — the Radix-style off-screen announcer that guarantees the initial
   announcement is a known v0 gap.
 
-## Design
+## Internals
 
 - **One machine per toast; no store.** The Radix-style declarative shape wins
   over an imperative toaster: each rendered toast owns exactly one machine and
