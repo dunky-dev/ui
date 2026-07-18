@@ -59,6 +59,15 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
 
+  packages/core/toast:
+    dependencies:
+      '@dunky.dev/state-machine':
+        specifier: ^0.1.0
+        version: 0.1.0
+      '@dunky.dev/state-machine-bindings':
+        specifier: ^0.1.0
+        version: 0.1.0
+
   packages/dom/utils/focus-trap: {}
 
   packages/dom/utils/scroll-lock: {}
@@ -145,6 +154,31 @@ importers:
       '@dunky.dev/dom-scroll-lock':
         specifier: workspace:^
         version: link:../../../dom/utils/scroll-lock
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/react':
+        specifier: ^19.2.15
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      react:
+        specifier: ^19.2.6
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.7(react@19.2.7)
+
+  packages/react/toast:
+    dependencies:
+      '@dunky.dev/react-state-machine':
+        specifier: ^0.1.0
+        version: 0.1.0(react@19.2.7)
+      '@dunky.dev/toast':
+        specifier: workspace:^
+        version: link:../../core/toast
     devDependencies:
       '@testing-library/react':
         specifier: ^16.1.0
