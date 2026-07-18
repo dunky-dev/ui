@@ -84,7 +84,7 @@ it, and the stack unwinds one layer at a time. The full contract is
 ### Title/Description presence
 
 A Title or Description can appear or disappear at any time, open or closed —
-the ARIA relationships on Content always follow what is actually rendered.
+the relationships on Content update either way.
 
 ## Accessibility
 

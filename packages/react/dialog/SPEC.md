@@ -49,8 +49,8 @@ React-specific notes on top of the core contract:
   with the browser's built-in dialog behavior.
 - **`Backdrop`** renders nothing when the dialog is non-modal (`modal={false}`),
   per the core parts contract.
-- Everything ships headless — parts carry behavior, ARIA wiring, and a
-  `data-state` attribute (`open` / `closed`); styling is the consumer's.
+- Everything ships headless, per the core contract's
+  [Internals](../../core/dialog/SPEC.md#internals).
 
 ## API
 
