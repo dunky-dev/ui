@@ -123,10 +123,12 @@ stack of dialogs only the topmost one exists until it closes.
 - **Stacking**: a dialog opened from within an open dialog stacks on top of it,
   at any depth. Each dialog in the stack stays fully independent — its own
   open/close state, role, dismissal settings, and open/close reporting.
-- **Topmost only**: only the topmost dialog is interactive and exposed to
-  assistive technology. Everything beneath it — the page and every dialog it
-  was opened from — is hidden and unreachable, by pointer, keyboard, or screen
-  reader.
+- **Topmost only**: in a modal stack, only the topmost dialog is interactive
+  and exposed to assistive technology. Everything beneath the topmost modal
+  dialog — the page and every dialog it was opened from — is hidden and
+  unreachable, by pointer, keyboard, or screen reader. Containment anchors on
+  the topmost modal layer, so a non-modal layer stacked above it stays exposed
+  alongside it (the shared contract is `@dunky.dev/dom-layer-stack`).
 - **Escape**: dismisses only the topmost dialog, subject to that dialog's own
   dismissal settings — a nested stack unwinds one layer per press.
 - **Outside press**: pressing around the topmost dialog is an outside

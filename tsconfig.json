@@ -17,8 +17,12 @@
       "@dunky.dev/dialog": ["./packages/core/dialog/src"],
       "@dunky.dev/react-dialog": ["./packages/react/dialog/src"],
       "@dunky.dev/dom-focus-trap": ["./packages/dom/utils/focus-trap/src"],
+      "@dunky.dev/dom-interact-outside": ["./packages/dom/utils/interact-outside/src"],
+      "@dunky.dev/dom-layer-stack": ["./packages/dom/utils/layer-stack/src"],
       "@dunky.dev/dom-scroll-lock": ["./packages/dom/utils/scroll-lock/src"],
       "@dunky.dev/react-use-focus-trap": ["./packages/react/hooks/use-focus-trap/src"],
+      "@dunky.dev/react-use-interact-outside": ["./packages/react/hooks/use-interact-outside/src"],
+      "@dunky.dev/react-use-layer-stack": ["./packages/react/hooks/use-layer-stack/src"],
       "@dunky.dev/react-use-scroll-lock": ["./packages/react/hooks/use-scroll-lock/src"],
       "@dunky-dev/core": ["./packages/core/src"]
     },

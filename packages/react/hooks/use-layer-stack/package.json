@@ -1,12 +1,12 @@
 {
-  "name": "@dunky.dev/react-dialog",
+  "name": "@dunky.dev/react-use-layer-stack",
   "version": "0.0.0",
-  "description": "React binding for @dunky.dev/dialog.",
+  "description": "React half of @dunky.dev/dom-layer-stack: the shared overlay nesting-depth hook and context.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dunky-dev/ui.git",
-    "directory": "packages/react/dialog"
+    "directory": "packages/react/hooks/use-layer-stack"
   },
   "files": [
     "dist"
@@ -32,14 +32,6 @@
   },
   "scripts": {
     "build": "tsdown"
-  },
-  "dependencies": {
-    "@dunky.dev/dialog": "workspace:^",
-    "@dunky.dev/dom-layer-stack": "workspace:^",
-    "@dunky.dev/react-state-machine": "^0.1.0",
-    "@dunky.dev/react-use-focus-trap": "workspace:^",
-    "@dunky.dev/react-use-layer-stack": "workspace:^",
-    "@dunky.dev/react-use-scroll-lock": "workspace:^"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",

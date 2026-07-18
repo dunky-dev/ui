@@ -61,6 +61,10 @@ importers:
 
   packages/dom/utils/focus-trap: {}
 
+  packages/dom/utils/interact-outside: {}
+
+  packages/dom/utils/layer-stack: {}
+
   packages/dom/utils/scroll-lock: {}
 
   packages/react:
@@ -92,12 +96,18 @@ importers:
       '@dunky.dev/dialog':
         specifier: workspace:^
         version: link:../../core/dialog
+      '@dunky.dev/dom-layer-stack':
+        specifier: workspace:^
+        version: link:../../dom/utils/layer-stack
       '@dunky.dev/react-state-machine':
         specifier: ^0.1.0
         version: 0.1.0(react@19.2.7)
       '@dunky.dev/react-use-focus-trap':
         specifier: workspace:^
         version: link:../hooks/use-focus-trap
+      '@dunky.dev/react-use-layer-stack':
+        specifier: workspace:^
+        version: link:../hooks/use-layer-stack
       '@dunky.dev/react-use-scroll-lock':
         specifier: workspace:^
         version: link:../hooks/use-scroll-lock
@@ -123,6 +133,46 @@ importers:
       '@dunky.dev/dom-focus-trap':
         specifier: workspace:^
         version: link:../../../dom/utils/focus-trap
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/react':
+        specifier: ^19.2.15
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      react:
+        specifier: ^19.2.6
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.7(react@19.2.7)
+
+  packages/react/hooks/use-interact-outside:
+    dependencies:
+      '@dunky.dev/dom-interact-outside':
+        specifier: workspace:^
+        version: link:../../../dom/utils/interact-outside
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/react':
+        specifier: ^19.2.15
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      react:
+        specifier: ^19.2.6
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.7(react@19.2.7)
+
+  packages/react/hooks/use-layer-stack:
     devDependencies:
       '@testing-library/react':
         specifier: ^16.1.0

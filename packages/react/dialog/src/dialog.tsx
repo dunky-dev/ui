@@ -12,14 +12,15 @@ import {
   type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { isTopmostLayer, registerLayer } from '@dunky.dev/dom-layer-stack'
 import { useFocusTrap } from '@dunky.dev/react-use-focus-trap'
+import { LayerDepthContext, useLayerDepth } from '@dunky.dev/react-use-layer-stack'
 import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
 import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
-import { DialogContext, DialogDepthContext, DialogPortalContext, useDialogContext } from './context'
+import { DialogContext, DialogPortalContext, useDialogContext } from './context'
 import { getInitialFocus } from './utils/get-initial-focus'
-import { isTopmostDialog, registerDialog } from './utils/stack'
 import { useDialog } from './use-dialog'
 
 // Explicit so the exports satisfy --isolatedDeclarations (a bare forwardRef
@@ -35,12 +36,12 @@ export interface DialogProps extends DialogOptions {
 }
 
 export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, ...options }) => {
-  const depth = useContext(DialogDepthContext) + 1
+  const depth = useLayerDepth() + 1
   const value = useDialog(options)
   return (
-    <DialogDepthContext.Provider value={depth}>
+    <LayerDepthContext.Provider value={depth}>
       <DialogContext.Provider value={value}>{children}</DialogContext.Provider>
-    </DialogDepthContext.Provider>
+    </LayerDepthContext.Provider>
   )
 }
 
@@ -99,9 +100,9 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
 
   const merged = mergeProps(props as Record<string, unknown>, {
     ...bindings,
-    // Only the topmost dialog of a stack answers an outside press.
+    // Only the topmost layer of a stack answers an outside press.
     onClick: (event: MouseEvent<HTMLDivElement>) => {
-      if (isTopmostDialog(machine.context.id)) onClick?.(event)
+      if (isTopmostLayer(machine.context.id)) onClick?.(event)
     },
   })
 
@@ -129,11 +130,11 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
   const merged = mergeProps(props as Record<string, unknown>, {
     ...bindings,
     // Content presses bubble up here — only a press that started on the
-    // viewport itself is an outside interaction, and only the topmost dialog
+    // viewport itself is an outside interaction, and only the topmost layer
     // of a stack answers it.
     onClick: (event: MouseEvent<HTMLDivElement>) => {
       if (event.target !== event.currentTarget) return
-      if (!isTopmostDialog(machine.context.id)) return
+      if (!isTopmostLayer(machine.context.id)) return
       onClick?.(event)
     },
   })
@@ -156,7 +157,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   DialogContentProps
 >(({ initialFocus, ...props }, forwardedRef) => {
   const { api, machine } = useDialogContext()
-  const depth = useContext(DialogDepthContext)
+  const depth = useLayerDepth()
   const portalContainer = useContext(DialogPortalContext)
   const contentRef = useRef<HTMLDialogElement>(null)
   useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDialogElement)
@@ -172,7 +173,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
     if (content === null) return
 
     const previous = document.activeElement
-    const unregister = registerDialog({
+    const unregister = registerLayer({
       id: machine.context.id,
       depth,
       element: content,
@@ -198,9 +199,9 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   useScrollLock(machine.context.modal, portalContainer)
 
   useFocusTrap(contentRef, {
-    // Only a modal dialog traps, and only while topmost — a nested dialog
+    // Only a modal dialog traps, and only while topmost — a nested layer
     // owns focus while open.
-    enabled: () => machine.context.modal && isTopmostDialog(machine.context.id),
+    enabled: () => machine.context.modal && isTopmostLayer(machine.context.id),
   })
 
   const merged = mergeProps(props as Record<string, unknown>, {
