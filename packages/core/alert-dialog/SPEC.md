@@ -142,7 +142,7 @@ Per APG Alert Dialog:
   the parts inside Content only exist while open) is the styling and
   animation hook.
 
-## Design
+## Internals
 
 - The machine models only the open/close graph and part presence. Escape
   reaches it as a distinct `escape` intent — separate from `close` so a
