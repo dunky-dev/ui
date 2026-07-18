@@ -50,10 +50,19 @@ importers:
 
   packages/core/dialog:
     dependencies:
+      '@dunky.dev/controllable':
+        specifier: workspace:^
+        version: link:../utils/controllable
       '@dunky.dev/state-machine':
         specifier: ^0.1.0
         version: 0.1.0
       '@dunky.dev/state-machine-bindings':
+        specifier: ^0.1.0
+        version: 0.1.0
+
+  packages/core/utils/controllable:
+    dependencies:
+      '@dunky.dev/state-machine':
         specifier: ^0.1.0
         version: 0.1.0
 

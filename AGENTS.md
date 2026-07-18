@@ -43,10 +43,11 @@ architecture:
   counterpart, its substrate's state-machine adapter
   (`@dunky.dev/<substrate>-state-machine`), its own hooks, and the DOM utils —
   nothing else from this repo. A core package imports only the state-machine
-  runtime and the agnostic bindings vocabulary
-  (`@dunky.dev/state-machine` + `@dunky.dev/state-machine-bindings`). A DOM
-  util imports nothing from this repo; a substrate hook imports only the DOM
-  util it wraps.
+  runtime, the agnostic bindings vocabulary
+  (`@dunky.dev/state-machine` + `@dunky.dev/state-machine-bindings`), and the
+  machine utils under `core/utils`. A machine util imports only the runtime;
+  a DOM util imports nothing from this repo; a substrate hook imports only
+  the DOM util it wraps.
 - **Primitives are independent.** No cross-imports between primitives. If two
   need to share logic, that's a design decision — a new package — never a
   cross-import.

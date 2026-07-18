@@ -1,12 +1,12 @@
 {
-  "name": "@dunky.dev/dialog",
+  "name": "@dunky.dev/controllable",
   "version": "0.0.0",
-  "description": "Framework-agnostic dialog interaction, modeled as a state machine.",
+  "description": "Controlled/uncontrolled machinery for state machines: a controllable context slice and gated transitions.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dunky-dev/ui.git",
-    "directory": "packages/core/dialog"
+    "directory": "packages/core/utils/controllable"
   },
   "files": [
     "dist"
@@ -34,8 +34,6 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@dunky.dev/controllable": "workspace:^",
-    "@dunky.dev/state-machine": "^0.1.0",
-    "@dunky.dev/state-machine-bindings": "^0.1.0"
+    "@dunky.dev/state-machine": "^0.1.0"
   }
 }

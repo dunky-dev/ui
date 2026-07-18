@@ -109,9 +109,9 @@ const reaction = makeReaction<DialogStateName, DialogContext, DialogMachineEvent
 // transition never writes the mailbox — the consumer's own change isn't echoed.
 dialogConnect.reactions = [
   reaction(
-    m => m.context.openIntent,
+    m => m.context.open.intent,
     (intent, props) => {
-      if (intent !== null) props.onOpenChange?.(intent.open)
+      if (intent !== null) props.onOpenChange?.(intent.value)
     },
   ),
 ]

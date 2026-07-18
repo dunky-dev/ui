@@ -1,11 +1,11 @@
 import {
-  and,
   setup,
   type Action,
   type Guard,
   type Machine,
   type TransitionConfig,
 } from '@dunky.dev/state-machine'
+import { controllable, makeGated, syncTo } from '@dunky.dev/controllable'
 import type { DialogContext, DialogMachineEvent, DialogOptions, DialogStateName } from './types'
 
 /** The running dialog machine — what a substrate holds and sends events to. */
@@ -14,18 +14,13 @@ export type DialogMachine = Machine<DialogStateName, DialogContext, DialogMachin
 type DialogAction = Action<DialogContext, DialogMachineEvent>
 type DialogGuard = Guard<DialogContext, DialogMachineEvent>
 
-const isControlled: DialogGuard = ({ context }) => context.controlled
 const canEscape: DialogGuard = ({ context }) => context.closeOnEscape
 const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractOutside
-const syncOpens: DialogGuard = ({ event }) => event.type === 'controlled.sync' && event.open
-const syncCloses: DialogGuard = ({ event }) => event.type === 'controlled.sync' && !event.open
 
-// Every open/close intent lands in the mailbox; the connect's reaction turns
-// it into onOpenChange. Uncontrolled, the intent rides along with the
-// transition; controlled, the intent IS the outcome — the machine stays put
-// until `controlled.sync` echoes the prop back.
-const requestOpen: DialogAction = ({ setContext }) => setContext({ openIntent: { open: true } })
-const requestClose: DialogAction = ({ setContext }) => setContext({ openIntent: { open: false } })
+// Every open/close intent goes through the `open` mailbox (the connect's
+// reaction turns it into onOpenChange); whether it also transitions is
+// gated's controlled/uncontrolled fork.
+const gated = makeGated<DialogStateName, DialogContext, DialogMachineEvent>()
 
 const setPartPresence: DialogAction = ({ event, context, setContext }) => {
   if (event.type !== 'part.presence') return
@@ -44,15 +39,12 @@ export function dialogMachine(
     // An alert dialog interrupts for a response — an outside press must not
     // dismiss it unless explicitly opted in.
     closeOnInteractOutside: options.closeOnInteractOutside ?? role === 'dialog',
-    controlled: options.open !== undefined,
-    openIntent: null,
+    open: controllable(options.open),
     // The substrate supplies a unique id; `dialog` is only a bare fallback.
     id: options.id ?? 'dialog',
     parts: { title: false, description: false },
   }
 
-  // Each intent event lists two candidates — first guard wins: controlled
-  // only writes the mailbox; uncontrolled also takes the transition.
   return setup.as<DialogContext, DialogMachineEvent>().createMachine({
     initial: (options.open ?? options.defaultOpen) === true ? 'open' : 'closed',
     context,
@@ -63,36 +55,22 @@ export function dialogMachine(
     states: {
       closed: {
         on: {
-          open: [
-            { guard: isControlled, actions: requestOpen },
-            { target: 'open', actions: requestOpen },
-          ],
-          toggle: [
-            { guard: isControlled, actions: requestOpen },
-            { target: 'open', actions: requestOpen },
-          ],
-          'controlled.sync': { target: 'open', guard: syncOpens },
+          open: gated('open', { target: 'open', value: true }),
+          toggle: gated('open', { target: 'open', value: true }),
+          'controlled.sync': { target: 'open', guard: syncTo(true) },
         },
       },
       open: {
         on: {
-          close: [
-            { guard: isControlled, actions: requestClose },
-            { target: 'closed', actions: requestClose },
-          ],
-          toggle: [
-            { guard: isControlled, actions: requestClose },
-            { target: 'closed', actions: requestClose },
-          ],
-          escape: [
-            { guard: and(canEscape, isControlled), actions: requestClose },
-            { guard: canEscape, target: 'closed', actions: requestClose },
-          ],
-          'interact.outside': [
-            { guard: and(canDismissOutside, isControlled), actions: requestClose },
-            { guard: canDismissOutside, target: 'closed', actions: requestClose },
-          ],
-          'controlled.sync': { target: 'closed', guard: syncCloses },
+          close: gated('open', { target: 'closed', value: false }),
+          toggle: gated('open', { target: 'closed', value: false }),
+          escape: gated('open', { guard: canEscape, target: 'closed', value: false }),
+          'interact.outside': gated('open', {
+            guard: canDismissOutside,
+            target: 'closed',
+            value: false,
+          }),
+          'controlled.sync': { target: 'closed', guard: syncTo(false) },
         },
       },
     },

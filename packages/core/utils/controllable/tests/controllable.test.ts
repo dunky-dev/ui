@@ -1,0 +1,98 @@
+import { describe, expect, it } from 'vitest'
+import { machine, setup, type Guard } from '@dunky.dev/state-machine'
+import {
+  controllable,
+  makeGated,
+  syncTo,
+  type Controllable,
+  type ControlledSync,
+} from '@dunky.dev/controllable'
+
+// A minimal on/off machine — just enough surface to exercise the contract.
+type ToggleState = 'off' | 'on'
+interface ToggleContext {
+  on: Controllable<boolean>
+  allowStop: boolean
+}
+type ToggleEvent = { type: 'start' } | { type: 'stop' } | ControlledSync<boolean>
+
+const canStop: Guard<ToggleContext, ToggleEvent> = ({ context }) => context.allowStop
+const gated = makeGated<ToggleState, ToggleContext, ToggleEvent>()
+
+const build = (options: { on?: boolean; allowStop?: boolean } = {}) => {
+  const service = machine(
+    setup.as<ToggleContext, ToggleEvent>().createMachine({
+      initial: options.on === true ? 'on' : 'off',
+      context: { on: controllable(options.on), allowStop: options.allowStop ?? true },
+      states: {
+        off: {
+          on: {
+            start: gated('on', { target: 'on', value: true }),
+            'controlled.sync': { target: 'on', guard: syncTo(true) },
+          },
+        },
+        on: {
+          on: {
+            stop: gated('on', { guard: canStop, target: 'off', value: false }),
+            'controlled.sync': { target: 'off', guard: syncTo(false) },
+          },
+        },
+      },
+    }),
+  )
+  service.start()
+  return service
+}
+
+describe('controllable', () => {
+  it('derives the controlled flag from whether a value was supplied', () => {
+    expect(controllable(undefined).controlled).toBe(false)
+    expect(controllable(false).controlled).toBe(true)
+    expect(controllable(undefined).intent).toBeNull()
+  })
+})
+
+describe('gated', () => {
+  it('uncontrolled: transitions and writes the intent', () => {
+    const service = build()
+    service.send({ type: 'start' })
+    expect(service.state).toBe('on')
+    expect(service.context.on.intent).toEqual({ value: true })
+  })
+
+  it('controlled: writes the intent without moving the machine', () => {
+    const service = build({ on: true })
+    service.send({ type: 'stop' })
+    expect(service.state).toBe('on')
+    expect(service.context.on.intent).toEqual({ value: false })
+  })
+
+  it('the guard gates both modes before anything is reported', () => {
+    const controlled = build({ on: true, allowStop: false })
+    controlled.send({ type: 'stop' })
+    expect(controlled.context.on.intent).toBeNull()
+
+    const uncontrolled = build({ allowStop: false })
+    uncontrolled.send({ type: 'start' }) // start is unguarded
+    uncontrolled.send({ type: 'stop' })
+    expect(uncontrolled.state).toBe('on')
+  })
+
+  it('writes a fresh token per intent so repeats still notify', () => {
+    const service = build({ on: true })
+    service.send({ type: 'stop' })
+    const first = service.context.on.intent
+    service.send({ type: 'stop' })
+    expect(service.context.on.intent).toEqual(first)
+    expect(service.context.on.intent).not.toBe(first)
+  })
+})
+
+describe('controlled.sync', () => {
+  it('moves the machine to the echoed value without writing the mailbox', () => {
+    const service = build({ on: true })
+    service.send({ type: 'controlled.sync', value: false })
+    expect(service.state).toBe('off')
+    expect(service.context.on.intent).toBeNull()
+  })
+})

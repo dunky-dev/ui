@@ -13,7 +13,7 @@ const syncControlledOpen: DialogEffect = [
   (machine, props) => {
     if (props.open === undefined) return
     if (props.open !== machine.matches('open')) {
-      machine.send({ type: 'controlled.sync', open: props.open })
+      machine.send({ type: 'controlled.sync', value: props.open })
     }
   },
   ['open'],

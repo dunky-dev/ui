@@ -19,6 +19,9 @@ inside it.
 packages/
 |
 +- core/                  substrate-free behavior, one package per primitive
+|  +- utils/              machine utilities shared across primitives
+|  |  +- controllable/    @dunky.dev/controllable
+|  |  +- ...
 |  +- dialog/             @dunky.dev/dialog
 |  +- tooltip/            @dunky.dev/tooltip
 |  +- ...
@@ -53,6 +56,12 @@ DOM logic that several primitives or substrates need — focus containment,
 scroll locking — lives once as a framework-free util under `dom/utils/`; each
 substrate wraps what needs a lifecycle in a thin hook under its own `hooks/`
 folder. A new substrate reuses all of it and only writes the wrappers.
+
+Machine logic that several primitives need — the controlled/uncontrolled
+machinery (`@dunky.dev/controllable`) — lives the same way under
+`core/utils/`: substrate-free helpers a core machine composes into its
+transition table, so every primitive encodes the same contract instead of
+hand-rolling it.
 
 Each substrate directory is itself a private workspace package
 (`@dunky-dev/<substrate>`) that owns the substrate's infrastructure — the dev

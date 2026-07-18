@@ -11,6 +11,7 @@ export default defineConfig({
   // .changeset/config.json.
   workspace: [
     'packages/core/dialog',
+    'packages/core/utils/controllable',
     'packages/dom/utils/focus-trap',
     'packages/dom/utils/scroll-lock',
     'packages/react/dialog',

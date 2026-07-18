@@ -1,6 +1,7 @@
 // Public + machine-facing types for the framework-agnostic dialog primitive.
 // The state machine is substrate-free: all event reading lives in a
 // per-substrate driver.
+import type { Controllable, ControlledSync } from '@dunky.dev/controllable'
 import type { KeyboardPayload, PointerPayload } from '@dunky.dev/state-machine-bindings'
 
 export type DialogStateName = 'closed' | 'open'
@@ -26,13 +27,10 @@ export interface DialogContext {
   modal: boolean
   closeOnEscape: boolean
   closeOnInteractOutside: boolean
-  // Whether the consumer controls `open`. Fixed at build time: a controlled
-  // machine never moves on its own — intents go out through `openIntent` and
-  // only `controlled.sync` (the prop echo) transitions it.
-  controlled: boolean
-  // Emission mailbox for onOpenChange: a fresh token per intent so the
-  // reaction fires even when the intended value repeats.
-  openIntent: { open: boolean } | null
+  // The consumer-ownable open value: the controlled flag plus the intent
+  // mailbox onOpenChange reads from. A controlled machine never moves on its
+  // own — only `controlled.sync` (the prop echo) transitions it.
+  open: Controllable<boolean>
   // The base id (substrate-minted, SSR-safe); the connect derives the per-part
   // ids from it.
   id: string
@@ -51,7 +49,7 @@ export type DialogMachineEvent =
   | { type: 'toggle' }
   | { type: 'escape' }
   | { type: 'interact.outside' }
-  | { type: 'controlled.sync'; open: boolean }
+  | ControlledSync<boolean>
   | { type: 'part.presence'; part: DialogPart; present: boolean }
 
 export interface DialogCallbacks {

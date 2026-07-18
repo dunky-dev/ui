@@ -248,7 +248,7 @@ describe('dialog machine — controlled', () => {
   it('moves only on controlled.sync, and the prop echo is not reported back', () => {
     const onOpenChange = vi.fn()
     const { service } = build({ open: true, onOpenChange })
-    service.send({ type: 'controlled.sync', open: false })
+    service.send({ type: 'controlled.sync', value: false })
     expect(service.state).toBe('closed')
     expect(onOpenChange).not.toHaveBeenCalled()
   })
