@@ -12,9 +12,11 @@ export default defineConfig({
   // real primitive replaces it. tsdown errors on an empty list, so this is never [].
   workspace: [
     'packages/core',
+    'packages/core/accordion',
     'packages/core/dialog',
     'packages/dom/utils/focus-trap',
     'packages/dom/utils/scroll-lock',
+    'packages/react/accordion',
     'packages/react/dialog',
     'packages/react/hooks/use-focus-trap',
     'packages/react/hooks/use-scroll-lock',
