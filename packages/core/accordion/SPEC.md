@@ -146,7 +146,7 @@ Per APG Accordion:
   option flipping the horizontal arrows, as Radix / Base UI / Ark do) is a
   deliberate v0 exclusion, to be added with the wider direction story.
 
-## Design
+## Internals
 
 - **Value shape follows the mode** (Radix's discriminant, over Ark's
   always-array): `single` speaks `string | null`, `multiple` speaks
