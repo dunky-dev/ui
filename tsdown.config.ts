@@ -13,6 +13,7 @@ export default defineConfig({
   workspace: [
     'packages/core',
     'packages/core/dialog',
+    'packages/core/menu',
     'packages/dom/utils/focus-trap',
     'packages/dom/utils/interact-outside',
     'packages/dom/utils/layer-stack',
@@ -22,6 +23,7 @@ export default defineConfig({
     'packages/react/hooks/use-interact-outside',
     'packages/react/hooks/use-layer-stack',
     'packages/react/hooks/use-scroll-lock',
+    'packages/react/menu',
   ],
   entry: ['src/index.ts'],
   format: ['esm'],

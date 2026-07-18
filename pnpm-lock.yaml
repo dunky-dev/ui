@@ -59,6 +59,15 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
 
+  packages/core/menu:
+    dependencies:
+      '@dunky.dev/state-machine':
+        specifier: ^0.1.0
+        version: 0.1.0
+      '@dunky.dev/state-machine-bindings':
+        specifier: ^0.1.0
+        version: 0.1.0
+
   packages/dom/utils/focus-trap: {}
 
   packages/dom/utils/interact-outside: {}
@@ -195,6 +204,40 @@ importers:
       '@dunky.dev/dom-scroll-lock':
         specifier: workspace:^
         version: link:../../../dom/utils/scroll-lock
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/react':
+        specifier: ^19.2.15
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      react:
+        specifier: ^19.2.6
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.7(react@19.2.7)
+
+  packages/react/menu:
+    dependencies:
+      '@dunky.dev/dom-layer-stack':
+        specifier: workspace:^
+        version: link:../../dom/utils/layer-stack
+      '@dunky.dev/menu':
+        specifier: workspace:^
+        version: link:../../core/menu
+      '@dunky.dev/react-state-machine':
+        specifier: ^0.1.0
+        version: 0.1.0(react@19.2.7)
+      '@dunky.dev/react-use-interact-outside':
+        specifier: workspace:^
+        version: link:../hooks/use-interact-outside
+      '@dunky.dev/react-use-layer-stack':
+        specifier: workspace:^
+        version: link:../hooks/use-layer-stack
     devDependencies:
       '@testing-library/react':
         specifier: ^16.1.0
