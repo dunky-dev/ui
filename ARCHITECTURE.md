@@ -28,9 +28,7 @@ packages/
 |
 +- dom/
 |  +- utils/              framework-free DOM utilities, one package per util
-|     +- dialog/          @dunky.dev/dom-dialog
 |     +- focus-trap/      @dunky.dev/dom-focus-trap
-|     +- navigation/      @dunky.dev/dom-navigation
 |     +- scroll-lock/     @dunky.dev/dom-scroll-lock
 |     +- ...
 |
