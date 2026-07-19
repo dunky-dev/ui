@@ -200,6 +200,9 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
     // Only a modal dialog traps, and only while topmost — a nested dialog
     // owns focus while open.
     enabled: () => machine.context.modal && isTopmostDialog(machine.context.id),
+    // The Close part is the cycle's last stop wherever it renders (core
+    // SPEC); found by its derived id.
+    last: () => document.getElementById(api.ids.close),
   })
 
   const merged = mergeProps(props as Record<string, unknown>, {

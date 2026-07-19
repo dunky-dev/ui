@@ -287,6 +287,34 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(screen.getByText('Close'))
     })
 
+    it('keeps Close last in the cycle even when it renders first', () => {
+      // Close first in the DOM, then content. Tabbing FROM the dialog window
+      // (off-cycle, where focus lands on open) is the discriminating case: a
+      // pure forward cycle hides the wrap point, but entry from off-cycle
+      // reveals whether Close leads (bug) or trails (fixed).
+      render(
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Viewport>
+              <Dialog.Content>
+                <Dialog.Close>Close</Dialog.Close>
+                <button type='button'>Content</button>
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>,
+      )
+      const dialog = screen.getByRole('dialog')
+
+      act(() => dialog.focus()) // the dialog window — where focus opens
+      fireEvent.keyDown(dialog, { key: 'Tab' })
+      expect(document.activeElement).toBe(screen.getByText('Content')) // not Close
+
+      act(() => dialog.focus())
+      fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+      expect(document.activeElement).toBe(screen.getByText('Close')) // last, backward
+    })
+
     const InitialFocusDialog = ({ disabled = false }: { disabled?: boolean }) => {
       const initialFocus = useRef<HTMLInputElement>(null)
       return (

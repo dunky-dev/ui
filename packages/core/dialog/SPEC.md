@@ -118,8 +118,10 @@ Per the [APG modal-dialog keyboard interaction](https://www.w3.org/WAI/ARIA/apg/
   itself (Content), which is focusable in script but not in the tab order.
 - **While open**: Tab moves forward through the dialog's focusables and wraps
   from the last back to the first; Shift+Tab moves backward and wraps from the
-  first — or from the dialog window itself — to the last. Focus never tabs out
-  of the dialog.
+  first — or from the dialog window itself — to the last. The Close part is
+  always the cycle's last stop, wherever it renders — the dismissal
+  affordance follows the content instead of interrupting it. Focus never tabs
+  out of the dialog.
 - **No focusables**: Tab is a no-op; focus stays on the dialog window.
 - **On close**: focus returns to the element focused before opening (normally
   the Trigger).

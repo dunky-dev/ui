@@ -14,14 +14,17 @@ export function useFocusTrap(
   target: RefObject<HTMLElement | null>,
   options: UseFocusTrapOptions = {},
 ): void {
-  // Read through a ref so an inline `enabled` closure doesn't re-bind the
-  // listener on every render.
-  const enabledRef = useRef(options.enabled)
-  enabledRef.current = options.enabled
+  // Read through a ref so inline option closures don't re-bind the listener
+  // on every render.
+  const optionsRef = useRef(options)
+  optionsRef.current = options
 
   useEffect(() => {
     const container = target.current
     if (container === null) return
-    return trapFocus(container, { enabled: () => enabledRef.current?.() !== false })
+    return trapFocus(container, {
+      enabled: () => optionsRef.current.enabled?.() !== false,
+      last: () => optionsRef.current.last?.() ?? null,
+    })
   }, [target])
 }

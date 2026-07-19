@@ -15,6 +15,7 @@ import type { PointerPayload } from '@dunky.dev/state-machine-bindings'
 // The per-part ids the connect derives from a base id of `dlg`.
 const ids: DialogIds = {
   content: 'dlg-content',
+  close: 'dlg-close',
   title: 'dlg-title',
   description: 'dlg-description',
 }
@@ -211,6 +212,11 @@ describe('dialog connect — logical bindings', () => {
     expect(service.state).toBe('open')
     connection.snapshot.setOpen(false)
     expect(service.state).toBe('closed')
+  })
+
+  it('close carries its derived id for the focus-cycle contract', () => {
+    const { connection } = build({ defaultOpen: true })
+    expect(connection.snapshot.parts.close.id).toBe(ids.close)
   })
 
   it('parts expose data-state for styling/animation', () => {
