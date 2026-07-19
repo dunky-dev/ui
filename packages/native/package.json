@@ -1,0 +1,22 @@
+{
+  "name": "@dunky-dev/native",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "storybook dev -p 6007 -c .storybook",
+    "build": "storybook build -c .storybook"
+  },
+  "devDependencies": {
+    "@storybook/react-native-web-vite": "^10.5.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-native": "^0.86.0",
+    "react-native-web": "^0.21.2",
+    "storybook": "^10.5.2",
+    "vite": "^8.1.4"
+  }
+}

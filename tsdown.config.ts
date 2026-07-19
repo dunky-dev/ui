@@ -17,6 +17,7 @@ export default defineConfig({
     'packages/dom/utils/overlay',
     'packages/dom/utils/navigation',
     'packages/dom/utils/scroll-lock',
+    'packages/native/dialog',
     'packages/react/dialog',
     'packages/react/hooks/use-focus-trap',
     'packages/react/hooks/use-scroll-lock',
