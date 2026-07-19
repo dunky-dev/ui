@@ -1,4 +1,7 @@
 {
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {},
-  "extends": "expo/tsconfig.base"
+  // Claims only the Expo app shell — dialog/** stays on the root tsconfig
+  // (with its workspace paths); an unscoped nearest-tsconfig would shadow it.
+  "include": ["index.ts", ".rnstorybook"]
 }
