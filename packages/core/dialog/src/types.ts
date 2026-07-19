@@ -4,7 +4,11 @@
 import type { Controllable, ControlledSync } from '@dunky.dev/controllable'
 import type { KeyboardPayload, PointerPayload } from '@dunky.dev/state-machine-bindings'
 
-export type DialogStateName = 'closed' | 'open'
+// `closing` exists only for an `animated` dialog: the exit window between the
+// close intent and the visual leaving the screen. The dialog is already
+// logically closed there — it reports, releases, and yields immediately; only
+// unmounting waits.
+export type DialogStateName = 'closed' | 'open' | 'closing'
 
 export type DialogRole = 'dialog' | 'alertdialog'
 
@@ -29,6 +33,7 @@ export interface DialogContext {
   modal: boolean
   closeOnEscape: boolean
   closeOnInteractOutside: boolean
+  closeOnBack: boolean
   // The consumer-ownable open value. A controlled machine never moves on its
   // own — only `controlled.sync` (the prop echo) transitions it, and the
   // controlled flag tracks the prop's presence live.
@@ -44,15 +49,27 @@ export interface DialogContext {
 // Dismissal intents (`escape` / `interact.outside`) are distinct from `close`
 // so the machine can gate them. `controlled.sync` is the controlled driver:
 // the substrate sends it when the `open` prop changes, and it is the only
-// event that moves a controlled machine.
+// event that moves a controlled machine. `exit.complete` is the substrate's
+// report that the exit visual finished — the machine can't know when paint is
+// done, so the substrate owns that one edge.
 export type DialogMachineEvent =
   | { type: 'open' }
   | { type: 'close' }
   | { type: 'toggle' }
   | { type: 'escape' }
   | { type: 'interact.outside' }
+  | { type: 'history.back' }
+  | { type: 'exit.complete' }
   | ControlledSync<boolean>
   | { type: 'part.presence'; part: DialogPart; present: boolean }
+
+/** The payload for a back-navigation dismissal. Synthesized by the connect —
+ * the host's back has no cancelable event of its own — carrying only the veto
+ * contract every dismissal callback shares. */
+export interface BackNavigationPayload {
+  defaultPrevented?: boolean
+  preventDefault?: () => void
+}
 
 export interface DialogCallbacks {
   /** Fired on every open/close transition with the new value. */
@@ -61,6 +78,8 @@ export interface DialogCallbacks {
   onEscapeKeyDown?: (event: KeyboardPayload) => void
   /** Fired before an outside-press dismissal; `preventDefault()` vetoes it. */
   onInteractOutside?: (event?: PointerPayload) => void
+  /** Fired before a back-navigation dismissal; `preventDefault()` vetoes it. */
+  onBackNavigation?: (event?: BackNavigationPayload) => void
 }
 
 /**
@@ -87,4 +106,13 @@ export interface DialogOptions extends DialogCallbacks {
   /** Whether pressing the backdrop closes the dialog.
    * @default true — false when `role="alertdialog"` */
   closeOnInteractOutside?: boolean
+  /** Treats the host's Back navigation as a dismissal: while the dialog is
+   * open, Back closes it instead of leaving the page — one layer per press in
+   * a nested stack. The substrate wires the host mechanics (the web plants a
+   * guard entry in the session history). @default false */
+  closeOnBack?: boolean
+  /** Reserves an exit window for a close animation: closing passes through the
+   * `closing` state (`data-state="closing"` styles the exit) and the dialog
+   * unmounts on `exit.complete` instead of immediately. @default false */
+  animated?: boolean
 }

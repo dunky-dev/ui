@@ -12,7 +12,9 @@ export default defineConfig({
   workspace: [
     'packages/core/dialog',
     'packages/core/utils/controllable',
+    'packages/dom/utils/dialog',
     'packages/dom/utils/focus-trap',
+    'packages/dom/utils/navigation',
     'packages/dom/utils/scroll-lock',
     'packages/react/dialog',
     'packages/react/hooks/use-focus-trap',

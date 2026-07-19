@@ -1,4 +1,4 @@
-import { createContext, useContext, type Context } from 'react'
+import { createContext, useContext, type Context, type RefObject } from 'react'
 import type { DialogApi, DialogMachine } from '@dunky.dev/dialog'
 
 export interface DialogContextValue {
@@ -11,6 +11,10 @@ export interface DialogContextValue {
   // Content scopes the scroll lock to it. The root provides null; Portal
   // re-provides the context with the field filled in.
   container: HTMLElement | null
+  // The rendered Backdrop element, shared because Backdrop and Content are
+  // sibling parts: Content's stack entry excepts its own backdrop from the
+  // containment so it stays pressable while its dialog is topmost.
+  backdropRef: RefObject<HTMLDivElement | null>
 }
 
 export const DialogContext: Context<DialogContextValue | undefined> = createContext<

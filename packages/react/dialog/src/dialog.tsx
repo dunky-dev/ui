@@ -16,10 +16,16 @@ import { useFocusTrap } from '@dunky.dev/react-use-focus-trap'
 import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
+import { interceptBackNavigation } from '@dunky.dev/dom-navigation'
+import {
+  getInitialFocus,
+  hideExitingLayer,
+  isTopmostDialog,
+  registerDialog,
+  watchExitAnimation,
+} from '@dunky.dev/dom-dialog'
 import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
 import { DialogContext, useDialogContext } from './context'
-import { getInitialFocus } from './utils/get-initial-focus'
-import { isTopmostDialog, registerDialog } from './utils/stack'
 import { useDialog } from './use-dialog'
 
 // Explicit so the exports satisfy --isolatedDeclarations (a bare forwardRef
@@ -38,8 +44,29 @@ export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, 
   // Nesting derives from the parent dialog's context (undefined = top-level).
   const depth = (useContext(DialogContext)?.depth ?? 0) + 1
   const { api, machine } = useDialog(options)
+  const backdropRef = useRef<HTMLDivElement>(null)
+
+  // Read through a ref so the history guard's lifecycle follows the open
+  // state alone: re-arming on every render (fresh callback identities) would
+  // churn real session-history entries.
+  const apiRef = useRef(api)
+  apiRef.current = api
+
+  // closeOnBack: while open, a guard entry in the session history turns the
+  // host's Back into a dismissal instead of a navigation. Every decision
+  // (gate, veto, controlled) lives in the core's backNavigate; this effect
+  // only wires the web mechanics. It lives on the root — the guard concerns
+  // the dialog's openness, not any rendered part.
+  useEffect(() => {
+    if (!api.open || !machine.context.closeOnBack) return
+    return interceptBackNavigation(() => {
+      apiRef.current.backNavigate()
+      return !machine.matches('open')
+    })
+  }, [api.open, machine])
+
   return (
-    <DialogContext.Provider value={{ api, machine, depth, container: null }}>
+    <DialogContext.Provider value={{ api, machine, depth, container: null, backdropRef }}>
       {children}
     </DialogContext.Provider>
   )
@@ -72,7 +99,9 @@ export interface DialogPortalProps {
 
 export const Portal = ({ children, container }: DialogPortalProps): ReactNode => {
   const context = useDialogContext()
-  if (!context.api.open || typeof document === 'undefined') return null
+  // `mounted`, not `open`: an animated dialog stays in the tree through
+  // `closing` so its exit visual can play before everything unmounts.
+  if (!context.api.mounted || typeof document === 'undefined') return null
   // Re-provide the context with the scoped container (null = page body) so
   // Content locks the right scroll surface.
   return createPortal(
@@ -93,7 +122,8 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
   HTMLDivElement,
   DialogBackdropProps
 >((props, forwardedRef) => {
-  const { api, machine } = useDialogContext()
+  const { api, machine, backdropRef } = useDialogContext()
+  useImperativeHandle(forwardedRef, () => backdropRef.current as HTMLDivElement)
   const { onClick, ...bindings } = normalize(api.parts.backdrop) as {
     onClick?: (event: MouseEvent<HTMLDivElement>) => void
   } & Record<string, unknown>
@@ -109,7 +139,7 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
   // Only a modal dialog dims the page — non-modal coexists with it.
   if (!machine.context.modal) return null
 
-  return <div {...merged} ref={forwardedRef} />
+  return <div {...merged} ref={backdropRef} />
 })
 
 // =============================================================================
@@ -156,19 +186,21 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   HTMLDialogElement,
   DialogContentProps
 >(({ initialFocus, ...props }, forwardedRef) => {
-  const { api, machine, depth, container } = useDialogContext()
+  const { api, machine, depth, container, backdropRef } = useDialogContext()
   const contentRef = useRef<HTMLDialogElement>(null)
   useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDialogElement)
   const initialFocusRef = useRef(initialFocus)
   initialFocusRef.current = initialFocus
 
-  // Content only mounts while open, so mount/unmount ARE the open/close edges.
+  // The machine's `open` state is the edge, not mount/unmount — an animated
+  // dialog stays mounted through `closing`, and the stack, containment, and
+  // focus must release the moment the exit starts, not when it finishes.
   // One effect keeps the ordering right both ways: the stack joins before focus
   // moves in, and on close it must release the layers beneath (un-inert them)
   // before focus can move back out to one of them.
   useEffect(() => {
     const content = contentRef.current
-    if (content === null) return
+    if (!api.open || content === null) return
 
     const previous = document.activeElement
     const unregister = registerDialog({
@@ -176,6 +208,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
       depth,
       element: content,
       modal: machine.context.modal,
+      backdrop: () => backdropRef.current,
     })
 
     // preventScroll everywhere: the scroll lock already froze the surface, so
@@ -190,10 +223,29 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
       unregister()
       if (previous instanceof HTMLElement) previous.focus({ preventScroll: true })
     }
-  }, [machine, depth])
+  }, [api.open, machine, depth, backdropRef])
 
-  // Content only mounts while open, so the lock spans exactly the open state.
-  // A scoped dialog locks its portal container; a page dialog locks the body.
+  // The exit window: Content rendered while not open only happens in
+  // `closing`. The layer has already released everything above, so hide the
+  // still-painting layer from interaction and report when its visual is done;
+  // the effect's cleanup is the reopen interrupt (and final unmount) undoing
+  // both.
+  useEffect(() => {
+    const content = contentRef.current
+    if (api.open || content === null) return
+
+    const undoHide = hideExitingLayer(content, container ?? document.body, backdropRef.current)
+    const cancelWatch = watchExitAnimation(content, () => machine.send({ type: 'exit.complete' }))
+    return () => {
+      cancelWatch()
+      undoHide()
+    }
+  }, [api.open, machine, container, backdropRef])
+
+  // The lock spans the whole mount — through `closing` too: releasing it
+  // mid-exit would bring the scrollbar back and reflow the page under the
+  // still-painting layer. A scoped dialog locks its portal container; a page
+  // dialog locks the body.
   useScrollLock(machine.context.modal, container)
 
   useFocusTrap(contentRef, {
@@ -208,7 +260,8 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   const merged = mergeProps(props as Record<string, unknown>, {
     ...normalize(api.parts.content),
     // The native <dialog> is display:none without `open`; Content only mounts
-    // while the dialog is open, so the attribute is unconditionally true.
+    // while the dialog occupies the tree (open or mid-exit), so the attribute
+    // is unconditionally true.
     open: true,
   })
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The React edge of the Dialog — behavior only; the machine's own contract is
 // covered in @dunky.dev/dialog's tests.
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Dialog, type DialogProps } from '@dunky.dev/react-dialog'
@@ -93,6 +93,19 @@ describe('Dialog', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
 
+    // The backdrop is portalled alongside the viewport, outside the content's
+    // subtree — the containment walk must except it, or `inert` would swallow
+    // real pointer presses on it (jsdom's .click() bypasses hit-testing, so
+    // only the attributes can assert this).
+    it('keeps its own backdrop pressable while the page around it is inert', () => {
+      const { container } = render(<DefaultDialog defaultOpen />)
+      expect(container.hasAttribute('inert')).toBe(true)
+
+      const backdrop = screen.getByTestId('backdrop')
+      expect(backdrop.hasAttribute('aria-hidden')).toBe(false)
+      expect(backdrop.hasAttribute('inert')).toBe(false)
+    })
+
     it('stays open when closeOnInteractOutside=false', () => {
       render(<DefaultDialog defaultOpen closeOnInteractOutside={false} />)
       act(() => screen.getByTestId('backdrop').click())
@@ -165,6 +178,60 @@ describe('Dialog', () => {
       rerender(<DefaultDialog open onOpenChange={onOpenChange} />)
       expect(onOpenChange).toHaveBeenLastCalledWith(true)
       expect(onOpenChange).toHaveBeenCalledTimes(1)
+    })
+
+    // The controlled contract's consumer side: the dialog never moves on its
+    // own, so the consumer's own handlers on the parts and the dismissal
+    // callbacks are what drive the prop.
+    it('a controlled stack closes through handlers wired at the source', () => {
+      const ControlledStack = () => {
+        const [outerOpen, setOuterOpen] = useState(true)
+        const [innerOpen, setInnerOpen] = useState(false)
+        return (
+          <Dialog
+            open={outerOpen}
+            onOpenChange={setOuterOpen}
+            onEscapeKeyDown={() => setOuterOpen(false)}
+          >
+            <Dialog.Portal>
+              <Dialog.Viewport>
+                <Dialog.Content>
+                  <Dialog.Title>Outer</Dialog.Title>
+                  <Dialog
+                    open={innerOpen}
+                    onOpenChange={setInnerOpen}
+                    onEscapeKeyDown={() => setInnerOpen(false)}
+                  >
+                    <Dialog.Trigger onClick={() => setInnerOpen(true)}>Open inner</Dialog.Trigger>
+                    <Dialog.Portal>
+                      <Dialog.Viewport>
+                        <Dialog.Content>
+                          <Dialog.Title>Inner</Dialog.Title>
+                          <Dialog.Close onClick={() => setInnerOpen(false)}>
+                            Close inner
+                          </Dialog.Close>
+                        </Dialog.Content>
+                      </Dialog.Viewport>
+                    </Dialog.Portal>
+                  </Dialog>
+                </Dialog.Content>
+              </Dialog.Viewport>
+            </Dialog.Portal>
+          </Dialog>
+        )
+      }
+
+      render(<ControlledStack />)
+      act(() => screen.getByText('Open inner').click())
+      expect(screen.queryByText('Inner')).not.toBeNull()
+
+      act(() => screen.getByText('Close inner').click())
+      expect(screen.queryByText('Inner')).toBeNull()
+
+      act(() => screen.getByText('Open inner').click())
+      act(pressEscape) // reaches the topmost layer only
+      expect(screen.queryByText('Inner')).toBeNull()
+      expect(screen.queryByText('Outer')).not.toBeNull()
     })
 
     it('dropping the open prop rewires the dialog uncontrolled where it stands', () => {
@@ -377,17 +444,111 @@ describe('Dialog', () => {
     })
   })
 
+  describe('back navigation', () => {
+    // jsdom's history traversal is asynchronous — await the popstate itself.
+    const nextPop = (): Promise<void> =>
+      new Promise(resolve => {
+        window.addEventListener('popstate', () => resolve(), { once: true })
+      })
+
+    it('closes on the browser Back instead of navigating', async () => {
+      const before: unknown = window.history.state
+      render(<DefaultDialog closeOnBack />)
+      openDialog()
+      expect(window.history.state).not.toEqual(before) // the guard entry is planted
+
+      const pop = nextPop()
+      await act(async () => {
+        window.history.back()
+        await pop
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(window.history.state).toEqual(before) // consumed by the press itself
+    })
+
+    it('closing any other way consumes the guard entry', async () => {
+      const before: unknown = window.history.state
+      render(<DefaultDialog closeOnBack defaultOpen />)
+      expect(window.history.state).not.toEqual(before)
+
+      const pop = nextPop()
+      act(pressEscape)
+      await act(async () => {
+        await pop
+      })
+      expect(window.history.state).toEqual(before) // no leftover to swallow a Back
+    })
+
+    it('plants no history entry without the flag', () => {
+      const before: unknown = window.history.state
+      render(<DefaultDialog defaultOpen />)
+      expect(window.history.state).toEqual(before)
+    })
+  })
+
+  describe('exit animation', () => {
+    const fireTransitionEnd = (element: Element): void => {
+      act(() => {
+        element.dispatchEvent(new Event('transitionend', { bubbles: true }))
+      })
+    }
+
+    it('stays mounted through the exit and unmounts when its transition ends', () => {
+      render(<DefaultDialog defaultOpen animated />)
+      act(pressEscape)
+
+      // Mid-exit: still in the tree, styled by data-state, hidden from AT.
+      const dialog = screen.getByRole('dialog', { hidden: true })
+      expect(dialog.getAttribute('data-state')).toBe('closing')
+
+      fireTransitionEnd(dialog)
+      expect(screen.queryByRole('dialog', { hidden: true })).toBeNull()
+    })
+
+    it('releases focus, containment, and interaction the moment the exit starts', () => {
+      const { container } = render(<DefaultDialog animated />)
+      const trigger = screen.getByText('Trigger')
+      act(() => trigger.focus())
+      openDialog()
+      expect(container.hasAttribute('inert')).toBe(true)
+
+      act(pressEscape)
+      // The page is live and focus is home before the visual finishes…
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(document.activeElement).toBe(trigger)
+      // …while the still-painting layer is out of the interaction instead.
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('backdrop').hasAttribute('inert')).toBe(true)
+    })
+
+    it('reopening mid-exit interrupts it and restores the layer', () => {
+      render(<DefaultDialog animated />)
+      openDialog()
+      act(pressEscape)
+      openDialog()
+
+      const dialog = screen.getByRole('dialog')
+      expect(dialog.getAttribute('data-state')).toBe('open')
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(false)
+      expect(document.activeElement).toBe(dialog)
+
+      // The interrupted exit's end must not close the reopened dialog.
+      fireTransitionEnd(dialog)
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+  })
+
   describe('nesting', () => {
     const NestedDialog = (props: DialogProps) => (
       <Dialog defaultOpen {...props}>
         <Dialog.Portal>
-          <Dialog.Backdrop />
+          <Dialog.Backdrop data-testid='outer-backdrop' />
           <Dialog.Viewport data-testid='outer-viewport'>
             <Dialog.Content>
               <Dialog.Title>Outer</Dialog.Title>
               <Dialog defaultOpen>
                 <Dialog.Portal>
-                  <Dialog.Backdrop />
+                  <Dialog.Backdrop data-testid='inner-backdrop' />
                   <Dialog.Viewport data-testid='inner-viewport'>
                     <Dialog.Content>
                       <Dialog.Title>Inner</Dialog.Title>
@@ -423,6 +584,15 @@ describe('Dialog', () => {
       const inner = screen.getByTestId('inner-viewport')
       expect(inner.hasAttribute('aria-hidden')).toBe(false)
       expect(inner.hasAttribute('inert')).toBe(false)
+    })
+
+    it("hides the lower dialog's backdrop but never the topmost's own", () => {
+      render(<NestedDialog />)
+      expect(screen.getByTestId('outer-backdrop').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('inner-backdrop').hasAttribute('inert')).toBe(false)
+
+      act(pressEscape) // the outer dialog is topmost again — its backdrop re-excepted
+      expect(screen.getByTestId('outer-backdrop').hasAttribute('inert')).toBe(false)
     })
 
     it('restores the layer beneath once the top dialog closes', () => {

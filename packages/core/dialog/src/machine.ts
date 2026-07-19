@@ -16,6 +16,7 @@ type DialogGuard = Guard<DialogContext, DialogMachineEvent>
 
 const canEscape: DialogGuard = ({ context }) => context.closeOnEscape
 const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractOutside
+const canCloseOnBack: DialogGuard = ({ context }) => context.closeOnBack
 
 // Every open/close intent is recorded in `open.intent`; whether it also
 // transitions is intent's controlled/uncontrolled fork. `synced` is the full
@@ -32,6 +33,10 @@ export function dialogMachine(
   options: DialogOptions,
 ): TransitionConfig<DialogStateName, DialogContext, DialogMachineEvent> {
   const role = options.role ?? 'dialog'
+  // Where a close lands, resolved at build like every seeded option: an
+  // animated dialog holds an exit window open in `closing` until the substrate
+  // reports the visual finished; otherwise closing is immediate.
+  const exitTo: DialogStateName = options.animated === true ? 'closing' : 'closed'
   // Annotated so createMachine infers Context as DialogContext, not the narrowed literal.
   const context: DialogContext = {
     role,
@@ -40,6 +45,7 @@ export function dialogMachine(
     // An alert dialog interrupts for a response — an outside press must not
     // dismiss it unless explicitly opted in.
     closeOnInteractOutside: options.closeOnInteractOutside ?? role === 'dialog',
+    closeOnBack: options.closeOnBack ?? false,
     open: controllable(options.open),
     // The substrate supplies a unique id; `dialog` is only a bare fallback.
     id: options.id ?? 'dialog',
@@ -63,15 +69,28 @@ export function dialogMachine(
       },
       open: {
         on: {
-          close: intend('open', { target: 'closed', value: false }),
-          toggle: intend('open', { target: 'closed', value: false }),
-          escape: intend('open', { guard: canEscape, target: 'closed', value: false }),
+          close: intend('open', { target: exitTo, value: false }),
+          toggle: intend('open', { target: exitTo, value: false }),
+          escape: intend('open', { guard: canEscape, target: exitTo, value: false }),
           'interact.outside': intend('open', {
             guard: canDismissOutside,
-            target: 'closed',
+            target: exitTo,
             value: false,
           }),
-          'controlled.sync': synced('open', { value: false, target: 'closed' }),
+          'history.back': intend('open', { guard: canCloseOnBack, target: exitTo, value: false }),
+          'controlled.sync': synced('open', { value: false, target: exitTo }),
+        },
+      },
+      // The exit window (animated only; unreachable otherwise). The dialog is
+      // already logically closed here — reported, released, yielded — so
+      // dismissal intents don't apply; reopening interrupts the exit as a
+      // named transition instead of a substrate-side race.
+      closing: {
+        on: {
+          open: intend('open', { target: 'open', value: true }),
+          toggle: intend('open', { target: 'open', value: true }),
+          'exit.complete': { target: 'closed' },
+          'controlled.sync': synced('open', { value: true, target: 'open' }),
         },
       },
     },

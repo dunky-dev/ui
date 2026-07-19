@@ -1,6 +1,7 @@
 import { makeReaction, type Connect } from '@dunky.dev/state-machine'
 import type { AttrBindings, EventBindings, PointerPayload } from '@dunky.dev/state-machine-bindings'
 import type {
+  BackNavigationPayload,
   DialogContext,
   DialogIds,
   DialogMachineEvent,
@@ -29,9 +30,19 @@ function dialogIds(id: string): DialogIds {
 /** The view-facing surface a driver reads from the running dialog machine. */
 export interface DialogApi {
   open: boolean
+  /** Whether the dialog occupies the tree: open or mid-exit (`closing`). The
+   * substrate's portal/unmount gate — an animated dialog stays mounted while
+   * its exit plays, everything else already keyed off `open`. */
+  mounted: boolean
   role: DialogRole
   ids: DialogIds
   setOpen: (open: boolean) => void
+  /** Reports the host's Back navigation. The whole decision lives here, once:
+   * `onBackNavigation` fires first (`preventDefault()` vetoes), the machine
+   * gates on `closeOnBack`, and the controlled contract applies — a substrate
+   * only wires its host mechanics (a session-history guard entry on the web, a
+   * hardware back handler on native) to this call. */
+  backNavigate: () => void
   parts: {
     trigger: DialogPartBindings
     backdrop: DialogPartBindings
@@ -51,7 +62,9 @@ export const dialogConnect: Connect<
   DialogApi
 > = ({ state, context, props, send }) => {
   const open = state === 'open'
-  const dataState: DialogStateName = open ? 'open' : 'closed'
+  // The state names double as the styling vocabulary — `closing` is the
+  // exit-animation hook.
+  const dataState: DialogStateName = state
   const ids = dialogIds(context.id)
 
   // An outside press is an intent, not a close command: the consumer may veto
@@ -63,11 +76,24 @@ export const dialogConnect: Connect<
 
   return {
     open,
+    mounted: state !== 'closed',
     role: context.role,
     ids,
     setOpen(next) {
       if (open === next) return
       send({ type: next ? 'open' : 'close' })
+    },
+    backNavigate() {
+      // The host's back has no cancelable event — synthesize the veto payload
+      // so the callback contract matches the other dismissals.
+      const payload: BackNavigationPayload = {
+        defaultPrevented: false,
+        preventDefault() {
+          payload.defaultPrevented = true
+        },
+      }
+      props.onBackNavigation?.(payload)
+      if (payload.defaultPrevented !== true) send({ type: 'history.back' })
     },
     parts: {
       trigger: {
