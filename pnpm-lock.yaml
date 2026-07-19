@@ -66,11 +66,17 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
 
-  packages/dom/utils/dialog: {}
+  packages/core/utils/overlay: {}
 
   packages/dom/utils/focus-trap: {}
 
   packages/dom/utils/navigation: {}
+
+  packages/dom/utils/overlay:
+    dependencies:
+      '@dunky.dev/overlay':
+        specifier: workspace:*
+        version: link:../../../core/utils/overlay
 
   packages/dom/utils/scroll-lock: {}
 
@@ -103,12 +109,12 @@ importers:
       '@dunky.dev/dialog':
         specifier: workspace:*
         version: link:../../core/dialog
-      '@dunky.dev/dom-dialog':
-        specifier: workspace:*
-        version: link:../../dom/utils/dialog
       '@dunky.dev/dom-navigation':
         specifier: workspace:*
         version: link:../../dom/utils/navigation
+      '@dunky.dev/dom-overlay':
+        specifier: workspace:*
+        version: link:../../dom/utils/overlay
       '@dunky.dev/react-state-machine':
         specifier: ^0.1.0
         version: 0.1.0(react@19.2.7)

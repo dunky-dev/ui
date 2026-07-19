@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { hideExitingLayer, watchExitAnimation } from '@dunky.dev/dom-dialog'
+import { hideExitingLayer, watchExitAnimation } from '@dunky.dev/dom-overlay'
 
 afterEach(() => {
   document.body.innerHTML = ''

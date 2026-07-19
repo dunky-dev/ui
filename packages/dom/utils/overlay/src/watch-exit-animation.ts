@@ -1,6 +1,6 @@
 // The ceiling on waiting for the exit visual: if the author styled no
 // transition/animation for `data-state="closing"` (or it never ends on this
-// element), the dialog must still reach `closed` rather than hang mid-exit.
+// element), the overlay must still reach `closed` rather than hang mid-exit.
 const EXIT_FALLBACK_MS = 500
 
 /**

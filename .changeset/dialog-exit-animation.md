@@ -1,7 +1,7 @@
 ---
 '@dunky.dev/dialog': minor
 '@dunky.dev/react-dialog': minor
-'@dunky.dev/dom-dialog': minor
+'@dunky.dev/dom-overlay': minor
 ---
 
 Add exit-animation support via a new `animated` option. An animated dialog

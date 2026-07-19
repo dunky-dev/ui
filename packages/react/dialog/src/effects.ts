@@ -1,6 +1,6 @@
 import type { ComponentEffect } from '@dunky.dev/react-state-machine'
 import type { DialogMachine, DialogOptions } from '@dunky.dev/dialog'
-import { isTopmostDialog } from '@dunky.dev/dom-dialog'
+import { isTopmostLayer } from '@dunky.dev/dom-overlay'
 
 // Substrate effects: prop-driven or document-level work the machine can't own.
 // useMachine runs one useEffect per entry, keyed on the listed prop deps.
@@ -25,7 +25,7 @@ const trackEscape: DialogEffect = [
       if (event.key !== 'Escape' || !machine.matches('open')) return
       // Only the topmost dialog answers Escape — a nested stack closes one
       // layer at a time.
-      if (!isTopmostDialog(machine.context.id)) return
+      if (!isTopmostLayer(machine.context.id)) return
       props.onEscapeKeyDown?.(event)
       if (!event.defaultPrevented) machine.send({ type: 'escape' })
     }

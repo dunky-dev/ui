@@ -1,6 +1,6 @@
-// The strict rule is only that focus moves into the dialog: a dialog that
+// The strict rule is only that focus moves into the overlay: an overlay that
 // collects input starts at its first form field; any other content keeps
-// focus on the dialog window itself.
+// focus on the overlay window itself.
 const FORM_FIELD_SELECTOR =
   'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
 

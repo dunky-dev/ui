@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
-import { getInitialFocus, isTopmostDialog, registerDialog } from '@dunky.dev/dom-dialog'
-import type { DialogLayer } from '@dunky.dev/dom-dialog'
+import { getInitialFocus, isTopmostLayer, registerLayer } from '@dunky.dev/dom-overlay'
+import type { Layer } from '@dunky.dev/dom-overlay'
 
 interface MountedLayer {
   backdrop: HTMLElement
@@ -10,7 +10,7 @@ interface MountedLayer {
 }
 
 // The anatomy every substrate portals to the body: backdrop and viewport as
-// flat siblings, the dialog window inside the viewport.
+// flat siblings, the overlay window inside the viewport.
 const mountLayer = (): MountedLayer => {
   const backdrop = document.createElement('div')
   const viewport = document.createElement('div')
@@ -22,8 +22,8 @@ const mountLayer = (): MountedLayer => {
 
 const registered: Array<() => void> = []
 
-const register = (layer: Omit<DialogLayer, 'order'>): (() => void) => {
-  const unregister = registerDialog(layer)
+const register = (layer: Layer): (() => void) => {
+  const unregister = registerLayer(layer)
   registered.push(unregister)
   return unregister
 }
@@ -37,7 +37,7 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-describe('registerDialog containment', () => {
+describe('registerLayer containment', () => {
   it('hides everything outside the topmost modal layer and restores it on unregister', () => {
     const outside = document.createElement('main')
     document.body.append(outside)
@@ -113,38 +113,12 @@ describe('registerDialog containment', () => {
     expect(hiddenFrom(outer.backdrop)).toBe(true)
     expect(hiddenFrom(outer.viewport)).toBe(true)
     expect(inner.backdrop.hasAttribute('inert')).toBe(false)
+    expect(isTopmostLayer('inner')).toBe(true)
 
     unregisterInner()
     expect(outer.backdrop.hasAttribute('inert')).toBe(false)
     expect(hiddenFrom(inner.viewport)).toBe(true)
-  })
-})
-
-describe('isTopmostDialog', () => {
-  it('deeper nesting wins regardless of registration order', () => {
-    const shallow = mountLayer()
-    const deep = mountLayer()
-    register({ id: 'deep', depth: 2, element: deep.content, modal: true })
-    register({ id: 'shallow', depth: 1, element: shallow.content, modal: true })
-
-    expect(isTopmostDialog('deep')).toBe(true)
-    expect(isTopmostDialog('shallow')).toBe(false)
-  })
-
-  it('open order breaks ties between layers at the same depth', () => {
-    const first = mountLayer()
-    const second = mountLayer()
-    register({ id: 'first', depth: 1, element: first.content, modal: true })
-    const unregisterSecond = register({
-      id: 'second',
-      depth: 1,
-      element: second.content,
-      modal: true,
-    })
-    expect(isTopmostDialog('second')).toBe(true)
-
-    unregisterSecond()
-    expect(isTopmostDialog('first')).toBe(true)
+    expect(isTopmostLayer('outer')).toBe(true)
   })
 })
 

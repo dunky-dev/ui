@@ -12,8 +12,9 @@ export default defineConfig({
   workspace: [
     'packages/core/dialog',
     'packages/core/utils/controllable',
-    'packages/dom/utils/dialog',
+    'packages/core/utils/overlay',
     'packages/dom/utils/focus-trap',
+    'packages/dom/utils/overlay',
     'packages/dom/utils/navigation',
     'packages/dom/utils/scroll-lock',
     'packages/react/dialog',
