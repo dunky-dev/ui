@@ -9,3 +9,5 @@ storybook-static
 
 # local-only Claude settings (never committed; keep it out of format/lint too)
 .claude/settings.local.json
+# the Claude Code harness's worktree area (repo worktrees live in .worktrees)
+.claude/worktrees
