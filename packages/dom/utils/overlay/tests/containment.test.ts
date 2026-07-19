@@ -122,6 +122,22 @@ describe('registerLayer containment', () => {
   })
 })
 
+describe('layer stack global anchoring', () => {
+  it('shares its stack with a duplicate module copy via the realm global', () => {
+    // A second bundled copy of this module resolves the same stack through this
+    // well-known global symbol; a layer registered through the public API must
+    // therefore be visible on the globally-anchored store, not a rival stack.
+    const layer = mountLayer()
+    register({ id: 'a', depth: 1, element: layer.content, modal: true })
+
+    const store = (globalThis as unknown as Record<symbol, unknown>)[
+      Symbol.for('@dunky.dev/dom-overlay#overlay-store')
+    ] as { stack: { isTopmost: (id: string) => boolean } } | undefined
+
+    expect(store?.stack.isTopmost('a')).toBe(true)
+  })
+})
+
 describe('getInitialFocus', () => {
   it('resolves the first form field that can take focus', () => {
     const content = document.createElement('div')

@@ -8,7 +8,24 @@ interface Lock {
 // One shared lock per scroll container: the first holder saves the target's
 // inline state and the last release restores it, so overlapping holders can
 // release in any order (a parent layer may close before its child).
-const locks = new Map<HTMLElement, Lock>()
+//
+// The registry is anchored on a realm-global keyed by `Symbol.for` rather than
+// a plain module-level `const`: a monorepo or micro-frontend can load more than
+// one copy of this module into the same page, and separate registries would
+// double-lock or leak the lock (the same duplicate-singleton class of bug as
+// Radix's focus-scope stack, radix-ui/primitives#2815). Resolved lazily on
+// first use so the module keeps its `sideEffects: false` contract.
+const LOCKS_KEY = Symbol.for('@dunky.dev/dom-scroll-lock#locks')
+
+function getLocks(): Map<HTMLElement, Lock> {
+  const scope = globalThis as unknown as Record<symbol, Map<HTMLElement, Lock> | undefined>
+  let locks = scope[LOCKS_KEY]
+  if (locks === undefined) {
+    locks = new Map()
+    scope[LOCKS_KEY] = locks
+  }
+  return locks
+}
 
 interface ScrollbarSizes {
   /** The vertical scrollbar's footprint — horizontal space it occupied. */
@@ -48,6 +65,7 @@ function getScrollbarSizes(target: HTMLElement): ScrollbarSizes {
  * restored once every holder has released.
  */
 export function lockScroll(target: HTMLElement = document.body): () => void {
+  const locks = getLocks()
   let lock = locks.get(target)
   if (lock === undefined) {
     lock = {
