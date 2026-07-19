@@ -1,6 +1,6 @@
 {
   "name": "@dunky.dev/dom-navigation",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Framework-free browser-navigation helpers: a session-history guard so the host's Back dismisses a layer instead of leaving the page.",
   "license": "MIT",
   "repository": {
