@@ -1,6 +1,6 @@
 {
   "name": "@dunky.dev/react-use-scroll-lock",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "React binding for @dunky.dev/dom-scroll-lock.",
   "license": "MIT",
   "repository": {
