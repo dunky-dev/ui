@@ -4,25 +4,22 @@ Framework-free DOM behavior for overlay substrates — the DOM realization of
 `@dunky.dev/overlay`. One shared module owns what every substrate's overlay
 (dialog, drawer, alert-dialog, popover, menu, combobox) must agree on:
 
-- **The layer stack** — `registerLayer` / `isTopmostLayer`, built on the
-  agnostic stack in `@dunky.dev/overlay`. Every open overlay registers a layer;
-  the topmost (deepest nesting, open order breaking ties) is the one Escape and
-  the focus trap act on. While the topmost layer is modal, everything outside
-  its content is marked `aria-hidden` + `inert`, except the layer's own backdrop
-  — rendered outside the content's subtree yet part of the layer, it must stay
-  pressable for outside-press dismissal. Unregistering restores exactly what was
-  hidden and re-syncs for the layer beneath.
-- **Initial focus** — `getInitialFocus` resolves where focus moves on open: an
-  overlay that collects input starts at its first form field; any other content
-  keeps focus on the overlay window itself.
+- **The layer stack** — the DOM side of the shared stack in `@dunky.dev/overlay`.
+  Every open overlay joins the stack; the topmost (deepest nesting, open order
+  breaking ties) is the one Escape and the focus trap act on. While a modal
+  layer is topmost, everything outside it is hidden from assistive tech and
+  taken out of pointer and keyboard reach — except the layer's own backdrop,
+  which stays pressable so an outside press can still dismiss. Closing a layer
+  restores exactly what it hid and hands the page to the layer beneath.
+- **Initial focus** — where focus moves when an overlay opens: an overlay that
+  collects input starts at its first form field; any other content keeps focus
+  on the overlay window itself.
 - **The exit window** — an animated overlay leaves the stack the moment it
-  starts closing, but keeps painting until its exit visual finishes.
-  `hideExitingLayer` takes the still-painting layer out of the page's
-  interaction (`inert`: pointer, tab order, assistive tech) for that window,
-  and `watchExitAnimation` reports when the visual finished — on the
-  element's own `transitionend`/`animationend`, immediately under
-  `prefers-reduced-motion`, or at a fallback ceiling so a missing exit style
-  can't hang the close. Both return a cancel/undo for the reopen interrupt.
+  starts closing, but keeps painting until its exit visual finishes. For that
+  window the still-painting layer is taken out of interaction, and the end of
+  the visual is reported so the overlay can unmount — with a fallback ceiling
+  so a missing exit style can't hang the close, and skipped entirely under
+  reduced motion.
 
 Substrate bindings wrap this — e.g. `@dunky.dev/react-dialog` — so every
 framework shares one stack: overlays from different substrates on the same
