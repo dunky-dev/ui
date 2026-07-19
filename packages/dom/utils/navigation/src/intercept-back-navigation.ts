@@ -79,13 +79,14 @@ function onPopState(): void {
  * entry so it can't swallow the next Back; an entry buried under later
  * navigation is unreachable and left alone.
  *
- * Consumption is deferred a microtask and an orphaned-but-current entry is
- * adopted (rewritten in place) by the next interceptor: a synchronous
- * release -> re-register — StrictMode's double-invoked effect, a reopen in
- * the same commit — nets out to zero traversals. That matters because a
- * traversal queued by `history.back()` is not reliably delivered once
- * another entry is pushed before it lands; never queuing one in that window
- * removes the race instead of compensating for it.
+ * Consumption is deferred a microtask so a release immediately followed by a
+ * re-register in the same synchronous turn nets out to zero traversals: the
+ * re-register finds the entry still current but no longer owned and adopts it
+ * in place (rewrites the marker), so when the deferred consumption runs the
+ * entry is no longer this guard's and no `history.back()` is queued. That
+ * matters because a traversal queued by `history.back()` is not reliably
+ * delivered once another entry is pushed before it lands; not queuing one in
+ * that window removes the race instead of compensating for it.
  */
 export function interceptBackNavigation(onBack: () => boolean): () => void {
   const guard: BackGuard = { id: ++nextGuardId, onBack }
