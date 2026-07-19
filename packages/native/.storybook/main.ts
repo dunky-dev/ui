@@ -1,7 +1,7 @@
 import type { StorybookConfig } from '@storybook/react-native-web-vite'
 
 const config: StorybookConfig = {
-  stories: ['../**/*.stories.@(ts|tsx)'],
+  stories: ['../**/stories/*.stories.@(ts|tsx)'],
   framework: '@storybook/react-native-web-vite',
   core: {
     disableTelemetry: true,
