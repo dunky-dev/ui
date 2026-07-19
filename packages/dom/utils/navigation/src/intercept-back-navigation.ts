@@ -1,6 +1,6 @@
 // Marks a layer's guard entry in the session history; the value says which
 // interceptor owns the entry.
-const STATE_KEY = 'dunky.back'
+const STATE_KEY = '@dunky.back'
 
 interface BackGuard {
   id: number
