@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Dialog } from '@dunky.dev/react-dialog'
 
@@ -94,11 +94,16 @@ const scopedScroller: CSSProperties = {
 const scopedBackdrop: CSSProperties = { ...backdrop, position: 'absolute' }
 const scopedViewport: CSSProperties = { ...viewport, position: 'absolute' }
 
-const DialogActions = () => (
-  <div style={actions}>
-    <Dialog.Close>Cancel</Dialog.Close>
-    <Dialog.Close>Confirm</Dialog.Close>
-  </div>
+// Dialog.Close is the dialog's single dismissal affordance — the corner `×`,
+// kept the focus cycle's last stop by the core contract. Buttons that act
+// (Cancel / Confirm / Delete) are the consumer's own, driving the dialog
+// through state — see the alertDialog story.
+const closableContent: CSSProperties = { ...content, position: 'relative' }
+
+const CloseButton = () => (
+  <Dialog.Close aria-label='Close' style={closeIcon}>
+    &times;
+  </Dialog.Close>
 )
 
 export const standard: StoryType = {
@@ -108,12 +113,13 @@ export const standard: StoryType = {
       <Dialog.Portal>
         <Dialog.Backdrop style={backdrop} />
         <Dialog.Viewport style={viewport}>
-          <Dialog.Content style={content}>
+          <Dialog.Content style={closableContent}>
+            <CloseButton />
             <Dialog.Title>Rename board</Dialog.Title>
             <Dialog.Description>
-              The new name is visible to everyone with access to this board.
+              The new name is visible to everyone with access to this board. The corner button,
+              Escape, and an outside press all dismiss.
             </Dialog.Description>
-            <DialogActions />
           </Dialog.Content>
         </Dialog.Viewport>
       </Dialog.Portal>
@@ -121,28 +127,45 @@ export const standard: StoryType = {
   ),
 }
 
-export const alertDialog: StoryType = {
-  render: () => (
-    <Dialog defaultOpen role='alertdialog'>
-      <Dialog.Trigger>Delete board</Dialog.Trigger>
+// The action row is the consumer's: Cancel/Delete do their work and close
+// through state, so their Tab order is plain DOM order. Per the APG, a dialog
+// confirming a destructive step starts focus on the least destructive action —
+// `initialFocus` points at Cancel.
+const AlertDialog = () => {
+  const [open, setOpen] = useState(true)
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  return (
+    <Dialog
+      role='alertdialog'
+      open={open}
+      onOpenChange={setOpen}
+      onEscapeKeyDown={() => setOpen(false)}
+    >
+      <Dialog.Trigger onClick={() => setOpen(true)}>Delete board</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop style={backdrop} />
         <Dialog.Viewport style={viewport}>
-          <Dialog.Content style={content}>
+          <Dialog.Content style={content} initialFocus={cancelRef}>
             <Dialog.Title>Delete board?</Dialog.Title>
             <Dialog.Description>
               This permanently deletes the board and its content for every member. This can&apos;t
               be undone. An outside press does not dismiss an alert dialog — choose an action.
             </Dialog.Description>
             <div style={actions}>
-              <Dialog.Close>Cancel</Dialog.Close>
-              <Dialog.Close>Delete</Dialog.Close>
+              <button ref={cancelRef} onClick={() => setOpen(false)}>
+                Cancel
+              </button>
+              <button onClick={() => setOpen(false)}>Delete</button>
             </div>
           </Dialog.Content>
         </Dialog.Viewport>
       </Dialog.Portal>
     </Dialog>
-  ),
+  )
+}
+
+export const alertDialog: StoryType = {
+  render: () => <AlertDialog />,
 }
 
 export const longContent: StoryType = {
@@ -152,7 +175,8 @@ export const longContent: StoryType = {
       <Dialog.Portal>
         <Dialog.Backdrop style={backdrop} />
         <Dialog.Viewport style={viewport}>
-          <Dialog.Content style={content}>
+          <Dialog.Content style={closableContent}>
+            <CloseButton />
             <Dialog.Title>Terms of service</Dialog.Title>
             <Dialog.Description>
               Content taller than the screen scrolls within the viewport layer.
@@ -163,30 +187,6 @@ export const longContent: StoryType = {
                 tempor incididunt ut labore et dolore magna aliqua.
               </p>
             ))}
-            <DialogActions />
-          </Dialog.Content>
-        </Dialog.Viewport>
-      </Dialog.Portal>
-    </Dialog>
-  ),
-}
-
-export const withCloseButton: StoryType = {
-  render: () => (
-    <Dialog defaultOpen>
-      <Dialog.Trigger>Open dialog</Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Backdrop style={backdrop} />
-        <Dialog.Viewport style={viewport}>
-          <Dialog.Content style={{ ...content, position: 'relative' }}>
-            <Dialog.Close aria-label='Close' style={closeIcon}>
-              &times;
-            </Dialog.Close>
-            <Dialog.Title>Share board</Dialog.Title>
-            <Dialog.Description>
-              Anyone with the link can view this board. The corner button and Escape both dismiss.
-            </Dialog.Description>
-            <DialogActions />
           </Dialog.Content>
         </Dialog.Viewport>
       </Dialog.Portal>
@@ -201,7 +201,8 @@ export const loginForm: StoryType = {
       <Dialog.Portal>
         <Dialog.Backdrop style={backdrop} />
         <Dialog.Viewport style={viewport}>
-          <Dialog.Content style={content}>
+          <Dialog.Content style={closableContent}>
+            <CloseButton />
             <Dialog.Title>Sign in</Dialog.Title>
             <Dialog.Description>
               Focus moves to the first field on open, and stays trapped inside while the dialog is
@@ -227,7 +228,6 @@ export const loginForm: StoryType = {
                 />
               </label>
               <div style={actions}>
-                <Dialog.Close>Cancel</Dialog.Close>
                 <button type='submit'>Sign in</button>
               </div>
             </form>
@@ -245,10 +245,10 @@ export const trigger: StoryType = {
       <Dialog.Portal>
         <Dialog.Backdrop style={backdrop} />
         <Dialog.Viewport style={viewport}>
-          <Dialog.Content style={content}>
+          <Dialog.Content style={closableContent}>
+            <CloseButton />
             <Dialog.Title>Closed by default</Dialog.Title>
             <Dialog.Description>Only the trigger renders until it is pressed.</Dialog.Description>
-            <DialogActions />
           </Dialog.Content>
         </Dialog.Viewport>
       </Dialog.Portal>
@@ -275,14 +275,14 @@ const ScopedDialog = () => {
             <Dialog.Portal container={boundary}>
               <Dialog.Backdrop style={scopedBackdrop} />
               <Dialog.Viewport style={scopedViewport}>
-                <Dialog.Content style={content}>
+                <Dialog.Content style={closableContent}>
+                  <CloseButton />
                   <Dialog.Title>Scoped dialog</Dialog.Title>
                   <Dialog.Description>
                     Portaled into the panel boundary; the backdrop and viewport are `absolute`, so
                     the overlay fills the panel&apos;s visible box and stays put while the
                     background scrolls behind it.
                   </Dialog.Description>
-                  <DialogActions />
                 </Dialog.Content>
               </Dialog.Viewport>
             </Dialog.Portal>
@@ -300,9 +300,10 @@ export const scoped: StoryType = {
 // "Close all" is consumer-side for now — `Close scope="stack"` is spec-only, so
 // the three layers are controlled and one handler drops them together. And a
 // controlled dialog never moves on its own: each layer decides its dismissals
-// at the source — its own handlers on Trigger/Close, and the dismissal
-// callbacks (`onEscapeKeyDown` / `onInteractOutside`) — per the controlled
-// contract; `onOpenChange` only reports changes that actually happened.
+// at the source — its Trigger handler, its own action buttons, and the
+// dismissal callbacks (`onEscapeKeyDown` / `onInteractOutside`) — per the
+// controlled contract; `onOpenChange` only reports changes that actually
+// happened.
 const NestedDialogs = () => {
   const [outerOpen, setOuterOpen] = useState(true)
   const [innerOpen, setInnerOpen] = useState(false)
@@ -365,23 +366,21 @@ const NestedDialogs = () => {
                             </Dialog.Description>
                             <div style={actions}>
                               <button onClick={closeAll}>Close all</button>
-                              <Dialog.Close onClick={() => setInnermostOpen(false)}>
-                                Close
-                              </Dialog.Close>
+                              <button onClick={() => setInnermostOpen(false)}>Close</button>
                             </div>
                           </Dialog.Content>
                         </Dialog.Viewport>
                       </Dialog.Portal>
                     </Dialog>
                     <div style={actions}>
-                      <Dialog.Close onClick={() => setInnerOpen(false)}>Close</Dialog.Close>
+                      <button onClick={() => setInnerOpen(false)}>Close</button>
                     </div>
                   </Dialog.Content>
                 </Dialog.Viewport>
               </Dialog.Portal>
             </Dialog>
             <div style={actions}>
-              <Dialog.Close onClick={() => setOuterOpen(false)}>Close</Dialog.Close>
+              <button onClick={() => setOuterOpen(false)}>Close</button>
             </div>
           </Dialog.Content>
         </Dialog.Viewport>

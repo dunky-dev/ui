@@ -180,9 +180,9 @@ describe('Dialog', () => {
       expect(onOpenChange).toHaveBeenCalledTimes(1)
     })
 
-    // The controlled contract's consumer side (the nested story's pattern): the
-    // dialog never moves on its own, so the consumer's own handlers on
-    // Trigger/Close and the dismissal callbacks are what drive the prop.
+    // The controlled contract's consumer side: the dialog never moves on its
+    // own, so the consumer's own handlers on the parts and the dismissal
+    // callbacks are what drive the prop.
     it('a controlled stack closes through handlers wired at the source', () => {
       const ControlledStack = () => {
         const [outerOpen, setOuterOpen] = useState(true)

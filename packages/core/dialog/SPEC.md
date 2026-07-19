@@ -59,8 +59,12 @@ Using the dialog is a walkthrough of intent, not a prop list:
   requires an accessible name); when it genuinely can't, an accessible label
   goes on the content instead.
 - **Close** dismisses from inside — the visible close affordance the APG
-  strongly recommends alongside Escape. In a nested stack it can be scoped:
-  its own dialog by default, or the whole stack (see [Nesting](#nesting)).
+  strongly recommends alongside Escape. It is singular by design: the one
+  dismissal affordance (typically a corner `×`), kept the focus cycle's last
+  stop. Action buttons that happen to dismiss (Cancel, Confirm) are the
+  consumer's own controls, keeping their natural Tab order. In a nested stack
+  Close can be scoped: its own dialog by default, or the whole stack (see
+  [Nesting](#nesting)).
 
 Dismissal is configurable at the root: Escape closing and outside-press closing
 can each be toggled off, and the consumer can veto a single occurrence of

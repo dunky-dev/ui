@@ -155,7 +155,10 @@ Describes the dialog (wires `aria-describedby` on Content).
 
 ### `Dialog.Close`
 
-Dismisses the dialog from inside.
+Dismisses the dialog from inside — the single dismissal affordance (the
+corner `×`), rendered once per dialog and kept the focus cycle's last stop per
+the core contract. Action buttons (Cancel/Confirm) are your own `<button>`s
+driving state, so they keep their natural Tab order.
 
 | Prop       | Type                       | Default   | Description                                                    |
 | ---------- | -------------------------- | --------- | -------------------------------------------------------------- |
