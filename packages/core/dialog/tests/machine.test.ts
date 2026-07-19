@@ -242,6 +242,74 @@ describe('dialog connect — reactions', () => {
   })
 })
 
+describe('dialog machine — animated exit', () => {
+  it('a close intent holds the exit window open until exit.complete', () => {
+    const { service } = build({ defaultOpen: true, animated: true })
+    service.send({ type: 'close' })
+    expect(service.state).toBe('closing')
+
+    service.send({ type: 'exit.complete' })
+    expect(service.state).toBe('closed')
+  })
+
+  it('every dismissal source enters the same exit window, still gated', () => {
+    const escaped = build({ defaultOpen: true, animated: true })
+    escaped.service.send({ type: 'escape' })
+    expect(escaped.service.state).toBe('closing')
+
+    const gated = build({ defaultOpen: true, animated: true, closeOnEscape: false })
+    gated.service.send({ type: 'escape' })
+    expect(gated.service.state).toBe('open')
+  })
+
+  it('reopening interrupts the exit', () => {
+    const { service } = build({ defaultOpen: true, animated: true })
+    service.send({ type: 'toggle' })
+    expect(service.state).toBe('closing')
+
+    service.send({ type: 'toggle' })
+    expect(service.state).toBe('open')
+  })
+
+  it('reports the close when the exit starts, the reopen when it interrupts', () => {
+    const onOpenChange = vi.fn()
+    const { service } = build({ defaultOpen: true, animated: true, onOpenChange })
+
+    service.send({ type: 'close' })
+    expect(onOpenChange).toHaveBeenLastCalledWith(false)
+
+    service.send({ type: 'open' })
+    expect(onOpenChange).toHaveBeenLastCalledWith(true)
+
+    service.send({ type: 'close' })
+    service.send({ type: 'exit.complete' }) // no report: nothing changed for the consumer
+    expect(onOpenChange).toHaveBeenCalledTimes(3)
+  })
+
+  it('a controlled dialog enters and interrupts the exit through the prop echo alone', () => {
+    const { service } = build({ open: true, animated: true })
+    service.send({ type: 'close' }) // intent only — controlled never moves on its own
+    expect(service.state).toBe('open')
+
+    service.send({ type: 'controlled.sync', value: false })
+    expect(service.state).toBe('closing')
+
+    service.send({ type: 'controlled.sync', value: true })
+    expect(service.state).toBe('open')
+  })
+
+  it('connect exposes the exit window: mounted while closing, data-state="closing"', () => {
+    const { service, connection } = build({ defaultOpen: true, animated: true })
+    service.send({ type: 'close' })
+    expect(connection.snapshot.open).toBe(false)
+    expect(connection.snapshot.mounted).toBe(true)
+    expect(connection.snapshot.parts.content['data-state']).toBe('closing')
+
+    service.send({ type: 'exit.complete' })
+    expect(connection.snapshot.mounted).toBe(false)
+  })
+})
+
 describe('dialog machine — controlled', () => {
   it('a dismissal intent moves nothing and reports nothing', () => {
     const onOpenChange = vi.fn()

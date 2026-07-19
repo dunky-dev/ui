@@ -29,6 +29,10 @@ function dialogIds(id: string): DialogIds {
 /** The view-facing surface a driver reads from the running dialog machine. */
 export interface DialogApi {
   open: boolean
+  /** Whether the dialog occupies the tree: open or mid-exit (`closing`). The
+   * substrate's portal/unmount gate — an animated dialog stays mounted while
+   * its exit plays, everything else already keyed off `open`. */
+  mounted: boolean
   role: DialogRole
   ids: DialogIds
   setOpen: (open: boolean) => void
@@ -51,7 +55,9 @@ export const dialogConnect: Connect<
   DialogApi
 > = ({ state, context, props, send }) => {
   const open = state === 'open'
-  const dataState: DialogStateName = open ? 'open' : 'closed'
+  // The state names double as the styling vocabulary — `closing` is the
+  // exit-animation hook.
+  const dataState: DialogStateName = state
   const ids = dialogIds(context.id)
 
   // An outside press is an intent, not a close command: the consumer may veto
@@ -63,6 +69,7 @@ export const dialogConnect: Connect<
 
   return {
     open,
+    mounted: state !== 'closed',
     role: context.role,
     ids,
     setOpen(next) {

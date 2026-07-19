@@ -390,6 +390,58 @@ describe('Dialog', () => {
     })
   })
 
+  describe('exit animation', () => {
+    const fireTransitionEnd = (element: Element): void => {
+      act(() => {
+        element.dispatchEvent(new Event('transitionend', { bubbles: true }))
+      })
+    }
+
+    it('stays mounted through the exit and unmounts when its transition ends', () => {
+      render(<DefaultDialog defaultOpen animated />)
+      act(pressEscape)
+
+      // Mid-exit: still in the tree, styled by data-state, hidden from AT.
+      const dialog = screen.getByRole('dialog', { hidden: true })
+      expect(dialog.getAttribute('data-state')).toBe('closing')
+
+      fireTransitionEnd(dialog)
+      expect(screen.queryByRole('dialog', { hidden: true })).toBeNull()
+    })
+
+    it('releases focus, containment, and interaction the moment the exit starts', () => {
+      const { container } = render(<DefaultDialog animated />)
+      const trigger = screen.getByText('Trigger')
+      act(() => trigger.focus())
+      openDialog()
+      expect(container.hasAttribute('inert')).toBe(true)
+
+      act(pressEscape)
+      // The page is live and focus is home before the visual finishes…
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(document.activeElement).toBe(trigger)
+      // …while the still-painting layer is out of the interaction instead.
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('backdrop').hasAttribute('inert')).toBe(true)
+    })
+
+    it('reopening mid-exit interrupts it and restores the layer', () => {
+      render(<DefaultDialog animated />)
+      openDialog()
+      act(pressEscape)
+      openDialog()
+
+      const dialog = screen.getByRole('dialog')
+      expect(dialog.getAttribute('data-state')).toBe('open')
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(false)
+      expect(document.activeElement).toBe(dialog)
+
+      // The interrupted exit's end must not close the reopened dialog.
+      fireTransitionEnd(dialog)
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+  })
+
   describe('nesting', () => {
     const NestedDialog = (props: DialogProps) => (
       <Dialog defaultOpen {...props}>

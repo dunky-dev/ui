@@ -4,7 +4,11 @@
 import type { Controllable, ControlledSync } from '@dunky.dev/controllable'
 import type { KeyboardPayload, PointerPayload } from '@dunky.dev/state-machine-bindings'
 
-export type DialogStateName = 'closed' | 'open'
+// `closing` exists only for an `animated` dialog: the exit window between the
+// close intent and the visual leaving the screen. The dialog is already
+// logically closed there — it reports, releases, and yields immediately; only
+// unmounting waits.
+export type DialogStateName = 'closed' | 'open' | 'closing'
 
 export type DialogRole = 'dialog' | 'alertdialog'
 
@@ -44,13 +48,16 @@ export interface DialogContext {
 // Dismissal intents (`escape` / `interact.outside`) are distinct from `close`
 // so the machine can gate them. `controlled.sync` is the controlled driver:
 // the substrate sends it when the `open` prop changes, and it is the only
-// event that moves a controlled machine.
+// event that moves a controlled machine. `exit.complete` is the substrate's
+// report that the exit visual finished — the machine can't know when paint is
+// done, so the substrate owns that one edge.
 export type DialogMachineEvent =
   | { type: 'open' }
   | { type: 'close' }
   | { type: 'toggle' }
   | { type: 'escape' }
   | { type: 'interact.outside' }
+  | { type: 'exit.complete' }
   | ControlledSync<boolean>
   | { type: 'part.presence'; part: DialogPart; present: boolean }
 
@@ -87,4 +94,8 @@ export interface DialogOptions extends DialogCallbacks {
   /** Whether pressing the backdrop closes the dialog.
    * @default true — false when `role="alertdialog"` */
   closeOnInteractOutside?: boolean
+  /** Reserves an exit window for a close animation: closing passes through the
+   * `closing` state (`data-state="closing"` styles the exit) and the dialog
+   * unmounts on `exit.complete` instead of immediately. @default false */
+  animated?: boolean
 }

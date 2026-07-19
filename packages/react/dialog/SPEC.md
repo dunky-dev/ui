@@ -34,7 +34,9 @@ import { Dialog } from '@dunky.dev/react-dialog'
 React-specific notes on top of the core contract:
 
 - **`Portal`** teleports the layers to `document.body`, or to a `container`
-  you supply. Nothing is kept mounted while closed. When scoped to a
+  you supply. Nothing is kept mounted while closed; an `animated` dialog
+  stays mounted through the core contract's `closing` state so its exit can
+  play — see the exit-animation note below. When scoped to a
   `container`, the scroll lock applies to that container instead of the page,
   and the backdrop/viewport must be positioned `absolute` (not `fixed`) so the
   overlay pins to the container. Because an `absolute` overlay can't stay fixed
@@ -49,6 +51,16 @@ React-specific notes on top of the core contract:
   with the browser's built-in dialog behavior.
 - **`Backdrop`** renders nothing when the dialog is non-modal (`modal={false}`),
   per the core parts contract.
+- **Exit animation** (`animated`): style the exit on the parts'
+  `data-state="closing"` — a CSS transition or animation on **Content** (the
+  element carrying the state, not a descendant) is what signals completion;
+  a missing exit style falls back to a short ceiling, and
+  `prefers-reduced-motion` skips the wait entirely. The exit is cosmetic:
+  focus, the dialog stack, and page interaction release the moment closing
+  starts, and the still-painting layer is made `inert` until it unmounts.
+  Enter needs no state — the parts mount straight into `data-state="open"`,
+  so a CSS animation (or a transition via `@starting-style`) plays from
+  mount.
 - Everything ships headless, per the core contract's
   [Internals](../../core/dialog/SPEC.md#internals).
 
@@ -69,6 +81,7 @@ The root: owns open/close state, renders no DOM. Accepts the core
 | `closeOnEscape`          | `boolean`                   | `true`                                    | Whether Escape closes the dialog.                                                                                     |
 | `escapeScope`            | `'layer' \| 'stack'`        | `'layer'`                                 | How far an allowed Escape reaches: this dialog, or its whole stack.                                                   |
 | `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether pressing the backdrop/viewport closes the dialog.                                                             |
+| `animated`               | `boolean`                   | `false`                                   | Keeps the dialog mounted through `data-state="closing"` while its exit animation plays.                               |
 | `onEscapeKeyDown`        | `(event) => void`           | —                                         | Fired before an Escape dismissal; `preventDefault()` vetoes.                                                          |
 | `onInteractOutside`      | `(event?) => void`          | —                                         | Fired before an outside-press dismissal; `preventDefault()` vetoes.                                                   |
 | `id`                     | `string`                    | auto (`useId`)                            | Base id for the parts; per-part ids are derived from it.                                                              |

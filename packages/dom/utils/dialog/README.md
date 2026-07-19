@@ -14,6 +14,14 @@ what every substrate's dialog must agree on:
 - **Initial focus** — `getInitialFocus` resolves where focus moves on open: a
   dialog that collects input starts at its first form field; any other
   content keeps focus on the dialog window itself.
+- **The exit window** — an animated dialog leaves the stack the moment it
+  starts closing, but keeps painting until its exit visual finishes.
+  `hideExitingLayer` takes the still-painting layer out of the page's
+  interaction (`inert`: pointer, tab order, assistive tech) for that window,
+  and `watchExitAnimation` reports when the visual finished — on the
+  element's own `transitionend`/`animationend`, immediately under
+  `prefers-reduced-motion`, or at a fallback ceiling so a missing exit style
+  can't hang the close. Both return a cancel/undo for the reopen interrupt.
 
 Substrate bindings wrap this — e.g. `@dunky.dev/react-dialog` — so every
 framework shares one stack: dialogs from different substrates on the same
