@@ -21,33 +21,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pnpm version comes from package.json's `packageManager` field —
-      # pinning it here too makes the action fail on any mismatch.
-      - uses: pnpm/action-setup@v4
+      # git, pnpm, node (.nvmrc), and a frozen install — same as CI.
+      - uses: ./.github/actions/ci-setup
 
-      - uses: actions/setup-node@v4
+      # `enablement: true` turns Pages on via the API the first time, so the
+      # deploy works without a manual toggle in repo settings.
+      - id: pages
+        uses: actions/configure-pages@v5
         with:
-          node-version: 24
-          cache: pnpm
+          enablement: true
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build site
-        # base must match the path the site is served under so asset URLs
-        # resolve, e.g. /<repo>/ for GitHub Pages project sites, or the
-        # rewrite prefix for the dunky-dev.com multi-zone setup.
+      - name: Build Storybook
+        # The project site is served under /<repo>/ (e.g. /ui/), so the
+        # preview's assets must resolve there — main.ts feeds BASE_PATH into
+        # Vite's base. `base_path` comes from the Pages config above.
         env:
-          BASE_PATH: /TODO-set-base-path/
-        # TODO: point this at the site package, e.g. `pnpm -C website build`
-        run: pnpm -C website build
-
-      - uses: actions/configure-pages@v5
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: pnpm build-storybook
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          # TODO: match your site's build output dir
-          path: website/dist
+          path: packages/react/storybook-static
 
   deploy:
     needs: build
