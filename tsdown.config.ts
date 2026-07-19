@@ -12,6 +12,7 @@ export default defineConfig({
   workspace: [
     'packages/core/dialog',
     'packages/core/utils/controllable',
+    'packages/dom/utils/back-navigation',
     'packages/dom/utils/dialog',
     'packages/dom/utils/focus-trap',
     'packages/dom/utils/scroll-lock',

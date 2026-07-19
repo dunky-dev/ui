@@ -16,10 +16,10 @@ import { useFocusTrap } from '@dunky.dev/react-use-focus-trap'
 import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
+import { interceptBackNavigation } from '@dunky.dev/dom-back-navigation'
 import {
   getInitialFocus,
   hideExitingLayer,
-  interceptBackNavigation,
   isTopmostDialog,
   registerDialog,
   watchExitAnimation,

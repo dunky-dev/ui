@@ -66,6 +66,8 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
 
+  packages/dom/utils/back-navigation: {}
+
   packages/dom/utils/dialog: {}
 
   packages/dom/utils/focus-trap: {}
@@ -101,6 +103,9 @@ importers:
       '@dunky.dev/dialog':
         specifier: workspace:*
         version: link:../../core/dialog
+      '@dunky.dev/dom-back-navigation':
+        specifier: workspace:*
+        version: link:../../dom/utils/back-navigation
       '@dunky.dev/dom-dialog':
         specifier: workspace:*
         version: link:../../dom/utils/dialog

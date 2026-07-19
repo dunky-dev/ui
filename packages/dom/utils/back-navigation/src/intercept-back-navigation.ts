@@ -1,17 +1,18 @@
-// Marks a dialog's guard entry in the session history; the value says which
+// Marks a layer's guard entry in the session history; the value says which
 // interceptor owns the entry.
-const STATE_KEY = 'dunky.dialog.back'
+const STATE_KEY = 'dunky.back'
 
 interface BackGuard {
   id: number
   onBack: () => boolean
 }
 
-// One shared registry + one popstate listener across every dialog (mirroring
-// the layer stack): a Back press pops exactly one entry, so only the
-// interceptor whose guard entry vanished may answer — the ones beneath see
-// their entry still current and stay armed. That ordering is what makes a
-// nested stack unwind one layer per press with no cross-dialog bookkeeping.
+// One shared registry + one popstate listener across every layer: a Back
+// press pops exactly one entry, so only the interceptor whose guard entry
+// vanished may answer — the ones beneath see their entry still current and
+// stay armed. That ordering is what makes stacked layers (nested dialogs,
+// a drawer under a sheet) unwind one per press with no cross-layer
+// bookkeeping.
 const guards: BackGuard[] = []
 let nextGuardId = 0
 // Pops this module caused itself (consuming a guard entry on release). The
@@ -61,7 +62,7 @@ function onPopState(): void {
       guards.pop()
       continue
     }
-    // Declined — vetoed, or a controlled dialog that hasn't followed yet:
+    // Declined — vetoed, or a controlled layer that hasn't followed yet:
     // re-arm the guard entry so the next Back reaches this layer again.
     history.pushState({ [STATE_KEY]: top.id }, '')
     break
@@ -70,12 +71,13 @@ function onPopState(): void {
 }
 
 /**
- * Plants a guard entry in the session history so the host's Back closes the
- * dialog instead of leaving the page. `onBack` fires when the user pops the
- * entry and returns whether the dialog actually closed — a decline re-arms
- * the guard. The returned release (for a dialog closed by any other means)
- * consumes a still-current guard entry so it can't swallow the next Back;
- * an entry buried under later navigation is unreachable and left alone.
+ * Plants a guard entry in the session history so the host's Back dismisses a
+ * layer (a dialog, drawer, sheet — anything overlaid) instead of leaving the
+ * page. `onBack` fires when the user pops the entry and returns whether the
+ * layer actually closed — a decline re-arms the guard. The returned release
+ * (for a layer closed by any other means) consumes a still-current guard
+ * entry so it can't swallow the next Back; an entry buried under later
+ * navigation is unreachable and left alone.
  *
  * Consumption is deferred a microtask and an orphaned-but-current entry is
  * adopted (rewritten in place) by the next interceptor: a synchronous

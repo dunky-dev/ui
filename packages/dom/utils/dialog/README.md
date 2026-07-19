@@ -14,13 +14,6 @@ what every substrate's dialog must agree on:
 - **Initial focus** — `getInitialFocus` resolves where focus moves on open: a
   dialog that collects input starts at its first form field; any other
   content keeps focus on the dialog window itself.
-- **Back navigation** — `interceptBackNavigation` plants a guard entry in the
-  session history so the host's Back closes the dialog instead of leaving the
-  page. Guards stack in open order, so a nested stack unwinds one layer per
-  press; a declined close (veto, controlled) re-arms the entry; releasing
-  consumes a still-current entry so it can't swallow the next Back, and a
-  synchronous release + re-register adopts the entry in place — no traversal,
-  no race.
 - **The exit window** — an animated dialog leaves the stack the moment it
   starts closing, but keeps painting until its exit visual finishes.
   `hideExitingLayer` takes the still-painting layer out of the page's
