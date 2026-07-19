@@ -1,5 +1,5 @@
 /**
- * A closing dialog has already left the stack — the page beneath is live
+ * A closing overlay has already left the stack — the page beneath is live
  * again — but its layer keeps painting until the exit visual finishes. Take
  * the layer out of the page's interaction for that window (`inert` covers
  * pointer, tab order, and assistive tech): the content's outermost portalled

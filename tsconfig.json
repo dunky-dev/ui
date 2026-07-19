@@ -15,9 +15,10 @@
     "strict": true,
     "paths": {
       "@dunky.dev/controllable": ["./packages/core/utils/controllable/src"],
+      "@dunky.dev/overlay": ["./packages/core/utils/overlay/src"],
       "@dunky.dev/dialog": ["./packages/core/dialog/src"],
       "@dunky.dev/react-dialog": ["./packages/react/dialog/src"],
-      "@dunky.dev/dom-dialog": ["./packages/dom/utils/dialog/src"],
+      "@dunky.dev/dom-overlay": ["./packages/dom/utils/overlay/src"],
       "@dunky.dev/dom-focus-trap": ["./packages/dom/utils/focus-trap/src"],
       "@dunky.dev/dom-navigation": ["./packages/dom/utils/navigation/src"],
       "@dunky.dev/dom-scroll-lock": ["./packages/dom/utils/scroll-lock/src"],

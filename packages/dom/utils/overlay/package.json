@@ -1,12 +1,12 @@
 {
-  "name": "@dunky.dev/dom-dialog",
+  "name": "@dunky.dev/dom-overlay",
   "version": "0.0.0",
-  "description": "Framework-free DOM behavior for dialog substrates: the shared layer stack, assistive-tech containment, and initial focus.",
+  "description": "Framework-free DOM behavior for overlay substrates: the shared layer stack with assistive-tech containment, the exit window, and initial focus.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dunky-dev/ui.git",
-    "directory": "packages/dom/utils/dialog"
+    "directory": "packages/dom/utils/overlay"
   },
   "files": [
     "dist"
@@ -32,5 +32,8 @@
   },
   "scripts": {
     "build": "tsdown"
+  },
+  "dependencies": {
+    "@dunky.dev/overlay": "workspace:*"
   }
 }

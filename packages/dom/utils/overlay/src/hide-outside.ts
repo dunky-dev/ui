@@ -6,7 +6,7 @@ const HIDE_SKIP = /^(SCRIPT|STYLE|LINK|TEMPLATE)$/
  * every sibling along the way `aria-hidden` + `inert`, so assistive tech sees
  * only the target's subtree and nothing outside it can be reached — by pointer,
  * find-in-page, or programmatic focus. `exclude` names the one same-layer
- * element rendered outside the target's subtree (the dialog's own backdrop,
+ * element rendered outside the target's subtree (the layer's own backdrop,
  * portalled alongside its viewport) that must stay pressable. Returns a
  * function that removes exactly what it added. Callers hide one target at a
  * time.
