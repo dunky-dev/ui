@@ -53,3 +53,9 @@ be accessibility-relevant.
 
 The non-negotiable invariants that must hold regardless of configuration —
 written so an implementation can be checked against it, not to describe one.
+
+## Internals
+
+The design decisions behind the implementation — the state/context model
+choices, trade-offs, and non-obvious mechanics a maintainer needs, each with
+its why. Nothing a consumer needs in order to use the package.
