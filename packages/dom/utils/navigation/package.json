@@ -1,12 +1,12 @@
 {
-  "name": "@dunky.dev/dom-back-navigation",
+  "name": "@dunky.dev/dom-navigation",
   "version": "0.0.0",
-  "description": "Framework-free session-history guard: the host's Back dismisses a layer instead of leaving the page.",
+  "description": "Framework-free browser-navigation helpers: a session-history guard so the host's Back dismisses a layer instead of leaving the page.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dunky-dev/ui.git",
-    "directory": "packages/dom/utils/back-navigation"
+    "directory": "packages/dom/utils/navigation"
   },
   "files": [
     "dist"

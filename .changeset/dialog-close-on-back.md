@@ -1,7 +1,7 @@
 ---
 '@dunky.dev/dialog': minor
 '@dunky.dev/react-dialog': minor
-'@dunky.dev/dom-back-navigation': minor
+'@dunky.dev/dom-navigation': minor
 ---
 
 Add `closeOnBack` — the host's Back navigation closes the open dialog instead
@@ -22,7 +22,7 @@ decision — gate, veto, controlled — lives once in the core's `backNavigate`;
 substrates only wire their host's mechanics to it.
 
 The web mechanics ship as their own framework-free util,
-`@dunky.dev/dom-back-navigation` (`interceptBackNavigation`) — a session
+`@dunky.dev/dom-navigation` (`interceptBackNavigation`) — a session
 history guard any overlaid layer can use, not just the dialog: opening
 plants a guard entry in the session history and Back consumes it. A dialog
 closed any other way consumes its own entry too, so no leftover ever swallows

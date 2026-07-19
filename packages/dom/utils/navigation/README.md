@@ -1,6 +1,10 @@
-# @dunky.dev/dom-back-navigation
+# @dunky.dev/dom-navigation
 
-Framework-free session-history guard. `interceptBackNavigation` plants a
+Framework-free browser-navigation helpers.
+
+## Back navigation
+
+`interceptBackNavigation` plants a
 guard entry in the session history so the host's Back dismisses a layer — a
 dialog, drawer, sheet, anything overlaid on the page — instead of leaving it,
 the pattern mobile users expect from a full-screen overlay.
@@ -21,13 +25,13 @@ Substrate bindings wrap this — e.g. `@dunky.dev/react-dialog`'s
 ## Install
 
 ```sh
-npm install @dunky.dev/dom-back-navigation
+npm install @dunky.dev/dom-navigation
 ```
 
 ## Usage
 
 ```ts
-import { interceptBackNavigation } from '@dunky.dev/dom-back-navigation'
+import { interceptBackNavigation } from '@dunky.dev/dom-navigation'
 
 // On open: plant the guard. `onBack` returns whether the layer closed —
 // returning false (vetoed, deferred) re-arms the guard for the next press.
