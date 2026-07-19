@@ -94,6 +94,9 @@ export const dialogConnect: Connect<
       title: { id: ids.title },
       description: { id: ids.description },
       close: {
+        // The focus cycle's last stop wherever it renders — a data contract
+        // with the substrate's focus containment (see the core SPEC).
+        'data-focus-last': true,
         onPress: () => send({ type: 'close' }),
       },
     },

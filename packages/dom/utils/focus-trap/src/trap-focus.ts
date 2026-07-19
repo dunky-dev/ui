@@ -9,33 +9,36 @@ export interface TrapFocusOptions {
 }
 
 /**
- * Traps Tab / Shift+Tab within `container`: focus wraps from the last focusable
- * back to the first (and the reverse with Shift+Tab, including from the
- * container itself) and never tabs out. With no focusables inside, Tab is a
- * no-op. Returns a release that removes the listener.
+ * Traps Tab / Shift+Tab within `container`: every press steps focus through
+ * the cycle order from `getFocusables` (DOM order, `data-focus-last` at the
+ * end), wrapping at both ends — including from the container itself, and
+ * never tabbing out. The trap steps focus itself rather than only guarding
+ * the edges: a logical order can diverge from DOM order, so native tabbing
+ * can't be trusted mid-cycle. With no focusables inside, Tab is a no-op.
+ * Returns a release that removes the listener.
  */
 export function trapFocus(container: HTMLElement, options: TrapFocusOptions = {}): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== 'Tab') return
     if (options.enabled?.() === false) return
 
+    event.preventDefault()
     const focusables = getFocusables(container)
-    if (focusables.length === 0) {
-      event.preventDefault()
-      return
-    }
+    if (focusables.length === 0) return
 
-    const first = focusables[0]
-    const last = focusables[focusables.length - 1]
     const active = document.activeElement
-
-    if (event.shiftKey && (active === first || active === container)) {
-      event.preventDefault()
-      last?.focus()
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault()
-      first?.focus()
-    }
+    const index = active instanceof HTMLElement ? focusables.indexOf(active) : -1
+    const lastIndex = focusables.length - 1
+    // Off-cycle focus (the container, or a scripted tabindex=-1 target)
+    // re-enters at the edge the direction implies.
+    const next = event.shiftKey
+      ? index <= 0
+        ? lastIndex
+        : index - 1
+      : index === -1 || index === lastIndex
+        ? 0
+        : index + 1
+    focusables[next]?.focus()
   }
 
   container.addEventListener('keydown', onKeyDown)

@@ -287,6 +287,29 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(screen.getByText('Close'))
     })
 
+    it('keeps Close last in the cycle even when it renders first', () => {
+      render(
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Viewport>
+              <Dialog.Content>
+                <Dialog.Close>Close</Dialog.Close>
+                <button type='button'>Action</button>
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>,
+      )
+      const dialog = screen.getByRole('dialog')
+
+      act(() => screen.getByText('Action').focus())
+      fireEvent.keyDown(dialog, { key: 'Tab' }) // DOM-last, but not cycle-last
+      expect(document.activeElement).toBe(screen.getByText('Close'))
+
+      fireEvent.keyDown(dialog, { key: 'Tab' }) // Close is the wrap point
+      expect(document.activeElement).toBe(screen.getByText('Action'))
+    })
+
     const InitialFocusDialog = ({ disabled = false }: { disabled?: boolean }) => {
       const initialFocus = useRef<HTMLInputElement>(null)
       return (

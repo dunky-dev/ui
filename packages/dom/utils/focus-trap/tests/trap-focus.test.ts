@@ -53,11 +53,30 @@ describe('trapFocus', () => {
     expect(document.activeElement?.id).toBe('last')
   })
 
-  it('lets Tab move naturally between inner focusables', () => {
+  it('steps Tab through the focusables itself, in cycle order', () => {
     const container = mount(BUTTONS)
     document.getElementById('first')?.focus()
 
-    expect(pressTab(container)).toBe(true)
+    expect(pressTab(container)).toBe(false)
+    expect(document.activeElement?.id).toBe('last')
+  })
+
+  it('sorts data-focus-last elements to the end of the cycle', () => {
+    const container = mount(
+      '<button type="button" id="close" data-focus-last>x</button>' +
+        '<button type="button" id="a">a</button>' +
+        '<button type="button" id="b">b</button>',
+    )
+
+    document.getElementById('b')?.focus()
+    pressTab(container) // b is DOM-last but not cycle-last
+    expect(document.activeElement?.id).toBe('close')
+
+    pressTab(container) // the marked element is the wrap point
+    expect(document.activeElement?.id).toBe('a')
+
+    pressTab(container, true) // and backward wraps onto it
+    expect(document.activeElement?.id).toBe('close')
   })
 
   it('turns Tab into a no-op when the container has no focusables', () => {

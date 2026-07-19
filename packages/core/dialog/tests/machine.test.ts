@@ -213,6 +213,11 @@ describe('dialog connect — logical bindings', () => {
     expect(service.state).toBe('closed')
   })
 
+  it('close is marked as the last focus stop', () => {
+    const { connection } = build({ defaultOpen: true })
+    expect(connection.snapshot.parts.close['data-focus-last']).toBe(true)
+  })
+
   it('parts expose data-state for styling/animation', () => {
     const { connection } = build({ defaultOpen: true })
     expect(connection.snapshot.parts.content['data-state']).toBe('open')
