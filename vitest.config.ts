@@ -1,6 +1,12 @@
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  resolve: {
+    // The native substrate's tests render through react-native-web in jsdom —
+    // same stack as every other substrate's tests. Nothing outside
+    // packages/native imports react-native, so the alias is inert elsewhere.
+    alias: { 'react-native': 'react-native-web' },
+  },
   test: {
     globals: false,
     environment: 'node',
