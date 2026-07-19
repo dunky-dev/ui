@@ -34,7 +34,7 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@dunky.dev/__name__": "workspace:^",
+    "@dunky.dev/__name__": "workspace:*",
     "@dunky.dev/react-state-machine": "^0.1.0"
   },
   "devDependencies": {

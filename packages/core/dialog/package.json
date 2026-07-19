@@ -34,7 +34,7 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@dunky.dev/controllable": "workspace:^",
+    "@dunky.dev/controllable": "workspace:*",
     "@dunky.dev/state-machine": "^0.1.0",
     "@dunky.dev/state-machine-bindings": "^0.1.0"
   }

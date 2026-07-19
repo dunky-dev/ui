@@ -34,7 +34,7 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@dunky.dev/dom-scroll-lock": "workspace:^"
+    "@dunky.dev/dom-scroll-lock": "workspace:*"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",

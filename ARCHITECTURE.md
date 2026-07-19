@@ -248,3 +248,19 @@ directory into the templates — the script discovers it. See
   `packages/react/.storybook`, run with `pnpm dev [substrate]`.
 - Publishable packages are listed explicitly in `tsdown.config.ts`; a private
   package gets a tsconfig path but is never published.
+
+## Versioning
+
+Every package — core primitive, DOM util, substrate binding — versions
+independently; `.changeset/config.json` keeps `fixed` and `linked` empty, so
+no group is ever forced to share a version number.
+
+Internal workspace dependencies pin exact (`workspace:*`), never a caret
+range (`workspace:^`). Independent versions mean siblings drift apart at
+their own pace, so a caret range between two packages that share a further
+dependency can let a consumer's install resolve to two different physical
+copies of it — a dependency diamond. Anything identity-sensitive further
+down (a singleton, a `WeakMap`, module-level state) breaks silently across
+the two copies. An exact pin collapses the diamond to one resolvable
+version: a mismatch fails at publish time, not at runtime in a consumer's
+app.

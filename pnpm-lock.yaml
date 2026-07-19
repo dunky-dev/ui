@@ -51,7 +51,7 @@ importers:
   packages/core/dialog:
     dependencies:
       '@dunky.dev/controllable':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../utils/controllable
       '@dunky.dev/state-machine':
         specifier: ^0.1.0
@@ -97,16 +97,16 @@ importers:
   packages/react/dialog:
     dependencies:
       '@dunky.dev/dialog':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../../core/dialog
       '@dunky.dev/react-state-machine':
         specifier: ^0.1.0
         version: 0.1.0(react@19.2.7)
       '@dunky.dev/react-use-focus-trap':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../hooks/use-focus-trap
       '@dunky.dev/react-use-scroll-lock':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../hooks/use-scroll-lock
     devDependencies:
       '@testing-library/react':
@@ -128,7 +128,7 @@ importers:
   packages/react/hooks/use-focus-trap:
     dependencies:
       '@dunky.dev/dom-focus-trap':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../../../dom/utils/focus-trap
     devDependencies:
       '@testing-library/react':
@@ -150,7 +150,7 @@ importers:
   packages/react/hooks/use-scroll-lock:
     dependencies:
       '@dunky.dev/dom-scroll-lock':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../../../dom/utils/scroll-lock
     devDependencies:
       '@testing-library/react':

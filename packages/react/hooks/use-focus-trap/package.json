@@ -34,7 +34,7 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@dunky.dev/dom-focus-trap": "workspace:^"
+    "@dunky.dev/dom-focus-trap": "workspace:*"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
