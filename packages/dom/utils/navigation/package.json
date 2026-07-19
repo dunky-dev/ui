@@ -1,0 +1,36 @@
+{
+  "name": "@dunky.dev/dom-navigation",
+  "version": "0.0.0",
+  "description": "Framework-free browser-navigation helpers: a session-history guard so the host's Back dismisses a layer instead of leaving the page.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dunky-dev/ui.git",
+    "directory": "packages/dom/utils/navigation"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown"
+  }
+}

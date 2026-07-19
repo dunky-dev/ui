@@ -70,6 +70,8 @@ importers:
 
   packages/dom/utils/focus-trap: {}
 
+  packages/dom/utils/navigation: {}
+
   packages/dom/utils/scroll-lock: {}
 
   packages/react:
@@ -104,6 +106,9 @@ importers:
       '@dunky.dev/dom-dialog':
         specifier: workspace:*
         version: link:../../dom/utils/dialog
+      '@dunky.dev/dom-navigation':
+        specifier: workspace:*
+        version: link:../../dom/utils/navigation
       '@dunky.dev/react-state-machine':
         specifier: ^0.1.0
         version: 0.1.0(react@19.2.7)

@@ -242,6 +242,52 @@ describe('dialog connect — reactions', () => {
   })
 })
 
+describe('dialog machine — back navigation', () => {
+  it('ignores history.back without closeOnBack (the default)', () => {
+    const { service } = build({ defaultOpen: true })
+    service.send({ type: 'history.back' })
+    expect(service.state).toBe('open')
+    expect(service.context.open.intent).toBeNull()
+  })
+
+  it('closes on history.back when closeOnBack, through the exit window when animated', () => {
+    const { service } = build({ defaultOpen: true, closeOnBack: true })
+    service.send({ type: 'history.back' })
+    expect(service.state).toBe('closed')
+
+    const animated = build({ defaultOpen: true, closeOnBack: true, animated: true })
+    animated.service.send({ type: 'history.back' })
+    expect(animated.service.state).toBe('closing')
+  })
+
+  it('backNavigate fires the callback and dismisses unless vetoed', () => {
+    const onBackNavigation = vi.fn()
+    const { service, connection } = build({
+      defaultOpen: true,
+      closeOnBack: true,
+      onBackNavigation,
+    })
+    connection.snapshot.backNavigate()
+    expect(onBackNavigation).toHaveBeenCalledTimes(1)
+    expect(service.state).toBe('closed')
+
+    const vetoed = build({
+      defaultOpen: true,
+      closeOnBack: true,
+      onBackNavigation: event => event?.preventDefault?.(),
+    })
+    vetoed.connection.snapshot.backNavigate()
+    expect(vetoed.service.state).toBe('open')
+  })
+
+  it('a controlled dialog records the intent and stays put', () => {
+    const { service, connection } = build({ open: true, closeOnBack: true })
+    connection.snapshot.backNavigate()
+    expect(service.state).toBe('open')
+    expect(service.context.open.intent).toEqual({ value: false })
+  })
+})
+
 describe('dialog machine — animated exit', () => {
   it('a close intent holds the exit window open until exit.complete', () => {
     const { service } = build({ defaultOpen: true, animated: true })

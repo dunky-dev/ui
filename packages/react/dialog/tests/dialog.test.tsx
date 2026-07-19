@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The React edge of the Dialog — behavior only; the machine's own contract is
 // covered in @dunky.dev/dialog's tests.
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Dialog, type DialogProps } from '@dunky.dev/react-dialog'
@@ -178,6 +178,60 @@ describe('Dialog', () => {
       rerender(<DefaultDialog open onOpenChange={onOpenChange} />)
       expect(onOpenChange).toHaveBeenLastCalledWith(true)
       expect(onOpenChange).toHaveBeenCalledTimes(1)
+    })
+
+    // The controlled contract's consumer side: the dialog never moves on its
+    // own, so the consumer's own handlers on the parts and the dismissal
+    // callbacks are what drive the prop.
+    it('a controlled stack closes through handlers wired at the source', () => {
+      const ControlledStack = () => {
+        const [outerOpen, setOuterOpen] = useState(true)
+        const [innerOpen, setInnerOpen] = useState(false)
+        return (
+          <Dialog
+            open={outerOpen}
+            onOpenChange={setOuterOpen}
+            onEscapeKeyDown={() => setOuterOpen(false)}
+          >
+            <Dialog.Portal>
+              <Dialog.Viewport>
+                <Dialog.Content>
+                  <Dialog.Title>Outer</Dialog.Title>
+                  <Dialog
+                    open={innerOpen}
+                    onOpenChange={setInnerOpen}
+                    onEscapeKeyDown={() => setInnerOpen(false)}
+                  >
+                    <Dialog.Trigger onClick={() => setInnerOpen(true)}>Open inner</Dialog.Trigger>
+                    <Dialog.Portal>
+                      <Dialog.Viewport>
+                        <Dialog.Content>
+                          <Dialog.Title>Inner</Dialog.Title>
+                          <Dialog.Close onClick={() => setInnerOpen(false)}>
+                            Close inner
+                          </Dialog.Close>
+                        </Dialog.Content>
+                      </Dialog.Viewport>
+                    </Dialog.Portal>
+                  </Dialog>
+                </Dialog.Content>
+              </Dialog.Viewport>
+            </Dialog.Portal>
+          </Dialog>
+        )
+      }
+
+      render(<ControlledStack />)
+      act(() => screen.getByText('Open inner').click())
+      expect(screen.queryByText('Inner')).not.toBeNull()
+
+      act(() => screen.getByText('Close inner').click())
+      expect(screen.queryByText('Inner')).toBeNull()
+
+      act(() => screen.getByText('Open inner').click())
+      act(pressEscape) // reaches the topmost layer only
+      expect(screen.queryByText('Inner')).toBeNull()
+      expect(screen.queryByText('Outer')).not.toBeNull()
     })
 
     it('dropping the open prop rewires the dialog uncontrolled where it stands', () => {
@@ -387,6 +441,48 @@ describe('Dialog', () => {
       act(pressEscape)
       expect(panel.style.overflow).not.toBe('hidden')
       panel.remove()
+    })
+  })
+
+  describe('back navigation', () => {
+    // jsdom's history traversal is asynchronous — await the popstate itself.
+    const nextPop = (): Promise<void> =>
+      new Promise(resolve => {
+        window.addEventListener('popstate', () => resolve(), { once: true })
+      })
+
+    it('closes on the browser Back instead of navigating', async () => {
+      const before: unknown = window.history.state
+      render(<DefaultDialog closeOnBack />)
+      openDialog()
+      expect(window.history.state).not.toEqual(before) // the guard entry is planted
+
+      const pop = nextPop()
+      await act(async () => {
+        window.history.back()
+        await pop
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(window.history.state).toEqual(before) // consumed by the press itself
+    })
+
+    it('closing any other way consumes the guard entry', async () => {
+      const before: unknown = window.history.state
+      render(<DefaultDialog closeOnBack defaultOpen />)
+      expect(window.history.state).not.toEqual(before)
+
+      const pop = nextPop()
+      act(pressEscape)
+      await act(async () => {
+        await pop
+      })
+      expect(window.history.state).toEqual(before) // no leftover to swallow a Back
+    })
+
+    it('plants no history entry without the flag', () => {
+      const before: unknown = window.history.state
+      render(<DefaultDialog defaultOpen />)
+      expect(window.history.state).toEqual(before)
     })
   })
 
