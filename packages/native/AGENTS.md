@@ -17,5 +17,9 @@ host differs:
   `@testing-library/react` in jsdom like every other substrate. Behavior that
   only exists on-device (hardware back) is exercised through RNW's
   equivalents (its `Modal` maps Escape to `onRequestClose`).
-- **Storybook is react-native-web too** (`pnpm dev native` from the repo
-  root) — a browser harness for the RN components, not an on-device runner.
+- **One story source, two Storybook runners.** The browser harness renders
+  through react-native-web (`pnpm dev native` from the repo root) — the fast
+  iteration loop. The on-device runner is an Expo shell over the same story
+  files (`pnpm -C packages/native ondevice:ios` / `:android`) — the host
+  truth: real `Modal`, real hardware back, real touch, Metro resolution.
+  Anything RNW can only approximate gets verified there before it ships.

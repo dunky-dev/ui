@@ -29,5 +29,13 @@
     "types": ["@types/node", "vitest/globals"]
   },
   "include": ["./*.ts", "./packages"],
-  "exclude": ["**/node_modules", "**/dist"]
+  // The native Expo shell (entry + .rnstorybook) imports the generated,
+  // gitignored storybook.requires.ts — Metro compiles that glue, tsc would
+  // only ever see the missing module in CI.
+  "exclude": [
+    "**/node_modules",
+    "**/dist",
+    "packages/native/index.ts",
+    "packages/native/.rnstorybook"
+  ]
 }

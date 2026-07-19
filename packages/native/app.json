@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "dunky",
+    "slug": "dunky-ui",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": { "supportsTablet": true, "bundleIdentifier": "dev.dunky.ui" },
+    "android": { "package": "dev.dunky.ui" }
+  }
+}
