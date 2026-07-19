@@ -298,7 +298,11 @@ export const scoped: StoryType = {
 }
 
 // "Close all" is consumer-side for now — `Close scope="stack"` is spec-only, so
-// the three layers are controlled and one handler drops them together.
+// the three layers are controlled and one handler drops them together. And a
+// controlled dialog never moves on its own: each layer decides its dismissals
+// at the source — its own handlers on Trigger/Close, and the dismissal
+// callbacks (`onEscapeKeyDown` / `onInteractOutside`) — per the controlled
+// contract; `onOpenChange` only reports changes that actually happened.
 const NestedDialogs = () => {
   const [outerOpen, setOuterOpen] = useState(true)
   const [innerOpen, setInnerOpen] = useState(false)
@@ -309,8 +313,13 @@ const NestedDialogs = () => {
     setOuterOpen(false)
   }
   return (
-    <Dialog open={outerOpen} onOpenChange={setOuterOpen}>
-      <Dialog.Trigger>Open outer</Dialog.Trigger>
+    <Dialog
+      open={outerOpen}
+      onOpenChange={setOuterOpen}
+      onEscapeKeyDown={() => setOuterOpen(false)}
+      onInteractOutside={() => setOuterOpen(false)}
+    >
+      <Dialog.Trigger onClick={() => setOuterOpen(true)}>Open outer</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop style={backdrop} />
         <Dialog.Viewport style={viewport}>
@@ -320,8 +329,13 @@ const NestedDialogs = () => {
               Escape and outside presses dismiss the topmost dialog only — the stack unwinds one
               layer at a time.
             </Dialog.Description>
-            <Dialog open={innerOpen} onOpenChange={setInnerOpen}>
-              <Dialog.Trigger>Open inner</Dialog.Trigger>
+            <Dialog
+              open={innerOpen}
+              onOpenChange={setInnerOpen}
+              onEscapeKeyDown={() => setInnerOpen(false)}
+              onInteractOutside={() => setInnerOpen(false)}
+            >
+              <Dialog.Trigger onClick={() => setInnerOpen(true)}>Open inner</Dialog.Trigger>
               <Dialog.Portal>
                 <Dialog.Backdrop style={backdrop} />
                 <Dialog.Viewport style={viewport}>
@@ -331,8 +345,15 @@ const NestedDialogs = () => {
                       While open, everything beneath — including the outer dialog — is inert and
                       hidden from assistive tech.
                     </Dialog.Description>
-                    <Dialog open={innermostOpen} onOpenChange={setInnermostOpen}>
-                      <Dialog.Trigger>Open innermost</Dialog.Trigger>
+                    <Dialog
+                      open={innermostOpen}
+                      onOpenChange={setInnermostOpen}
+                      onEscapeKeyDown={() => setInnermostOpen(false)}
+                      onInteractOutside={() => setInnermostOpen(false)}
+                    >
+                      <Dialog.Trigger onClick={() => setInnermostOpen(true)}>
+                        Open innermost
+                      </Dialog.Trigger>
                       <Dialog.Portal>
                         <Dialog.Backdrop style={backdrop} />
                         <Dialog.Viewport style={viewport}>
@@ -344,18 +365,24 @@ const NestedDialogs = () => {
                             </Dialog.Description>
                             <div style={actions}>
                               <button onClick={closeAll}>Close all</button>
-                              <Dialog.Close>Close</Dialog.Close>
+                              <Dialog.Close onClick={() => setInnermostOpen(false)}>
+                                Close
+                              </Dialog.Close>
                             </div>
                           </Dialog.Content>
                         </Dialog.Viewport>
                       </Dialog.Portal>
                     </Dialog>
-                    <DialogActions />
+                    <div style={actions}>
+                      <Dialog.Close onClick={() => setInnerOpen(false)}>Close</Dialog.Close>
+                    </div>
                   </Dialog.Content>
                 </Dialog.Viewport>
               </Dialog.Portal>
             </Dialog>
-            <DialogActions />
+            <div style={actions}>
+              <Dialog.Close onClick={() => setOuterOpen(false)}>Close</Dialog.Close>
+            </div>
           </Dialog.Content>
         </Dialog.Viewport>
       </Dialog.Portal>
