@@ -1,9 +1,9 @@
-import { createLayerStack, type OverlayLayer } from '@dunky.dev/overlay'
+import { createLayerStack, type LayerStack, type OverlayLayer } from '@dunky.dev/overlay'
 import { hideOutside } from './hide-outside'
 
 // The DOM realization of the shared layer stack: each layer carries its
-// element and modality, and the module-level instance keeps assistive-tech
-// containment in sync as the stack shifts.
+// element and modality, and one instance keeps assistive-tech containment in
+// sync as the stack shifts.
 export interface Layer extends OverlayLayer {
   element: HTMLElement
   modal: boolean
@@ -16,30 +16,53 @@ export interface Layer extends OverlayLayer {
   backdrop?: () => Element | null
 }
 
-const stack = createLayerStack<Layer>()
-let undoHide: (() => void) | undefined
+// One Escape closes exactly one layer only if every overlay shares a single
+// stack — but a monorepo or micro-frontend can load more than one copy of this
+// module into the same page, and a plain module-level `const` gives each copy
+// its own stack, so their topmost decisions drift apart (Radix's focus-scope
+// stack hit this exact class of bug: radix-ui/primitives#2815). Anchoring the
+// mutable state on a realm-global keyed by `Symbol.for` makes every duplicate
+// copy rendezvous on the same store. Resolved lazily on first use so the
+// module keeps its `sideEffects: false` contract — no import-time global write.
+const STORE_KEY = Symbol.for('@dunky.dev/dom-overlay#overlay-store')
+
+interface OverlayStore {
+  stack: LayerStack<Layer>
+  undoHide?: () => void
+}
+
+function getStore(): OverlayStore {
+  const scope = globalThis as unknown as Record<symbol, OverlayStore | undefined>
+  let store = scope[STORE_KEY]
+  if (store === undefined) {
+    store = { stack: createLayerStack<Layer>() }
+    scope[STORE_KEY] = store
+  }
+  return store
+}
 
 // Keep the assistive-tech view in sync: only the topmost modal layer stays
 // reachable; everything else is hidden. Re-runs whenever the stack changes so a
 // nested layer hides the one beneath it, and closing it restores the layer.
-function syncContainment(): void {
-  undoHide?.()
-  undoHide = undefined
-  const top = stack.topmost()
+function syncContainment(store: OverlayStore): void {
+  store.undoHide?.()
+  store.undoHide = undefined
+  const top = store.stack.topmost()
   if (top?.modal !== true) return
   // `isConnected` guards teardown, when the content is already detached.
-  if (top.element.isConnected) undoHide = hideOutside(top.element, top.backdrop?.() ?? null)
+  if (top.element.isConnected) store.undoHide = hideOutside(top.element, top.backdrop?.() ?? null)
 }
 
 export function registerLayer(layer: Layer): () => void {
-  const unregister = stack.register(layer)
-  syncContainment()
+  const store = getStore()
+  const unregister = store.stack.register(layer)
+  syncContainment(store)
   return () => {
     unregister()
-    syncContainment()
+    syncContainment(store)
   }
 }
 
 export function isTopmostLayer(id: string): boolean {
-  return stack.isTopmost(id)
+  return getStore().stack.isTopmost(id)
 }

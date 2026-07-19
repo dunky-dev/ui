@@ -64,6 +64,20 @@ describe('lockScroll', () => {
     document.body.style.removeProperty('padding-block-end')
   })
 
+  it('anchors its lock registry on the realm global so duplicate module copies share it', () => {
+    // A second bundled copy of this module resolves the same registry through
+    // this well-known global symbol instead of holding a rival Map that would
+    // double-lock or leak the lock.
+    const release = lockScroll()
+    const locks = (globalThis as unknown as Record<symbol, Map<unknown, unknown> | undefined>)[
+      Symbol.for('@dunky.dev/dom-scroll-lock#locks')
+    ]
+    expect(locks?.has(document.body)).toBe(true)
+
+    release()
+    expect(locks?.has(document.body)).toBe(false)
+  })
+
   it('locks an element target independently of the body', () => {
     const container = document.createElement('div')
     document.body.append(container)
