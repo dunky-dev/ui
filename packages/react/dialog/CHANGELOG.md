@@ -1,5 +1,104 @@
 # @dunky.dev/react-dialog
 
+## 0.2.0
+
+### Minor Changes
+
+- [#27](https://github.com/dunky-dev/ui/pull/27) [`f0d5ca4`](https://github.com/dunky-dev/ui/commit/f0d5ca4432774f5f88c1f0cc54ad7410a3c7d2fb) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Add `closeOnBack` — the host's Back navigation closes the open dialog instead
+  of leaving the page, the pattern mobile users expect from a full-screen
+  overlay. Off by default.
+
+  ```tsx
+  <Dialog closeOnBack onBackNavigation={event => /* preventDefault() vetoes */ {}}>
+    …
+  </Dialog>
+  ```
+
+  It follows the shared dismissal contract: `onBackNavigation` fires first and
+  `preventDefault()` vetoes, a controlled dialog only records the intent (close
+  it from your own state as usual), a nested stack unwinds one layer per Back
+  press, and it composes with `animated` (Back plays the exit animation). The
+  decision — gate, veto, controlled — lives once in the core's `backNavigate`;
+  substrates only wire their host's mechanics to it.
+
+  The web mechanics ship as their own framework-free util,
+  `@dunky.dev/dom-navigation` (`interceptBackNavigation`) — a session
+  history guard any overlaid layer can use, not just the dialog: opening
+  plants a guard entry in the session history and Back consumes it. A dialog
+  closed any other way consumes its own entry too, so no leftover ever swallows
+  a later Back press — including across reopen races (React StrictMode's
+  double-invoked effects adopt the entry in place rather than queueing a
+  history traversal, which browsers don't reliably deliver once another entry
+  is pushed).
+
+- [#26](https://github.com/dunky-dev/ui/pull/26) [`f4628e7`](https://github.com/dunky-dev/ui/commit/f4628e733f657695099b54991bd29c0487293557) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Add exit-animation support via a new `animated` option. An animated dialog
+  closes through a `closing` state — every part carries it as
+  `data-state="closing"`, the styling hook for the exit — and unmounts when its
+  transition or animation on Content ends (with a fallback ceiling, and skipped
+  entirely under `prefers-reduced-motion`).
+
+  ```tsx
+  <Dialog animated>…</Dialog>
+  ```
+
+  ```css
+  [data-state='closing'] {
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+  ```
+
+  The exit window lives in the core machine, not in per-substrate unmount
+  deferral, so reopening mid-exit is a named transition instead of a timing
+  race, and every substrate inherits identical behavior. The exit is cosmetic
+  by design: the close is reported, focus returns, and the page becomes
+  interactive the moment closing starts — the still-painting layer is made
+  `inert` until it leaves. Enter animations need no option: parts mount
+  straight into `data-state="open"`, so CSS animations (or transitions via
+  `@starting-style`) play from mount. Default (`animated: false`) behavior is
+  unchanged.
+
+### Patch Changes
+
+- [#26](https://github.com/dunky-dev/ui/pull/26) [`0e259c6`](https://github.com/dunky-dev/ui/commit/0e259c6a7e6fa0e032ecce094820db6dc4319734) Thanks [@ivanbanov](https://github.com/ivanbanov)! - A modal dialog no longer marks its own backdrop `aria-hidden` + `inert`. The
+  assistive-tech containment walks up from the dialog window and hides every
+  sibling along the way — and the backdrop is portalled alongside the viewport,
+  outside the window's subtree yet part of the same layer, so the topmost
+  dialog was hiding its own backdrop. `inert` blocks pointer hit-testing, so
+  pressing the backdrop to dismiss silently did nothing in a real browser
+  (test-runner `.click()` bypasses hit-testing, which is why suites never
+  caught it). A dialog's layer now excepts its own backdrop from the
+  containment; everything beneath the topmost layer — lower dialogs' backdrops
+  included — stays hidden and inert as before.
+
+- [#29](https://github.com/dunky-dev/ui/pull/29) [`89ed3f7`](https://github.com/dunky-dev/ui/commit/89ed3f7f9c1e5c6909ff2cfaa4c5ed952846518e) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Add `@dunky.dev/overlay` and `@dunky.dev/dom-overlay` — the shared overlay
+  coordination the whole overlay family (dialog, drawer, alert-dialog, popover,
+  menu, combobox) builds on, so the behavior is implemented once instead of
+  forked per primitive.
+  - `@dunky.dev/overlay` is the agnostic half: a stack of open layers and the
+    rule for which is topmost (deepest nesting, open order breaking ties). No
+    DOM, no framework — a future native substrate reuses it.
+  - `@dunky.dev/dom-overlay` is the DOM realization on top of it: the layer
+    stack wired to assistive-tech containment (`aria-hidden` + `inert`), the
+    exit window (`hideExitingLayer` / `watchExitAnimation`), and initial focus
+    (`getInitialFocus`).
+
+  ```ts
+  import { createLayerStack, type OverlayLayer } from '@dunky.dev/overlay'
+  import { registerLayer, isTopmostLayer } from '@dunky.dev/dom-overlay'
+  ```
+
+  This replaces `@dunky.dev/dom-dialog`, which is removed — its behavior was
+  never dialog-specific, only its name was. `@dunky.dev/react-dialog` now
+  consumes `@dunky.dev/dom-overlay`; its public API and behavior are unchanged
+  (`registerDialog` / `isTopmostDialog` become `registerLayer` /
+  `isTopmostLayer` internally).
+
+- Updated dependencies [[`f0d5ca4`](https://github.com/dunky-dev/ui/commit/f0d5ca4432774f5f88c1f0cc54ad7410a3c7d2fb), [`f4628e7`](https://github.com/dunky-dev/ui/commit/f4628e733f657695099b54991bd29c0487293557), [`89ed3f7`](https://github.com/dunky-dev/ui/commit/89ed3f7f9c1e5c6909ff2cfaa4c5ed952846518e)]:
+  - @dunky.dev/dialog@0.2.0
+  - @dunky.dev/dom-navigation@0.1.0
+  - @dunky.dev/dom-overlay@0.1.0
+
 ## 0.1.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@dunky.dev/dom-overlay",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Framework-free DOM behavior for overlay substrates: the shared layer stack with assistive-tech containment, the exit window, and initial focus.",
   "license": "MIT",
   "repository": {
