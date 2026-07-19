@@ -24,12 +24,11 @@ jobs:
       # git, pnpm, node (.nvmrc), and a frozen install — same as CI.
       - uses: ./.github/actions/ci-setup
 
-      # `enablement: true` turns Pages on via the API the first time, so the
-      # deploy works without a manual toggle in repo settings.
+      # Reads the Pages config and exposes `base_path` for the build. Pages is
+      # enabled out-of-band (Settings -> Pages -> Source: GitHub Actions) —
+      # the workflow token can't create the site, so no `enablement: true`.
       - id: pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Build Storybook
         # The project site is served under /<repo>/ (e.g. /ui/), so the
