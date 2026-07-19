@@ -14,8 +14,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
-    "@react-native-async-storage/async-storage": "2.2.0",
     "@gorhom/bottom-sheet": "^5.2.6",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@storybook/react-native": "^10.5.0",
     "@storybook/react-native-web-vite": "^10.5.2",
     "@types/react": "^19.2.17",
