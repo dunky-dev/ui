@@ -1,6 +1,7 @@
 import { makeReaction, type Connect } from '@dunky.dev/state-machine'
 import type { AttrBindings, EventBindings, PointerPayload } from '@dunky.dev/state-machine-bindings'
 import type {
+  BackNavigationPayload,
   DialogContext,
   DialogIds,
   DialogMachineEvent,
@@ -36,6 +37,12 @@ export interface DialogApi {
   role: DialogRole
   ids: DialogIds
   setOpen: (open: boolean) => void
+  /** Reports the host's Back navigation. The whole decision lives here, once:
+   * `onBackNavigation` fires first (`preventDefault()` vetoes), the machine
+   * gates on `closeOnBack`, and the controlled contract applies — a substrate
+   * only wires its host mechanics (a session-history guard entry on the web, a
+   * hardware back handler on native) to this call. */
+  backNavigate: () => void
   parts: {
     trigger: DialogPartBindings
     backdrop: DialogPartBindings
@@ -75,6 +82,18 @@ export const dialogConnect: Connect<
     setOpen(next) {
       if (open === next) return
       send({ type: next ? 'open' : 'close' })
+    },
+    backNavigate() {
+      // The host's back has no cancelable event — synthesize the veto payload
+      // so the callback contract matches the other dismissals.
+      const payload: BackNavigationPayload = {
+        defaultPrevented: false,
+        preventDefault() {
+          payload.defaultPrevented = true
+        },
+      }
+      props.onBackNavigation?.(payload)
+      if (payload.defaultPrevented !== true) send({ type: 'history.back' })
     },
     parts: {
       trigger: {

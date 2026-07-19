@@ -16,6 +16,7 @@ type DialogGuard = Guard<DialogContext, DialogMachineEvent>
 
 const canEscape: DialogGuard = ({ context }) => context.closeOnEscape
 const canDismissOutside: DialogGuard = ({ context }) => context.closeOnInteractOutside
+const canCloseOnBack: DialogGuard = ({ context }) => context.closeOnBack
 
 // Every open/close intent is recorded in `open.intent`; whether it also
 // transitions is intent's controlled/uncontrolled fork. `synced` is the full
@@ -44,6 +45,7 @@ export function dialogMachine(
     // An alert dialog interrupts for a response — an outside press must not
     // dismiss it unless explicitly opted in.
     closeOnInteractOutside: options.closeOnInteractOutside ?? role === 'dialog',
+    closeOnBack: options.closeOnBack ?? false,
     open: controllable(options.open),
     // The substrate supplies a unique id; `dialog` is only a bare fallback.
     id: options.id ?? 'dialog',
@@ -75,6 +77,7 @@ export function dialogMachine(
             target: exitTo,
             value: false,
           }),
+          'history.back': intend('open', { guard: canCloseOnBack, target: exitTo, value: false }),
           'controlled.sync': synced('open', { value: false, target: exitTo }),
         },
       },

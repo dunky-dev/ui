@@ -390,6 +390,48 @@ describe('Dialog', () => {
     })
   })
 
+  describe('back navigation', () => {
+    // jsdom's history traversal is asynchronous — await the popstate itself.
+    const nextPop = (): Promise<void> =>
+      new Promise(resolve => {
+        window.addEventListener('popstate', () => resolve(), { once: true })
+      })
+
+    it('closes on the browser Back instead of navigating', async () => {
+      const before: unknown = window.history.state
+      render(<DefaultDialog closeOnBack />)
+      openDialog()
+      expect(window.history.state).not.toEqual(before) // the guard entry is planted
+
+      const pop = nextPop()
+      await act(async () => {
+        window.history.back()
+        await pop
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(window.history.state).toEqual(before) // consumed by the press itself
+    })
+
+    it('closing any other way consumes the guard entry', async () => {
+      const before: unknown = window.history.state
+      render(<DefaultDialog closeOnBack defaultOpen />)
+      expect(window.history.state).not.toEqual(before)
+
+      const pop = nextPop()
+      act(pressEscape)
+      await act(async () => {
+        await pop
+      })
+      expect(window.history.state).toEqual(before) // no leftover to swallow a Back
+    })
+
+    it('plants no history entry without the flag', () => {
+      const before: unknown = window.history.state
+      render(<DefaultDialog defaultOpen />)
+      expect(window.history.state).toEqual(before)
+    })
+  })
+
   describe('exit animation', () => {
     const fireTransitionEnd = (element: Element): void => {
       act(() => {

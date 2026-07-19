@@ -19,6 +19,7 @@ import type { DialogOptions } from '@dunky.dev/dialog'
 import {
   getInitialFocus,
   hideExitingLayer,
+  interceptBackNavigation,
   isTopmostDialog,
   registerDialog,
   watchExitAnimation,
@@ -44,6 +45,26 @@ export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, 
   const depth = (useContext(DialogContext)?.depth ?? 0) + 1
   const { api, machine } = useDialog(options)
   const backdropRef = useRef<HTMLDivElement>(null)
+
+  // Read through a ref so the history guard's lifecycle follows the open
+  // state alone: re-arming on every render (fresh callback identities) would
+  // churn real session-history entries.
+  const apiRef = useRef(api)
+  apiRef.current = api
+
+  // closeOnBack: while open, a guard entry in the session history turns the
+  // host's Back into a dismissal instead of a navigation. Every decision
+  // (gate, veto, controlled) lives in the core's backNavigate; this effect
+  // only wires the web mechanics. It lives on the root — the guard concerns
+  // the dialog's openness, not any rendered part.
+  useEffect(() => {
+    if (!api.open || !machine.context.closeOnBack) return
+    return interceptBackNavigation(() => {
+      apiRef.current.backNavigate()
+      return !machine.matches('open')
+    })
+  }, [api.open, machine])
+
   return (
     <DialogContext.Provider value={{ api, machine, depth, container: null, backdropRef }}>
       {children}
