@@ -16,10 +16,9 @@ import { useFocusTrap } from '@dunky.dev/react-use-focus-trap'
 import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
+import { getInitialFocus, isTopmostDialog, registerDialog } from '@dunky.dev/dom-dialog'
 import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
 import { DialogContext, useDialogContext } from './context'
-import { getInitialFocus } from './utils/get-initial-focus'
-import { isTopmostDialog, registerDialog } from './utils/stack'
 import { useDialog } from './use-dialog'
 
 // Explicit so the exports satisfy --isolatedDeclarations (a bare forwardRef
@@ -38,8 +37,9 @@ export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, 
   // Nesting derives from the parent dialog's context (undefined = top-level).
   const depth = (useContext(DialogContext)?.depth ?? 0) + 1
   const { api, machine } = useDialog(options)
+  const backdropRef = useRef<HTMLDivElement>(null)
   return (
-    <DialogContext.Provider value={{ api, machine, depth, container: null }}>
+    <DialogContext.Provider value={{ api, machine, depth, container: null, backdropRef }}>
       {children}
     </DialogContext.Provider>
   )
@@ -93,7 +93,8 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
   HTMLDivElement,
   DialogBackdropProps
 >((props, forwardedRef) => {
-  const { api, machine } = useDialogContext()
+  const { api, machine, backdropRef } = useDialogContext()
+  useImperativeHandle(forwardedRef, () => backdropRef.current as HTMLDivElement)
   const { onClick, ...bindings } = normalize(api.parts.backdrop) as {
     onClick?: (event: MouseEvent<HTMLDivElement>) => void
   } & Record<string, unknown>
@@ -109,7 +110,7 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
   // Only a modal dialog dims the page — non-modal coexists with it.
   if (!machine.context.modal) return null
 
-  return <div {...merged} ref={forwardedRef} />
+  return <div {...merged} ref={backdropRef} />
 })
 
 // =============================================================================
@@ -156,7 +157,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
   HTMLDialogElement,
   DialogContentProps
 >(({ initialFocus, ...props }, forwardedRef) => {
-  const { api, machine, depth, container } = useDialogContext()
+  const { api, machine, depth, container, backdropRef } = useDialogContext()
   const contentRef = useRef<HTMLDialogElement>(null)
   useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDialogElement)
   const initialFocusRef = useRef(initialFocus)
@@ -176,6 +177,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
       depth,
       element: content,
       modal: machine.context.modal,
+      backdrop: () => backdropRef.current,
     })
 
     // preventScroll everywhere: the scroll lock already froze the surface, so
@@ -190,7 +192,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
       unregister()
       if (previous instanceof HTMLElement) previous.focus({ preventScroll: true })
     }
-  }, [machine, depth])
+  }, [machine, depth, backdropRef])
 
   // Content only mounts while open, so the lock spans exactly the open state.
   // A scoped dialog locks its portal container; a page dialog locks the body.

@@ -4,22 +4,30 @@ import { hideOutside } from './hide-outside'
 // focus trap act on, and the one whose content stays visible to assistive tech —
 // is the deepest-nested dialog, with open order breaking ties between siblings.
 //
-// Depth (not DOM order) decides it: React inserts a nested dialog's portal into
-// the body *before* its parent's, so document order is the inverse of nesting.
-interface Layer {
+// Depth (not DOM order) decides it: a substrate may insert a nested dialog's
+// portal into the body *before* its parent's (React does), so document order
+// can be the inverse of nesting.
+export interface DialogLayer {
   id: string
   depth: number
   order: number
   element: HTMLElement
   modal: boolean
+  /**
+   * Resolves the layer's own backdrop — rendered outside the content's subtree
+   * yet part of the layer, so it must stay pressable while its dialog is
+   * topmost. A getter (not a snapshot) so a re-hide — when a layer above
+   * closes — sees the element current at that moment.
+   */
+  backdrop?: () => Element | null
 }
 
-const layers: Layer[] = []
+const layers: DialogLayer[] = []
 let nextOrder = 0
 let undoHide: (() => void) | undefined
 
-function topmost(): Layer | undefined {
-  let top: Layer | undefined
+function topmost(): DialogLayer | undefined {
+  let top: DialogLayer | undefined
   for (const layer of layers) {
     if (
       top === undefined ||
@@ -41,11 +49,11 @@ function syncAriaHidden(): void {
   const top = topmost()
   if (top?.modal !== true) return
   // `isConnected` guards teardown, when the content is already detached.
-  if (top.element.isConnected) undoHide = hideOutside(top.element)
+  if (top.element.isConnected) undoHide = hideOutside(top.element, top.backdrop?.() ?? null)
 }
 
-export function registerDialog(layer: Omit<Layer, 'order'>): () => void {
-  const entry: Layer = { ...layer, order: nextOrder++ }
+export function registerDialog(layer: Omit<DialogLayer, 'order'>): () => void {
+  const entry: DialogLayer = { ...layer, order: nextOrder++ }
   layers.push(entry)
   syncAriaHidden()
   return () => {

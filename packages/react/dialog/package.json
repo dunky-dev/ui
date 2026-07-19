@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@dunky.dev/dialog": "workspace:*",
+    "@dunky.dev/dom-dialog": "workspace:*",
     "@dunky.dev/react-state-machine": "^0.1.0",
     "@dunky.dev/react-use-focus-trap": "workspace:*",
     "@dunky.dev/react-use-scroll-lock": "workspace:*"

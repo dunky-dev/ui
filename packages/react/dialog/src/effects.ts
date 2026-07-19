@@ -1,7 +1,6 @@
 import type { ComponentEffect } from '@dunky.dev/react-state-machine'
 import type { DialogMachine, DialogOptions } from '@dunky.dev/dialog'
-
-import { isTopmostDialog } from './utils/stack'
+import { isTopmostDialog } from '@dunky.dev/dom-dialog'
 
 // Substrate effects: prop-driven or document-level work the machine can't own.
 // useMachine runs one useEffect per entry, keyed on the listed prop deps.

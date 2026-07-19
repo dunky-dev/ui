@@ -1,0 +1,50 @@
+# @dunky.dev/dom-dialog
+
+Framework-free DOM behavior for dialog substrates. One shared module owns
+what every substrate's dialog must agree on:
+
+- **The layer stack** — `registerDialog` / `isTopmostDialog`. Every open
+  dialog registers a layer; the topmost (deepest nesting, open order breaking
+  ties) is the one Escape and the focus trap act on. While the topmost layer
+  is modal, everything outside its content is marked `aria-hidden` + `inert`,
+  except the layer's own backdrop — rendered outside the content's subtree
+  yet part of the layer, it must stay pressable for outside-press dismissal.
+  Unregistering restores exactly what was hidden and re-syncs for the layer
+  beneath.
+- **Initial focus** — `getInitialFocus` resolves where focus moves on open: a
+  dialog that collects input starts at its first form field; any other
+  content keeps focus on the dialog window itself.
+
+Substrate bindings wrap this — e.g. `@dunky.dev/react-dialog` — so every
+framework shares one stack: dialogs from different substrates on the same
+page stack, hide, and unwind correctly against each other.
+
+## Install
+
+```sh
+npm install @dunky.dev/dom-dialog
+```
+
+## Usage
+
+```ts
+import { getInitialFocus, isTopmostDialog, registerDialog } from '@dunky.dev/dom-dialog'
+
+// On open: join the stack, then move focus in.
+const unregister = registerDialog({
+  id,
+  depth, // nesting level, 1 = top-level
+  element: content, // the dialog window
+  modal: true,
+  backdrop: () => backdropElement, // stays pressable while topmost
+})
+getInitialFocus(content).focus({ preventScroll: true })
+
+// Escape, outside-press, focus trapping: only the topmost layer answers.
+if (isTopmostDialog(id)) {
+  // ...
+}
+
+// On close: leave the stack; the layer beneath is restored.
+unregister()
+```

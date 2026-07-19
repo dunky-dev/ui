@@ -93,6 +93,19 @@ describe('Dialog', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
 
+    // The backdrop is portalled alongside the viewport, outside the content's
+    // subtree — the containment walk must except it, or `inert` would swallow
+    // real pointer presses on it (jsdom's .click() bypasses hit-testing, so
+    // only the attributes can assert this).
+    it('keeps its own backdrop pressable while the page around it is inert', () => {
+      const { container } = render(<DefaultDialog defaultOpen />)
+      expect(container.hasAttribute('inert')).toBe(true)
+
+      const backdrop = screen.getByTestId('backdrop')
+      expect(backdrop.hasAttribute('aria-hidden')).toBe(false)
+      expect(backdrop.hasAttribute('inert')).toBe(false)
+    })
+
     it('stays open when closeOnInteractOutside=false', () => {
       render(<DefaultDialog defaultOpen closeOnInteractOutside={false} />)
       act(() => screen.getByTestId('backdrop').click())
@@ -381,13 +394,13 @@ describe('Dialog', () => {
     const NestedDialog = (props: DialogProps) => (
       <Dialog defaultOpen {...props}>
         <Dialog.Portal>
-          <Dialog.Backdrop />
+          <Dialog.Backdrop data-testid='outer-backdrop' />
           <Dialog.Viewport data-testid='outer-viewport'>
             <Dialog.Content>
               <Dialog.Title>Outer</Dialog.Title>
               <Dialog defaultOpen>
                 <Dialog.Portal>
-                  <Dialog.Backdrop />
+                  <Dialog.Backdrop data-testid='inner-backdrop' />
                   <Dialog.Viewport data-testid='inner-viewport'>
                     <Dialog.Content>
                       <Dialog.Title>Inner</Dialog.Title>
@@ -423,6 +436,15 @@ describe('Dialog', () => {
       const inner = screen.getByTestId('inner-viewport')
       expect(inner.hasAttribute('aria-hidden')).toBe(false)
       expect(inner.hasAttribute('inert')).toBe(false)
+    })
+
+    it("hides the lower dialog's backdrop but never the topmost's own", () => {
+      render(<NestedDialog />)
+      expect(screen.getByTestId('outer-backdrop').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('inner-backdrop').hasAttribute('inert')).toBe(false)
+
+      act(pressEscape) // the outer dialog is topmost again — its backdrop re-excepted
+      expect(screen.getByTestId('outer-backdrop').hasAttribute('inert')).toBe(false)
     })
 
     it('restores the layer beneath once the top dialog closes', () => {
