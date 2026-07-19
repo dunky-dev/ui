@@ -12,14 +12,16 @@ export type DialogRole = 'dialog' | 'alertdialog'
 export type DialogPart = 'title' | 'description'
 
 /**
- * The cross-part ids, derived from the one `id` on context: each renders as
+ * The cross-part ids, derived from the one `id` on context. Most render as
  * `id` on one element and as an ARIA reference (aria-controls / labelledby /
- * describedby) on another, and the connect wires both sides.
+ * describedby) on another — the connect wires both sides; `close` is how a
+ * substrate finds the part for the focus-cycle contract (Close is last).
  */
 export interface DialogIds {
   content: string
   title: string
   description: string
+  close: string
 }
 
 export interface DialogContext {

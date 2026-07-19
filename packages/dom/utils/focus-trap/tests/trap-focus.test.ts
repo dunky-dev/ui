@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
-import { trapFocus } from '@dunky.dev/dom-focus-trap'
+import { trapFocus, type TrapFocusOptions } from '@dunky.dev/dom-focus-trap'
 
 let release: (() => void) | undefined
 
-const mount = (html: string, enabled?: () => boolean): HTMLElement => {
+const mount = (html: string, options?: TrapFocusOptions): HTMLElement => {
   document.body.innerHTML = `<div id="container" tabindex="-1">${html}</div>`
   const container = document.getElementById('container') as HTMLElement
-  release = trapFocus(container, { enabled })
+  release = trapFocus(container, options)
   return container
 }
 
@@ -61,18 +61,19 @@ describe('trapFocus', () => {
     expect(document.activeElement?.id).toBe('last')
   })
 
-  it('sorts data-focus-last elements to the end of the cycle', () => {
+  it('sorts the `last` element to the end of the cycle', () => {
     const container = mount(
-      '<button type="button" id="close" data-focus-last>x</button>' +
+      '<button type="button" id="close">x</button>' +
         '<button type="button" id="a">a</button>' +
         '<button type="button" id="b">b</button>',
+      { last: () => document.getElementById('close') },
     )
 
     document.getElementById('b')?.focus()
     pressTab(container) // b is DOM-last but not cycle-last
     expect(document.activeElement?.id).toBe('close')
 
-    pressTab(container) // the marked element is the wrap point
+    pressTab(container) // the `last` element is the wrap point
     expect(document.activeElement?.id).toBe('a')
 
     pressTab(container, true) // and backward wraps onto it
@@ -88,7 +89,7 @@ describe('trapFocus', () => {
   })
 
   it('does not trap while enabled() returns false', () => {
-    const container = mount(BUTTONS, () => false)
+    const container = mount(BUTTONS, { enabled: () => false })
     document.getElementById('last')?.focus()
 
     expect(pressTab(container)).toBe(true)
