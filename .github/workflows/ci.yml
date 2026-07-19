@@ -60,6 +60,9 @@ jobs:
       - run: pnpm format:check
 
   versioning:
+    # The release PR consumes the changesets — "changed packages, no
+    # changesets" is its whole diff — so this check can never pass there.
+    if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

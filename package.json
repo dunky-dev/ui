@@ -16,7 +16,7 @@
     "dev": "node scripts/sb.js dev",
     "build-storybook": "node scripts/sb.js build",
     "changeset": "changeset",
-    "changeset:version": "changeset version",
+    "changeset:version": "changeset version && pnpm format",
     "changeset:publish": "pnpm build && changeset publish",
     "prepare": "husky"
   },
