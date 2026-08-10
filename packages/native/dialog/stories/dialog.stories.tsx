@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import type { Meta, StoryObj } from '@storybook/react-native-web-vite'
+import type { Meta, StoryObj } from '@storybook/react-native'
 import { Dialog } from '@dunky.dev/native-dialog'
 
 const meta: Meta<typeof Dialog> = {

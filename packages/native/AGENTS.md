@@ -12,14 +12,17 @@ host differs:
 - **One adapter.** A binding imports `@dunky.dev/native-state-machine` only —
   it re-exports the React lifecycle (`useMachine`; RN renders through React)
   alongside the native `normalize`/`mergeProps` translation.
-- **Tests run through react-native-web.** The root vitest config aliases
-  `react-native` to `react-native-web`, so binding tests render with
-  `@testing-library/react` in jsdom like every other substrate. Behavior that
-  only exists on-device (hardware back) is exercised through RNW's
-  equivalents (its `Modal` maps Escape to `onRequestClose`).
-- **One story source, two Storybook runners.** The browser harness renders
-  through react-native-web (`pnpm dev native` from the repo root) — the fast
-  iteration loop. The on-device runner is an Expo shell over the same story
-  files (`pnpm -C packages/native ondevice:ios` / `:android`) — the host
-  truth: real `Modal`, real hardware back, real touch, Metro resolution.
-  Anything RNW can only approximate gets verified there before it ships.
+- **Tests render through react-native-web, headless.** The root vitest config
+  aliases `react-native` to `react-native-web`, so binding tests render with
+  `@testing-library/react` in jsdom — `react-native-web` here is just the
+  render target that lets RN components run under vitest (RN's own source
+  ships untranspiled Flow that the bundler would choke on); it is not a
+  storybook or a host. The tests cover host-agnostic logic (the machine
+  wiring: open/close, controlled, outside-press, back-as-escape). Host truth
+  is not their job — that's the on-device runner.
+- **Storybook is on-device only.** An Expo shell renders the stories on a real
+  simulator/device (`pnpm -C packages/native ondevice:ios` / `:android` /
+  `ondevice`) — real `Modal`, real hardware back, real touch, real VoiceOver,
+  Metro resolution. There is no browser storybook: react-native-web fakes the
+  host, so it can't verify what this substrate exists to get right. Anything
+  the unit tests can't reach is verified here.
