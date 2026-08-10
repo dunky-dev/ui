@@ -38,7 +38,7 @@ detail (Modal, back, touch, a11y containment) changes.
 
 ## Flows
 
-| Flow                        | Platform | Verifies                                              |
-| --------------------------- | -------- | ---------------------------------------------------- |
-| `dialog.yaml`               | iOS + Android | Modal opens; Close dismisses; outside tap falls through box-none to the Backdrop |
-| `dialog-back.android.yaml`  | Android  | Hardware Back closes when `closeOnBack` is set        |
+| Flow                       | Platform      | Verifies                                                                         |
+| -------------------------- | ------------- | -------------------------------------------------------------------------------- |
+| `dialog.yaml`              | iOS + Android | Modal opens; Close dismisses; outside tap falls through box-none to the Backdrop |
+| `dialog-back.android.yaml` | Android       | Hardware Back closes when `closeOnBack` is set                                   |
