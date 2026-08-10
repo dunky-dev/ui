@@ -1,7 +1,6 @@
 import type { StorybookConfig } from '@storybook/react-native'
 
-// The same story files the web (react-native-web) Storybook renders — one
-// story source, two runners.
+// On-device Storybook: renders the stories on a real simulator/device.
 const main: StorybookConfig = {
   stories: ['../**/stories/*.stories.@(ts|tsx)'],
   addons: [],

@@ -4,3 +4,7 @@ allowBuilds:
   esbuild: true
 publicHoistPattern:
   - '*storybook*'
+  # jest (native tests) resolves through the root node_modules; hoist the
+  # published @dunky.dev deps so their graph is reachable without pnpm's
+  # nested .pnpm symlinks, which jest-resolve doesn't follow.
+  - '@dunky.dev/*'

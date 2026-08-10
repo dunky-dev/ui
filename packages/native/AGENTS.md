@@ -12,14 +12,17 @@ host differs:
 - **One adapter.** A binding imports `@dunky.dev/native-state-machine` only —
   it re-exports the React lifecycle (`useMachine`; RN renders through React)
   alongside the native `normalize`/`mergeProps` translation.
-- **Tests render through react-native-web, headless.** The root vitest config
-  aliases `react-native` to `react-native-web`, so binding tests render with
-  `@testing-library/react` in jsdom — `react-native-web` here is just the
-  render target that lets RN components run under vitest (RN's own source
-  ships untranspiled Flow that the bundler would choke on); it is not a
-  storybook or a host. The tests cover host-agnostic logic (the machine
-  wiring: open/close, controlled, outside-press, back-as-escape). Host truth
-  is not their job — that's the on-device runner.
+- **Tests run on jest-expo + `@testing-library/react-native`, not vitest.**
+  Real react-native ships untranspiled Flow that vitest can't parse; jest-expo
+  carries the RN + Expo transform allowlist. So `packages/native/**` is
+  excluded from the root vitest and runs its own jest (`pnpm test:native`, and
+  folded into `pnpm test:ci`). One `jest.config.cjs` serves every native
+  primitive; it widens jest-expo's transform allowlist to the `@dunky.dev`
+  scope and wraps its resolver to accept those packages' ESM-only `import`
+  export. Tests render the real RN tree and assert the actual native props a
+  device consumes (`accessibilityViewIsModal`, `pointerEvents`), plus behavior
+  (open/close, controlled, outside-press, hardware back via the Modal's
+  `onRequestClose`). No react-native-web anywhere.
 - **Storybook is on-device only.** An Expo shell renders the stories on a real
   simulator/device (`pnpm -C packages/native ondevice:ios` / `:android` /
   `ondevice`) — real `Modal`, real hardware back, real touch, real VoiceOver,

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest",
-    "test:ci": "vitest run",
+    "test:ci": "vitest run && pnpm --filter @dunky-dev/native test",
+    "test:native": "pnpm --filter @dunky-dev/native test",
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --ignore-pattern '.worktrees' .",

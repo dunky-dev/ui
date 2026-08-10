@@ -38,12 +38,11 @@
     "@dunky.dev/native-state-machine": "^0.1.0"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.1.0",
+    "@testing-library/react-native": "^13.3.3",
     "@types/react": "^19.2.15",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "react": "19.2.3",
     "react-native": "^0.86.0",
-    "react-native-web": "^0.21.2"
+    "react-test-renderer": "19.2.3"
   },
   "peerDependencies": {
     "react": "*",
