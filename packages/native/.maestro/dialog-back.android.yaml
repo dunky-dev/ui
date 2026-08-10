@@ -1,0 +1,16 @@
+# Dialog — hardware Back (Android only).
+# The one path no headless renderer reaches: Android's hardware back / gesture
+# firing the Modal's onRequestClose, gated by closeOnBack. Run on an Android
+# emulator/device; `pressKey: back` is a no-op on iOS.
+#
+# Assumes the app is showing the Dialog "Close On Back" story.
+appId: dev.dunky.ui
+---
+- launchApp
+
+- tapOn: 'Open (Back closes)'
+- assertVisible: 'closeOnBack'
+
+# Hardware Back closes the dialog instead of leaving the screen.
+- pressKey: back
+- assertNotVisible: 'closeOnBack'
