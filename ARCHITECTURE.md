@@ -248,6 +248,10 @@ directory into the templates — the script discovers it. See
   `packages/react/.storybook`, run with `pnpm dev [substrate]`.
 - Publishable packages are listed explicitly in `tsdown.config.ts`; a private
   package gets a tsconfig path but is never published.
+- A published tarball carries `dist`, `src`, and the package's docs
+  (`README.md`, `SPEC.md`; pnpm copies in the root `LICENSE`). Consumers import
+  `dist` — `publishConfig` points every entry at it. The source and spec ship
+  so they can be read.
 
 ## Versioning
 
