@@ -12,6 +12,12 @@
     "ondevice:ios": "expo start --ios",
     "ondevice:android": "expo start --android"
   },
+  "dependencies": {
+    "expo": "~57.0.7",
+    "expo-dev-client": "~57.0.11",
+    "react": "19.2.3",
+    "react-native": "0.86.0"
+  },
   "devDependencies": {
     "@babel/core": "^7.25.0",
     "@gorhom/bottom-sheet": "^5.2.6",

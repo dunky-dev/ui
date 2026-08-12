@@ -10,11 +10,12 @@ simulator/emulator.
 
 From the repo root:
 
-| Script             | What it does                                                  |
-| ------------------ | ------------------------------------------------------------- |
-| `pnpm dev:native`  | Starts Metro (`expo start`) — pick a target from the Expo CLI |
-| `pnpm dev:expo`    | Starts Metro and launches the iOS simulator directly          |
-| `pnpm test:native` | Runs the jest suite (also folded into `pnpm test:ci`)         |
+| Script             | What it does                                                                     |
+| ------------------ | -------------------------------------------------------------------------------- |
+| `pnpm dev:expo`    | Metro only (`expo start`) — pick targets from the Expo CLI (`i` / `a` open both) |
+| `pnpm dev:ios`     | Metro + the app on the iOS simulator                                             |
+| `pnpm dev:android` | Metro + the app on the Android emulator                                          |
+| `pnpm test:native` | Runs the jest suite (also folded into `pnpm test:ci`)                            |
 
 Inside this package, `ondevice`, `ondevice:ios`, and `ondevice:android` are
 the same Metro starts, run via `pnpm -C packages/native <script>`.
