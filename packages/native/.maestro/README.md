@@ -14,6 +14,8 @@ tests; don't duplicate it here.
 ## Prerequisites
 
 - The [Maestro CLI](https://maestro.mobile.dev) (`curl -Ls "https://get.maestro.mobile.dev" | bash`).
+- A booted simulator/emulator — toolchain setup (Xcode, Android SDK, AVD) is
+  in [../README.md](../README.md).
 - A **dev build** running on a booted simulator/emulator or device — the flows
   target `appId: dev.dunky.ui` (the `app.json` bundle id), not Expo Go:
 

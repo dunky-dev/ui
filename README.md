@@ -59,6 +59,9 @@ adds no behavior of its own — if a decision is needed, it moves into the core
 machine so every substrate inherits it. The deep reference is
 [ARCHITECTURE.md](./ARCHITECTURE.md).
 
+The native scripts need a device toolchain (Xcode / Android SDK) and a
+one-time dev build — see [packages/native/README.md](./packages/native/README.md).
+
 ## License
 
 [MIT](./LICENSE)
