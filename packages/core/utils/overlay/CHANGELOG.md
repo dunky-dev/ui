@@ -1,5 +1,22 @@
 # @dunky.dev/overlay
 
+## 0.1.1
+
+### Patch Changes
+
+- [#36](https://github.com/dunky-dev/ui/pull/36) [`827c079`](https://github.com/dunky-dev/ui/commit/827c079716e6dcb5d78e9341285627137cf0ade3) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Ship `SPEC.md` and the TypeScript sources in the published package, alongside
+  the built `dist`.
+
+  The tarball used to carry `dist` and `README.md` only, so the two things you
+  actually want when a behavior surprises you — the spec that defines the contract
+  and the code that implements it — were reachable only by finding the repo and
+  guessing which tag matches the installed version. Both now sit in
+  `node_modules/<pkg>/`, pinned to the exact version installed.
+
+  Nothing about resolution changes: `publishConfig` still points `main`, `types`,
+  and `exports` at `dist`, and the sources are inert payload — read them, don't
+  import them.
+
 ## 0.1.0
 
 ### Minor Changes
