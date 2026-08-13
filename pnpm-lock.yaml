@@ -54,11 +54,11 @@ importers:
         specifier: workspace:*
         version: link:../utils/controllable
       '@dunky.dev/state-machine':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.3.2
+        version: 0.3.2
       '@dunky.dev/state-machine-bindings':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.3.2
+        version: 0.3.2
 
   packages/core/utils/controllable:
     dependencies:
@@ -141,8 +141,8 @@ importers:
         specifier: workspace:*
         version: link:../../core/dialog
       '@dunky.dev/native-state-machine':
-        specifier: ^0.1.0
-        version: 0.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        specifier: ^0.3.2
+        version: 0.3.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
     devDependencies:
       '@testing-library/react-native':
         specifier: ^13.3.3
@@ -196,8 +196,8 @@ importers:
         specifier: workspace:*
         version: link:../../dom/utils/overlay
       '@dunky.dev/react-state-machine':
-        specifier: ^0.1.0
-        version: 0.1.0(react@19.2.7)
+        specifier: ^0.3.2
+        version: 0.3.2(react@19.2.7)
       '@dunky.dev/react-use-focus-trap':
         specifier: workspace:*
         version: link:../hooks/use-focus-trap
@@ -819,25 +819,28 @@ packages:
     resolution: {integrity: sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw==}
     engines: {node: '>=18'}
 
-  '@dunky.dev/native-state-machine@0.1.0':
-    resolution: {integrity: sha512-G6B41nMxsDGm4I4pQ3IihSoWt4QWOsc/tPta9dFrt72wRBZT10xt/2K1EeTB6yK8eY7dugr1CLIkIULamkECVA==}
+  '@dunky.dev/native-state-machine@0.3.2':
+    resolution: {integrity: sha512-54mLM/aEXyv1mIOXVH71hMEBsYHwaVVjUbH+mSSyp9XZ0qMthth1p99xdPV/juY+Fjd6E53ZITxSIyK5N5AuFA==}
     peerDependencies:
       react: '*'
       react-native: '*'
 
-  '@dunky.dev/react-state-machine@0.1.0':
-    resolution: {integrity: sha512-+FNVtVAYlWy6YjjkpWDq/R5z5v36CyvJigMdcckB3k9vWDnsc3sO4v6b/dG/gdU6Gs1T3Hq+UNRrs7a2yU+u8A==}
+  '@dunky.dev/react-state-machine@0.3.2':
+    resolution: {integrity: sha512-qVuMc4VZQPEZA86dz7xKLk7zLOWtcn7r35JNhId1gJo6sNhZb2R55sZBDs6b27hx2Rvo2MIyur18NFh/1qGNhA==}
     peerDependencies:
       react: '*'
 
-  '@dunky.dev/state-machine-bindings@0.1.0':
-    resolution: {integrity: sha512-T8Q1kM5MN90Ohh6B1iw7BXPHD0uIoHgEdIdUAHDrplz9EzS17kLozZX2jujTFJonflY+En+xhmBM+rdFx8CD2A==}
+  '@dunky.dev/state-machine-bindings@0.3.2':
+    resolution: {integrity: sha512-ybY6lYWukAB2NByqMrcNpVtZSMjBPnLSC34faL2dSXFJuU52O5AqZodfDTXO0gGBWQWlQBjtnXMqKgYsamI/sA==}
 
-  '@dunky.dev/state-machine-utils@0.1.0':
-    resolution: {integrity: sha512-CjrT2iypVIr9aeDTBHZPA41yHeqdKFbgXLXncuVkKMUWLES51Sdbyshe/D2TXspOpL/CLpWiOWmrqVDFZTD1kA==}
+  '@dunky.dev/state-machine-utils@0.3.2':
+    resolution: {integrity: sha512-A9Fn8dEk9xi0wgv3HLY8wQ2TZMX/HLv/fFQZASB9zG/iKZbga7kOdBuLoABRU5joM6taNXElJdfCk+BIpwbuQw==}
 
   '@dunky.dev/state-machine@0.1.0':
     resolution: {integrity: sha512-RaVWP0g5c3qG0bX8npaptziC6P5CCN9+Bd4zbrs5N8VDhUvUKFDltxjixtjbeEltje169w5K7l7zbyQCjCK8bg==}
+
+  '@dunky.dev/state-machine@0.3.2':
+    resolution: {integrity: sha512-DXET0k5zxbTMM2BYPcYww7NdmKH2QePfeVNZmxS5DW2tIbd4HW+7VnPyeiJC18fbkW2w5fIva6BrypJlG1xuJA==}
 
   '@egjs/hammerjs@2.0.17':
     resolution: {integrity: sha512-XQsZgjm2EcVUiZQf11UBJQfmZeEmOW8DpI1gsFeln6w0ae0ii4dMQEQ0kjl6DspdWX1aGY1/loyXnP0JS06e/A==}
@@ -6714,31 +6717,33 @@ snapshots:
 
   '@csstools/css-tokenizer@3.0.4': {}
 
-  '@dunky.dev/native-state-machine@0.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+  '@dunky.dev/native-state-machine@0.3.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
     dependencies:
-      '@dunky.dev/react-state-machine': 0.1.0(react@19.2.3)
-      '@dunky.dev/state-machine': 0.1.0
-      '@dunky.dev/state-machine-utils': 0.1.0
+      '@dunky.dev/react-state-machine': 0.3.2(react@19.2.3)
+      '@dunky.dev/state-machine': 0.3.2
+      '@dunky.dev/state-machine-utils': 0.3.2
       react: 19.2.3
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
 
-  '@dunky.dev/react-state-machine@0.1.0(react@19.2.3)':
+  '@dunky.dev/react-state-machine@0.3.2(react@19.2.3)':
     dependencies:
-      '@dunky.dev/state-machine': 0.1.0
-      '@dunky.dev/state-machine-utils': 0.1.0
+      '@dunky.dev/state-machine': 0.3.2
+      '@dunky.dev/state-machine-utils': 0.3.2
       react: 19.2.3
 
-  '@dunky.dev/react-state-machine@0.1.0(react@19.2.7)':
+  '@dunky.dev/react-state-machine@0.3.2(react@19.2.7)':
     dependencies:
-      '@dunky.dev/state-machine': 0.1.0
-      '@dunky.dev/state-machine-utils': 0.1.0
+      '@dunky.dev/state-machine': 0.3.2
+      '@dunky.dev/state-machine-utils': 0.3.2
       react: 19.2.7
 
-  '@dunky.dev/state-machine-bindings@0.1.0': {}
+  '@dunky.dev/state-machine-bindings@0.3.2': {}
 
-  '@dunky.dev/state-machine-utils@0.1.0': {}
+  '@dunky.dev/state-machine-utils@0.3.2': {}
 
   '@dunky.dev/state-machine@0.1.0': {}
+
+  '@dunky.dev/state-machine@0.3.2': {}
 
   '@egjs/hammerjs@2.0.17':
     dependencies:
