@@ -41,8 +41,12 @@ Native-specific notes on top of the core contract:
   `onRequestClose` (Android's back button/gesture; Escape under
   react-native-web) reports through the core `closeOnBack` contract:
   `onBackNavigation` fires first and can veto, the machine gates on
-  `closeOnBack` (off by default), and a controlled dialog only records the
-  intent.
+  `closeOnBack`, and a controlled dialog only records the intent. On this
+  substrate `closeOnBack` defaults to **true** — Back is the platform's
+  dismiss gesture (native Android dialogs are `cancelable` by default), the
+  same role Escape plays on the web — while the core default stays `false`;
+  the binding seeds the substrate default into the machine config at build
+  time. Opt out with `closeOnBack={false}`.
 - **Outside press** is a press on the Backdrop. The Viewport defaults to
   `pointerEvents="box-none"`, so a press on the empty area around the window
   falls through to the Backdrop behind it — same net contract as the web's
@@ -63,21 +67,21 @@ Native-specific notes on top of the core contract:
 The root. Owns the machine; renders no view of its own. Accepts every core
 option as a prop.
 
-| Prop                     | Type                        | Default    | Description                                              |
-| ------------------------ | --------------------------- | ---------- | -------------------------------------------------------- |
-| `open`                   | `boolean`                   | —          | Controlled open state; omit for uncontrolled.            |
-| `defaultOpen`            | `boolean`                   | `false`    | Uncontrolled initial state.                              |
-| `onOpenChange`           | `(open: boolean) => void`   | —          | Reports actual open ⇄ close changes.                     |
-| `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'` | The dialog flavor (see core spec for alert defaults).    |
-| `modal`                  | `boolean`                   | `true`     | Modality; carried to assistive tech.                     |
-| `closeOnEscape`          | `boolean`                   | `true`     | Kept for cross-substrate parity; no Escape key on touch. |
-| `closeOnInteractOutside` | `boolean`                   | varies     | Whether a Backdrop press dismisses.                      |
-| `closeOnBack`            | `boolean`                   | `false`    | Whether the hardware Back press dismisses.               |
-| `onInteractOutside`      | `(event?) => void`          | —          | Outside-press report; `preventDefault()` vetoes.         |
-| `onBackNavigation`       | `(event) => void`           | —          | Back report; `preventDefault()` vetoes.                  |
-| `animated`               | `boolean`                   | `false`    | Core exit window; completes immediately on native.       |
-| `id`                     | `string`                    | generated  | Base id the part ids derive from.                        |
-| `children`               | `ReactNode`                 | —          | Parts.                                                   |
+| Prop                     | Type                        | Default    | Description                                                                                 |
+| ------------------------ | --------------------------- | ---------- | ------------------------------------------------------------------------------------------- |
+| `open`                   | `boolean`                   | —          | Controlled open state; omit for uncontrolled.                                               |
+| `defaultOpen`            | `boolean`                   | `false`    | Uncontrolled initial state.                                                                 |
+| `onOpenChange`           | `(open: boolean) => void`   | —          | Reports actual open ⇄ close changes.                                                        |
+| `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'` | The dialog flavor (see core spec for alert defaults).                                       |
+| `modal`                  | `boolean`                   | `true`     | Modality; carried to assistive tech.                                                        |
+| `closeOnEscape`          | `boolean`                   | `true`     | Kept for cross-substrate parity; no Escape key on touch.                                    |
+| `closeOnInteractOutside` | `boolean`                   | varies     | Whether a Backdrop press dismisses.                                                         |
+| `closeOnBack`            | `boolean`                   | `true`     | Whether the hardware Back press dismisses. Native default diverges from the core's `false`. |
+| `onInteractOutside`      | `(event?) => void`          | —          | Outside-press report; `preventDefault()` vetoes.                                            |
+| `onBackNavigation`       | `(event) => void`           | —          | Back report; `preventDefault()` vetoes.                                                     |
+| `animated`               | `boolean`                   | `false`    | Core exit window; completes immediately on native.                                          |
+| `id`                     | `string`                    | generated  | Base id the part ids derive from.                                                           |
+| `children`               | `ReactNode`                 | —          | Parts.                                                                                      |
 
 ### Dialog.Trigger
 

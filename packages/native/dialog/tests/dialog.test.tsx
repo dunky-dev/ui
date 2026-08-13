@@ -80,24 +80,24 @@ describe('open and close wiring', () => {
 })
 
 describe('hardware back', () => {
-  it('does not dismiss by default (closeOnBack is off)', () => {
+  it('dismisses by default (Back is this host’s Escape)', () => {
     render(<DefaultDialog />)
-    press('trigger')
-
-    pressHardwareBack()
-    expect(isOpen()).toBe(true)
-  })
-
-  it('dismisses with closeOnBack', () => {
-    render(<DefaultDialog closeOnBack />)
     press('trigger')
 
     pressHardwareBack()
     expect(isOpen()).toBe(false)
   })
 
+  it('closeOnBack={false} opts out', () => {
+    render(<DefaultDialog closeOnBack={false} />)
+    press('trigger')
+
+    pressHardwareBack()
+    expect(isOpen()).toBe(true)
+  })
+
   it('onBackNavigation can veto the dismissal', () => {
-    render(<DefaultDialog closeOnBack onBackNavigation={event => event?.preventDefault?.()} />)
+    render(<DefaultDialog onBackNavigation={event => event?.preventDefault?.()} />)
     press('trigger')
 
     pressHardwareBack()

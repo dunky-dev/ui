@@ -13,5 +13,9 @@ export function useDialog(options: DialogOptions): { api: DialogApi; machine: Di
   return useMachine(dialogMachine, dialogConnect, dialogEffects, {
     ...options,
     id: options.id ?? id,
+    // Back is this host's Escape: dismiss-by-default is the Android platform
+    // contract (native Dialog's cancelable), so the substrate seeds `true`
+    // over the core's `false`.
+    closeOnBack: options.closeOnBack ?? true,
   })
 }
