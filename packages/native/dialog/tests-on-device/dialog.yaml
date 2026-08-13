@@ -2,24 +2,24 @@
 # Verifies what the jest-expo unit tests can't: a real Modal over the app, and
 # real touch through the Viewport's box-none area onto the Backdrop.
 #
-# Assumes the app is showing the Dialog "Default" story (see the device-tests
+# Assumes the app is showing the Dialog "Trigger" story (see the device-tests
 # section in packages/native/README.md).
 appId: dev.dunky.ui
 ---
 - launchApp
 
 # Opens over the app as a real Modal.
-- tapOn: 'Delete...'
-- assertVisible: 'Delete file?'
+- tapOn: 'Open dialog'
+- assertVisible: 'Closed by default'
 
-# Close affordance dismisses from inside.
-- tapOn: 'Cancel'
-- assertNotVisible: 'Delete file?'
+# The corner close affordance dismisses from inside.
+- tapOn: 'Close'
+- assertNotVisible: 'Closed by default'
 
 # Outside press: a tap on the empty area around the window falls through the
 # box-none Viewport to the Backdrop and dismisses.
-- tapOn: 'Delete...'
-- assertVisible: 'Delete file?'
+- tapOn: 'Open dialog'
+- assertVisible: 'Closed by default'
 - tapOn:
     point: '50%,8%' # above the centered window, over the backdrop
-- assertNotVisible: 'Delete file?'
+- assertNotVisible: 'Closed by default'
