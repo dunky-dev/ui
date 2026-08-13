@@ -87,6 +87,31 @@ location — skip `ANDROID_HOME` in that case.
 
 - **Unit/behavior**: jest (`pnpm test:native`), runs in CI. Why jest and not
   vitest, and what these tests cover, is in [AGENTS.md](./AGENTS.md).
-- **Device E2E**: Maestro flows in [`.maestro/`](./.maestro/README.md),
-  local-only — they drive the on-device Storybook on a real
-  simulator/emulator.
+- **Device E2E**: Maestro flows, local-only — see below.
+
+## Device tests (Maestro)
+
+The layer the unit tests can't reach: jest-expo renders the real RN tree but
+mocks the host (the `Modal` mock unwraps, touch is synthetic, no hardware
+Back). Maestro drives the on-device Storybook on a real simulator/emulator,
+where those are real. Scope, on purpose: only the host-integration claims —
+real `Modal` layering, box-none touch fall-through, hardware Back. The
+host-agnostic contract is already covered faster by jest; don't duplicate it.
+
+Each primitive owns its flows in `<primitive>/device/` (e.g.
+[`dialog/device/`](./dialog/device)); platform-specific flows carry the
+platform in the name (`*.android.yaml`). A flow's header says which story it
+expects on screen — the Storybook shell persists the last selection.
+
+With the [Maestro CLI](https://maestro.mobile.dev) installed
+(`curl -Ls "https://get.maestro.mobile.dev" | bash`), the dev build running
+(above), and the story selected:
+
+```sh
+maestro test packages/native/dialog/device/                        # all dialog flows
+maestro test packages/native/dialog/device/dialog-back.android.yaml   # one flow
+```
+
+Not wired into CI — these need a device/emulator. Run them before taking a
+primitive out of experimental, and whenever a host-integration detail
+(Modal, back, touch, a11y containment) changes.

@@ -28,8 +28,9 @@ host differs:
   `ondevice`) — real `Modal`, real hardware back, real touch, real VoiceOver,
   Metro resolution. There is no browser storybook: react-native-web fakes the
   host, so it can't verify what this substrate exists to get right.
-- **Device E2E lives in `.maestro/`.** Maestro flows drive the on-device
-  components for the host-integration claims a mocked renderer can't reach
-  (real Modal, box-none touch fall-through, real hardware Back). Device-run,
-  not in CI — see `.maestro/README.md`. Run them before a primitive leaves
+- **Device E2E lives in each primitive's `device/` folder.** Maestro flows
+  (e.g. `dialog/device/*.yaml`) drive the on-device components for the
+  host-integration claims a mocked renderer can't reach (real Modal, box-none
+  touch fall-through, real hardware Back). Device-run, not in CI — see the
+  device-tests section in `README.md`. Run them before a primitive leaves
   experimental.

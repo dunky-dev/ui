@@ -2,7 +2,8 @@
 # Verifies what the jest-expo unit tests can't: a real Modal over the app, and
 # real touch through the Viewport's box-none area onto the Backdrop.
 #
-# Assumes the app is showing the Dialog "Default" story (see .maestro/README).
+# Assumes the app is showing the Dialog "Default" story (see the device-tests
+# section in packages/native/README.md).
 appId: dev.dunky.ui
 ---
 - launchApp
