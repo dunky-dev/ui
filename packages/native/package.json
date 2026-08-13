@@ -7,10 +7,10 @@
   "main": "index.ts",
   "scripts": {
     "test": "jest",
-    "dev": "expo start --clear",
+    "dev": "expo start --clear --localhost",
     "ondevice": "expo start --clear",
-    "ondevice:ios": "expo start --ios",
-    "ondevice:android": "expo start --android"
+    "ondevice:ios": "expo start --ios --localhost",
+    "ondevice:android": "expo start --android --localhost"
   },
   "dependencies": {
     "expo": "~57.0.7",

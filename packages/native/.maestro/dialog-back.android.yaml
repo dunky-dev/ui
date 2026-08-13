@@ -8,7 +8,7 @@ appId: dev.dunky.ui
 ---
 - launchApp
 
-- tapOn: 'Open (Back closes)'
+- tapOn: 'Open'
 - assertVisible: 'closeOnBack'
 
 # Hardware Back closes the dialog instead of leaving the screen.

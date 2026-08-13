@@ -17,8 +17,9 @@ From the repo root:
 | `pnpm dev:android` | Metro + the app on the Android emulator                                          |
 | `pnpm test:native` | Runs the jest suite (also folded into `pnpm test:ci`)                            |
 
-Inside this package, `ondevice`, `ondevice:ios`, and `ondevice:android` are
-the same Metro starts, run via `pnpm -C packages/native <script>`.
+All of these serve Metro on `localhost:8081` (`--localhost`) — right for
+simulators/emulators, unreachable from a physical phone. For a real device
+use the LAN-mode start: `pnpm -C packages/native ondevice`.
 
 ## First run: build the dev app
 
@@ -68,6 +69,9 @@ yes | sdkmanager --licenses
 sdkmanager "platform-tools" "emulator" "platforms;android-36" \
   "system-images;android-36;google_apis;arm64-v8a" "build-tools;36.0.0"
 avdmanager create avd -n dunky -k "system-images;android-36;google_apis;arm64-v8a" -d pixel_7
+# avdmanager defaults hw.keyboard=no, which silently breaks the emulator
+# toolbar's Back/Home buttons and host-keyboard input:
+sed -i '' 's/hw.keyboard=no/hw.keyboard=yes/' ~/.android/avd/dunky.avd/config.ini
 ```
 
 Boot it with `emulator -avd dunky` (own shell — it stays in the foreground),

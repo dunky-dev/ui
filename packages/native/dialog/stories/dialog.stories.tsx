@@ -52,6 +52,10 @@ const styles = StyleSheet.create({
   buttonPrimary: { backgroundColor: '#3142c4' },
   buttonText: { fontSize: 15, color: '#1c1e26' },
   buttonTextPrimary: { color: 'white' },
+  screen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  buttonBig: { paddingVertical: 14, paddingHorizontal: 28 },
+  buttonTextBig: { fontSize: 20 },
+  hint: { fontSize: 17, color: '#5b6172' },
 })
 
 export const Default: StoryType = {
@@ -116,26 +120,29 @@ export const Controlled: StoryType = {
 
 export const CloseOnBack: StoryType = {
   render: () => (
-    <Dialog closeOnBack>
-      <Dialog.Trigger style={styles.button}>
-        <Text style={styles.buttonText}>Open (Back closes)</Text>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Backdrop style={styles.backdrop} />
-        <Dialog.Viewport style={styles.viewport}>
-          <Dialog.Content style={styles.content}>
-            <Dialog.Title style={styles.title}>closeOnBack</Dialog.Title>
-            <Dialog.Description style={styles.description}>
-              The hardware Back press (Escape here) closes this dialog instead of leaving.
-            </Dialog.Description>
-            <View style={styles.actions}>
-              <Dialog.Close style={styles.button}>
-                <Text style={styles.buttonText}>Close</Text>
-              </Dialog.Close>
-            </View>
-          </Dialog.Content>
-        </Dialog.Viewport>
-      </Dialog.Portal>
-    </Dialog>
+    <View style={styles.screen}>
+      <Dialog>
+        <Dialog.Trigger style={[styles.button, styles.buttonBig]}>
+          <Text style={[styles.buttonText, styles.buttonTextBig]}>Open</Text>
+        </Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Backdrop style={styles.backdrop} />
+          <Dialog.Viewport style={styles.viewport}>
+            <Dialog.Content style={styles.content}>
+              <Dialog.Title style={styles.title}>closeOnBack</Dialog.Title>
+              <Dialog.Description style={styles.description}>
+                The hardware Back press (Escape here) closes this dialog instead of leaving.
+              </Dialog.Description>
+              <View style={styles.actions}>
+                <Dialog.Close style={styles.button}>
+                  <Text style={styles.buttonText}>Close</Text>
+                </Dialog.Close>
+              </View>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+      <Text style={styles.hint}>Back ◁ closes the Dialog</Text>
+    </View>
   ),
 }
