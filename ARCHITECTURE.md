@@ -245,7 +245,7 @@ directory into the templates — the script discovers it. See
   (oxlint/oxfmt), and releases (changesets) — one config each, no per-package
   tooling.
 - Each substrate owns its dev harness and framework deps — e.g.
-  `packages/react/.storybook`, run with `pnpm dev [substrate]`.
+  `packages/react/.storybook`, run with `pnpm dev:<substrate>`.
 - Publishable packages are listed explicitly in `tsdown.config.ts`; a private
   package gets a tsconfig path but is never published.
 - A published tarball carries `dist`, `src`, and the package's docs

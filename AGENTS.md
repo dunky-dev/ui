@@ -34,6 +34,13 @@ editing files in that scope — it overrides anything here for that scope
 Some changes are cross-scope. Check what else your change touches before
 calling it done.
 
+Component scenarios (stories, demos) are cross-scope too: when adding one
+to a substrate, evaluate whether the other substrates need the same
+scenario. Keep the sets mirrored — same names, same situations — and when
+one doesn't port because the host lacks the premise (no container portals
+on native, no focus trap on touch), record why next to the story set
+instead of silently skipping it.
+
 ## Boundaries
 
 These are invariants, not preferences. Violating them breaks the

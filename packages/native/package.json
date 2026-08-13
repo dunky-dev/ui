@@ -1,0 +1,39 @@
+{
+  "name": "@dunky-dev/native",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "test": "jest",
+    "dev": "expo start --clear --localhost",
+    "ondevice": "expo start --clear",
+    "ondevice:ios": "expo start --ios --localhost",
+    "ondevice:android": "expo start --android --localhost"
+  },
+  "dependencies": {
+    "expo": "~57.0.7",
+    "expo-dev-client": "~57.0.11",
+    "react": "19.2.3",
+    "react-native": "0.86.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "@gorhom/bottom-sheet": "^5.2.6",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native/jest-preset": "^0.86.2",
+    "@storybook/react-native": "^10.5.0",
+    "@types/react": "^19.2.17",
+    "expo": "~57.0.11",
+    "jest": "^29.7.0",
+    "jest-expo": "~57.0.3",
+    "react": "19.2.3",
+    "react-native": "^0.86.2",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-worklets": "0.10.1",
+    "storybook": "^10.5.2"
+  }
+}

@@ -256,6 +256,37 @@ export const trigger: StoryType = {
   ),
 }
 
+// The consumer owns `open`; a controlled dialog never moves on its own, so
+// every dismissal is decided at its source.
+const ControlledDialog = () => {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button onClick={() => setOpen(true)}>Open from outside</button>
+      <Dialog open={open} onOpenChange={setOpen} onInteractOutside={() => setOpen(false)}>
+        <Dialog.Portal>
+          <Dialog.Backdrop style={backdrop} />
+          <Dialog.Viewport style={viewport}>
+            <Dialog.Content style={content}>
+              <Dialog.Title>Controlled</Dialog.Title>
+              <Dialog.Description>
+                The consumer owns `open`; dismissals are decided at their source.
+              </Dialog.Description>
+              <div style={actions}>
+                <button onClick={() => setOpen(false)}>Close</button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    </>
+  )
+}
+
+export const controlled: StoryType = {
+  render: () => <ControlledDialog />,
+}
+
 // The container ref lives in state so setting it re-renders — the portal reads
 // a real element on the second render instead of null. The Dialog subtree waits
 // for the container so an open dialog never briefly falls back to document.body.

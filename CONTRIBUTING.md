@@ -18,7 +18,9 @@ pnpm install
 | Command                        | What it does                                               |
 | ------------------------------ | ---------------------------------------------------------- |
 | `pnpm scaffold <name>`         | Stamps a new primitive across every substrate              |
-| `pnpm test`                    | Full test suite, watch mode                                |
+| `pnpm test`                    | vitest suite (core + dom + react), watch mode              |
+| `pnpm test:native`             | The native substrate's jest suite (jest-expo + RNTL)       |
+| `pnpm test:ci`                 | Everything once (vitest + native jest) — what CI runs      |
 | `pnpm typecheck`               | `tsc --noEmit` across the whole workspace                  |
 | `pnpm lint`                    | `oxlint`                                                   |
 | `pnpm format` / `format:check` | `oxfmt`                                                    |
@@ -36,14 +38,32 @@ pnpm test packages/core/dialog/tests/machine.test.ts
 
 Each UI substrate (React, Vue, ...) is a self-contained package under
 `packages/<substrate>` with its own Storybook — the fastest way to see a
-change actually render. `pnpm dev` delegates to the substrate's package via
-`scripts/sb.js`:
+change actually render. Every substrate gets an explicit `dev:<substrate>`
+script:
 
 ```bash
-pnpm dev             # @dunky-dev/react Storybook, defaults to http://localhost:6006
-pnpm dev vue         # once packages/vue exists
+pnpm dev             # alias for dev:react (the default substrate)
+pnpm dev:react       # @dunky-dev/react Storybook at http://localhost:6006
 pnpm build-storybook # static build of the react substrate's Storybook
 ```
+
+### Native (on-device)
+
+The native substrate has no browser Storybook — an Expo dev build renders the
+same stories on a real simulator/emulator through Metro:
+
+```bash
+pnpm dev:expo        # Metro only — press `i` / `a` in the Expo CLI to open targets
+pnpm dev:ios         # Metro + the app on the iOS simulator
+pnpm dev:android     # Metro + the app on the Android emulator
+```
+
+These need a one-time device toolchain (Xcode / Android SDK + AVD) and a
+one-time dev build (`expo run:<platform>`) — the full setup, including the
+Android CLI-only path, lives in
+[`packages/native/README.md`](./packages/native/README.md). The same doc
+covers the Maestro device tests (`packages/native/<primitive>/tests-on-device/`),
+which run locally against that dev build.
 
 ## Filing an issue
 

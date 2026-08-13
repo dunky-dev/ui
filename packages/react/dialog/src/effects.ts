@@ -1,21 +1,11 @@
 import type { ComponentEffect } from '@dunky.dev/react-state-machine'
 import type { DialogMachine, DialogOptions } from '@dunky.dev/dialog'
+import { dialogEffects } from '@dunky.dev/dialog'
 import { isTopmostLayer } from '@dunky.dev/dom-overlay'
 
-// Substrate effects: prop-driven or document-level work the machine can't own.
-// useMachine runs one useEffect per entry, keyed on the listed prop deps.
+// Substrate effects: the core's substrate-free list (the controlled-open
+// echo) plus the document-level work only this host can own.
 type DialogEffect = ComponentEffect<DialogMachine, DialogOptions>
-
-// Controlled open: the machine never moves on its own when controlled — this
-// echo of the `open` prop is the only thing that transitions it. It carries
-// the prop verbatim: `undefined` hands the state back to the machine
-// (uncontrolled again), a value (re)takes control. The mount echo no-ops.
-const syncControlledOpen: DialogEffect = [
-  (machine, props) => {
-    machine.send({ type: 'controlled.sync', value: props.open })
-  },
-  ['open'],
-]
 
 // Escape is a document-level concern, not a part's — it must work wherever
 // focus is.
@@ -35,4 +25,4 @@ const trackEscape: DialogEffect = [
   ['onEscapeKeyDown'],
 ]
 
-export const dialogEffects: DialogEffect[] = [syncControlledOpen, trackEscape]
+export const reactDialogEffects: DialogEffect[] = [...dialogEffects, trackEscape]

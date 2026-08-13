@@ -2,5 +2,11 @@ packages:
   - packages/**/*
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@dunky.dev/native-state-machine@0.3.2'
+  - '@dunky.dev/react-state-machine@0.3.2'
+  - '@dunky.dev/state-machine-bindings@0.3.2'
+  - '@dunky.dev/state-machine-utils@0.3.2'
+  - '@dunky.dev/state-machine@0.3.2'
 publicHoistPattern:
   - '*storybook*'

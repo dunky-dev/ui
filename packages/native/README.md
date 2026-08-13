@@ -1,0 +1,117 @@
+# @dunky-dev/native
+
+The React Native substrate's dev shell: an Expo app that renders the
+on-device Storybook, plus the jest suite for the native bindings. Private —
+nothing here is published. The rules for editing code in this scope live in
+[AGENTS.md](./AGENTS.md); this file is about getting it running on a
+simulator/emulator.
+
+## Scripts
+
+From the repo root:
+
+| Script             | What it does                                                                     |
+| ------------------ | -------------------------------------------------------------------------------- |
+| `pnpm dev:expo`    | Metro only (`expo start`) — pick targets from the Expo CLI (`i` / `a` open both) |
+| `pnpm dev:ios`     | Metro + the app on the iOS simulator                                             |
+| `pnpm dev:android` | Metro + the app on the Android emulator                                          |
+| `pnpm test:native` | Runs the jest suite (also folded into `pnpm test:ci`)                            |
+
+All of these serve Metro on `localhost:8081` (`--localhost`) — right for
+simulators/emulators, unreachable from a physical phone. For a real device
+use the LAN-mode start: `pnpm -C packages/native ondevice`.
+
+## First run: build the dev app
+
+The flows and stories run in a **dev build** (`dev.dunky.ui`, from
+`app.json`), not Expo Go. Once per machine (and after native dependency
+changes), build and install it on the target:
+
+```sh
+pnpm -C packages/native exec expo run:ios       # needs Xcode
+pnpm -C packages/native exec expo run:android   # needs the Android SDK (below)
+```
+
+After that, the `dev:*` / `ondevice:*` scripts just attach Metro to the
+installed app.
+
+## iOS
+
+Xcode with an iOS simulator is all you need. `pnpm dev:expo` boots the
+simulator, installs nothing by itself (see first run above), and connects
+Metro.
+
+## Android
+
+macOS has no Android toolchain by default — without it, `expo` fails with
+`Failed to resolve the Android SDK path` / `spawn adb ENOENT`. The CLI-only
+setup (no Android Studio, ~3-4 GB):
+
+```sh
+brew install openjdk@17
+brew install --cask android-commandlinetools
+```
+
+Add to `~/.zshrc` — the brew cask installs the SDK outside the default
+`~/Library/Android/sdk` location, so `ANDROID_HOME` is required:
+
+```sh
+export JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
+export ANDROID_HOME="/opt/homebrew/share/android-commandlinetools"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+```
+
+Then install the SDK pieces and create an emulator (image is `arm64-v8a` for
+Apple Silicon; use `x86_64` on Intel):
+
+```sh
+yes | sdkmanager --licenses
+sdkmanager "platform-tools" "emulator" "platforms;android-36" \
+  "system-images;android-36;google_apis;arm64-v8a" "build-tools;36.0.0"
+avdmanager create avd -n dunky -k "system-images;android-36;google_apis;arm64-v8a" -d pixel_7
+# avdmanager defaults hw.keyboard=no, which silently breaks the emulator
+# toolbar's Back/Home buttons and host-keyboard input:
+sed -i '' 's/hw.keyboard=no/hw.keyboard=yes/' ~/.android/avd/dunky.avd/config.ini
+```
+
+Boot it with `emulator -avd dunky` (own shell — it stays in the foreground),
+then do the first-run build above. Hardware Back — the path iOS can't
+exercise — is the emulator's toolbar Back button, or
+`adb shell input keyevent KEYCODE_BACK`.
+
+If you'd rather have the GUI tooling, Android Studio
+(`brew install --cask android-studio`) sets up the same SDK in the default
+location — skip `ANDROID_HOME` in that case.
+
+## Testing
+
+- **Unit/behavior**: jest (`pnpm test:native`), runs in CI. Why jest and not
+  vitest, and what these tests cover, is in [AGENTS.md](./AGENTS.md).
+- **Device E2E**: Maestro flows, local-only — see below.
+
+## Device tests (Maestro)
+
+The layer the unit tests can't reach: jest-expo renders the real RN tree but
+mocks the host (the `Modal` mock unwraps, touch is synthetic, no hardware
+Back). Maestro drives the on-device Storybook on a real simulator/emulator,
+where those are real. Scope, on purpose: only the host-integration claims —
+real `Modal` layering, box-none touch fall-through, hardware Back. The
+host-agnostic contract is already covered faster by jest; don't duplicate it.
+
+Each primitive owns its flows in `<primitive>/tests-on-device/` (e.g.
+[`dialog/tests-on-device/`](./dialog/tests-on-device)); platform-specific flows carry the
+platform in the name (`*.android.yaml`). A flow's header says which story it
+expects on screen — the Storybook shell persists the last selection.
+
+With the [Maestro CLI](https://maestro.mobile.dev) installed
+(`curl -Ls "https://get.maestro.mobile.dev" | bash`), the dev build running
+(above), and the story selected:
+
+```sh
+maestro test packages/native/dialog/tests-on-device/                        # all dialog flows
+maestro test packages/native/dialog/tests-on-device/dialog-back.android.yaml   # one flow
+```
+
+Not wired into CI — these need a device/emulator. Run them before taking a
+primitive out of experimental, and whenever a host-integration detail
+(Modal, back, touch, a11y containment) changes.

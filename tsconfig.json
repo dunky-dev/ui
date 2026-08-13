@@ -17,6 +17,7 @@
       "@dunky.dev/controllable": ["./packages/core/utils/controllable/src"],
       "@dunky.dev/overlay": ["./packages/core/utils/overlay/src"],
       "@dunky.dev/dialog": ["./packages/core/dialog/src"],
+      "@dunky.dev/native-dialog": ["./packages/native/dialog/src"],
       "@dunky.dev/react-dialog": ["./packages/react/dialog/src"],
       "@dunky.dev/dom-overlay": ["./packages/dom/utils/overlay/src"],
       "@dunky.dev/dom-focus-trap": ["./packages/dom/utils/focus-trap/src"],
@@ -28,5 +29,13 @@
     "types": ["@types/node", "vitest/globals"]
   },
   "include": ["./*.ts", "./packages"],
-  "exclude": ["**/node_modules", "**/dist"]
+  // The native Expo shell (entry + .rnstorybook) imports the generated,
+  // gitignored storybook.requires.ts — Metro compiles that glue, tsc would
+  // only ever see the missing module in CI.
+  "exclude": [
+    "**/node_modules",
+    "**/dist",
+    "packages/native/index.ts",
+    "packages/native/.rnstorybook"
+  ]
 }
