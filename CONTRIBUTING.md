@@ -38,12 +38,12 @@ pnpm test packages/core/dialog/tests/machine.test.ts
 
 Each UI substrate (React, Vue, ...) is a self-contained package under
 `packages/<substrate>` with its own Storybook — the fastest way to see a
-change actually render. `pnpm dev` delegates to the substrate's package via
-`scripts/sb.js`:
+change actually render. Every substrate gets an explicit `dev:<substrate>`
+script:
 
 ```bash
-pnpm dev             # @dunky-dev/react Storybook, defaults to http://localhost:6006
-pnpm dev vue         # once packages/vue exists
+pnpm dev             # alias for dev:react (the default substrate)
+pnpm dev:react       # @dunky-dev/react Storybook at http://localhost:6006
 pnpm build-storybook # static build of the react substrate's Storybook
 ```
 
