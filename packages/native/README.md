@@ -98,8 +98,8 @@ where those are real. Scope, on purpose: only the host-integration claims —
 real `Modal` layering, box-none touch fall-through, hardware Back. The
 host-agnostic contract is already covered faster by jest; don't duplicate it.
 
-Each primitive owns its flows in `<primitive>/device/` (e.g.
-[`dialog/device/`](./dialog/device)); platform-specific flows carry the
+Each primitive owns its flows in `<primitive>/tests-on-device/` (e.g.
+[`dialog/tests-on-device/`](./dialog/tests-on-device)); platform-specific flows carry the
 platform in the name (`*.android.yaml`). A flow's header says which story it
 expects on screen — the Storybook shell persists the last selection.
 
@@ -108,8 +108,8 @@ With the [Maestro CLI](https://maestro.mobile.dev) installed
 (above), and the story selected:
 
 ```sh
-maestro test packages/native/dialog/device/                        # all dialog flows
-maestro test packages/native/dialog/device/dialog-back.android.yaml   # one flow
+maestro test packages/native/dialog/tests-on-device/                        # all dialog flows
+maestro test packages/native/dialog/tests-on-device/dialog-back.android.yaml   # one flow
 ```
 
 Not wired into CI — these need a device/emulator. Run them before taking a
