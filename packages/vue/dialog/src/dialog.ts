@@ -252,8 +252,7 @@ export const Content: PartComponent<DialogContentProps> = defineComponent({
     // One watcher keeps the ordering right both ways: the stack joins before
     // focus moves in, and on close it must release the layers beneath
     // (un-inert them) before focus can move back out to one of them. The
-    // element is part of the source — a template ref only fills after setup,
-    // so the open edge of a defaultOpen dialog arrives with the element.
+    // element is part of the source: a template ref only fills after setup.
     watch(
       () => [api.value.open, contentEl.value] as const,
       ([open, content], _previous, onCleanup) => {

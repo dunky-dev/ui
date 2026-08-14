@@ -13,9 +13,8 @@ export function useDialog(
   emit: DialogEmit,
 ): { api: ComputedRef<DialogApi>; machine: DialogMachine } {
   const id = useId()
-  // The core callbacks forward to emits: listeners run synchronously, so the
-  // veto contract (payload.preventDefault) holds unchanged, and attach/detach
-  // stays live without ever changing these wrappers' identity.
+  // The core callbacks forward to emits — listeners run synchronously, so the
+  // veto contract (payload.preventDefault) holds unchanged.
   const callbacks: DialogCallbacks = {
     onOpenChange: open => emit('update:open', open),
     onEscapeKeyDown: event => emit('escapeKeyDown', event),

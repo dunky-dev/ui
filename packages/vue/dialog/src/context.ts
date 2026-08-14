@@ -8,9 +8,8 @@ export interface DialogContextValue {
   // Escape, focus, and assistive-tech containment.
   depth: number
   // The element the Portal teleported into, or null for the page body —
-  // Content scopes the scroll lock to it. Read lazily (a getter, so the
-  // Portal's prop stays live): the root provides null; Portal re-provides
-  // the context with the field filled in.
+  // Content scopes the scroll lock to it. A getter so the Portal's prop stays
+  // live: the root provides null; Portal re-provides the context filled in.
   container: () => HTMLElement | null
   // The rendered Backdrop element, shared because Backdrop and Content are
   // sibling parts: Content's stack entry excepts its own backdrop from the
