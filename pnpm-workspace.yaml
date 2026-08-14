@@ -8,5 +8,6 @@ minimumReleaseAgeExclude:
   - '@dunky.dev/state-machine-bindings@0.3.2'
   - '@dunky.dev/state-machine-utils@0.3.2'
   - '@dunky.dev/state-machine@0.3.2'
+  - '@dunky.dev/vue-state-machine@0.4.0'
 publicHoistPattern:
   - '*storybook*'
