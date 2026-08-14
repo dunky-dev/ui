@@ -427,29 +427,36 @@ export const nested: StoryType = {
 // closeOnBack turns the host's Back into a dismissal: while the dialog is open,
 // a guard entry sits in the session history, so the browser's Back closes the
 // dialog instead of leaving the page — what mobile users expect from a
-// full-screen overlay. The canvas has no browser chrome, so the in-dialog
-// button stands in for a real Back press by calling `history.back()`.
+// full-screen overlay. The spent entry survives in the forward stack, so the
+// browser's Forward reopens what Back closed. The canvas has no browser
+// chrome, so the buttons stand in for real presses by calling
+// `history.back()` / `history.forward()`.
+// (The Vue substrate's story stays Back-only for now: its binding doesn't
+// wire the Forward reopen yet.)
 export const closeOnBack: StoryType = {
   render: () => (
-    <Dialog defaultOpen closeOnBack>
-      <Dialog.Trigger>Open dialog</Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Backdrop style={backdrop} />
-        <Dialog.Viewport style={viewport}>
-          <Dialog.Content style={closableContent}>
-            <CloseButton />
-            <Dialog.Title>Rename board</Dialog.Title>
-            <Dialog.Description>
-              The browser&apos;s Back closes this dialog instead of navigating away. Press Back — or
-              the button below, which stands in for it here — and the dialog dismisses while the
-              page stays put.
-            </Dialog.Description>
-            <div style={actions}>
-              <button onClick={() => window.history.back()}>Simulate browser Back</button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Viewport>
-      </Dialog.Portal>
-    </Dialog>
+    <>
+      <Dialog defaultOpen closeOnBack>
+        <Dialog.Trigger>Open dialog</Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Backdrop style={backdrop} />
+          <Dialog.Viewport style={viewport}>
+            <Dialog.Content style={closableContent}>
+              <CloseButton />
+              <Dialog.Title>Rename board</Dialog.Title>
+              <Dialog.Description>
+                The browser&apos;s Back closes this dialog instead of navigating away. Press Back —
+                or the button below, which stands in for it here — and the dialog dismisses while
+                the page stays put. Forward, from the canvas, reopens it.
+              </Dialog.Description>
+              <div style={actions}>
+                <button onClick={() => window.history.back()}>Simulate browser Back</button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>{' '}
+      <button onClick={() => window.history.forward()}>Simulate browser Forward</button>
+    </>
   ),
 }

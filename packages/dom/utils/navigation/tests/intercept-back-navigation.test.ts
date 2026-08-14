@@ -15,6 +15,20 @@ const pressBack = async (): Promise<void> => {
   await pop
 }
 
+const pressForward = async (): Promise<void> => {
+  const pop = nextPop()
+  history.forward()
+  await pop
+}
+
+// Releasing consumes a still-current entry through an async self-caused pop —
+// await it so the next test starts from settled history.
+const releaseAndSettle = async (release: () => void): Promise<void> => {
+  const pop = nextPop()
+  release()
+  await pop
+}
+
 describe('interceptBackNavigation', () => {
   it('plants a guard entry; Back pops it and fires onBack once', async () => {
     const before: unknown = history.state
@@ -91,5 +105,85 @@ describe('interceptBackNavigation', () => {
     expect(second).toHaveBeenCalledTimes(1) // the user's Back still lands
     expect(first).not.toHaveBeenCalled()
     expect(history.state).toEqual(before)
+  })
+
+  it('a Back-closed guard reopens on Forward and re-arms on the entry in place', async () => {
+    const onBack = vi.fn(() => true)
+    const onForward = vi.fn(() => true)
+    const release = interceptBackNavigation(onBack, onForward)
+    await pressBack()
+    expect(onBack).toHaveBeenCalledTimes(1)
+
+    const lengthBefore = history.length
+    await pressForward()
+    expect(onForward).toHaveBeenCalledTimes(1)
+    expect(history.length).toBe(lengthBefore) // re-armed in place, nothing planted
+
+    await pressBack() // the re-armed guard answers the next Back
+    expect(onBack).toHaveBeenCalledTimes(2)
+    release()
+    await new Promise<void>(resolve => queueMicrotask(resolve))
+  })
+
+  it('a declined reopen keeps watching; a later Forward offers again', async () => {
+    let accept = false
+    const onForward = vi.fn(() => accept)
+    const release = interceptBackNavigation(() => true, onForward)
+    await pressBack()
+
+    await pressForward()
+    expect(onForward).toHaveBeenCalledTimes(1) // declined — still parked
+
+    await pressBack() // a plain navigation off the declined entry
+    accept = true
+    await pressForward()
+    expect(onForward).toHaveBeenCalledTimes(2)
+    await releaseAndSettle(release) // accepted — armed again, entry current
+  })
+
+  it('release while parked ends the Forward watch', async () => {
+    const onForward = vi.fn(() => true)
+    const release = interceptBackNavigation(() => true, onForward)
+    await pressBack()
+    release()
+    await new Promise<void>(resolve => queueMicrotask(resolve))
+
+    await pressForward() // re-enters the now-unwatched entry
+    expect(onForward).not.toHaveBeenCalled()
+    await pressBack() // step off the stale entry
+  })
+
+  it('a newly planted entry ends the Forward watch of the layer before it', async () => {
+    const firstForward = vi.fn(() => true)
+    interceptBackNavigation(() => true, firstForward)
+    await pressBack() // parked, entry in the forward stack
+
+    const second = vi.fn(() => true)
+    interceptBackNavigation(second) // planting truncates the parked entry
+    await pressBack()
+    expect(second).toHaveBeenCalledTimes(1)
+
+    await pressForward() // lands on second's spent entry, nobody watching
+    expect(firstForward).not.toHaveBeenCalled()
+    await pressBack() // step off the stale entry
+  })
+
+  it('stacked Back-closed guards reopen one per Forward, lowest first', async () => {
+    const lowerForward = vi.fn(() => true)
+    const upperForward = vi.fn(() => true)
+    const releaseLower = interceptBackNavigation(() => true, lowerForward)
+    const releaseUpper = interceptBackNavigation(() => true, upperForward)
+    await pressBack()
+    await pressBack()
+
+    await pressForward()
+    expect(lowerForward).toHaveBeenCalledTimes(1)
+    expect(upperForward).not.toHaveBeenCalled()
+
+    await pressForward()
+    expect(upperForward).toHaveBeenCalledTimes(1)
+
+    await releaseAndSettle(releaseUpper)
+    await releaseAndSettle(releaseLower)
   })
 })

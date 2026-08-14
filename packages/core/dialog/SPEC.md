@@ -79,11 +79,16 @@ default): while the dialog is open, Back closes it instead of leaving the
 page — the pattern mobile users expect from a full-screen overlay. It follows
 the shared dismissal contract: `onBackNavigation` fires first and
 `preventDefault()` vetoes, a controlled dialog only records the intent, and a
-nested stack unwinds one layer per press. The substrate wires the host
-mechanics (the web plants a guard entry in the session history; a native host
-wires its hardware back handler); a dialog closed any other way leaves no
-trace behind — its guard entry is consumed, not left to swallow the next
-Back press.
+nested stack unwinds one layer per press. Back's mirror is Forward: on a host
+whose forward navigation can re-enter what Back left (the web's forward
+stack), traversing forward into the spent entry reopens the dialog — the
+same `closeOnBack` setting gates it, `onForwardNavigation` fires first and
+`preventDefault()` vetoes, and a controlled dialog only records the intent.
+The substrate wires the host mechanics (the web plants a guard entry in the
+session history; a native host wires its hardware back handler and has no
+forward); a dialog closed any other way leaves no trace behind — its guard
+entry is consumed, not left to swallow the next Back press, and there is
+nothing for Forward to reopen.
 
 Dialogs can be nested — a dialog opened from within another stacks on top of
 it, and the stack unwinds one layer at a time. The full contract is
@@ -206,14 +211,15 @@ choice, not the behavior it produces (that's spec'd above). The dialog ships
 headless: parts carry behavior and ARIA wiring plus a `data-state` attribute
 (`open` / `closed`) for styling and animation; visuals belong to the consumer.
 
-| Position                                                                                          | Why                                                                                                                    |
-| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `open` delegates to `@dunky.dev/controllable`; `onOpenChange` reacts to the state, not to intents | One shared mechanic across primitives, and the callback structurally can't drift from the controlled contract.         |
-| Dismissal intents are distinct events (`escape`, `interact.outside`, `history.back`)              | Their gating lives in core guards — no substrate re-implements the settings.                                           |
-| Back navigation reports through one `backNavigate` on the api                                     | The callback, veto, and controlled fork live once in the connect; only the host's back mechanics differ per substrate. |
-| One base id, per-part ids derived from it                                                         | The cross-part ARIA references (controls / labelledby / describedby) can never disagree.                               |
-| Part presence lives in machine context (`part.presence` events)                                   | The rendered-parts rule holds in every substrate with no substrate bookkeeping.                                        |
-| This contract owns modality, dismissal, and focus                                                 | A substrate must not hand authority to host built-ins (e.g. `showModal()`) — behavior can't fork per host.             |
-| The exit window is a machine state; `exit.complete` comes from the substrate                      | Reopen-during-exit is a named transition, not a substrate-side unmount race; only the host knows when paint finished.  |
-| A `closing` dialog has already left the stack — focus, Escape, containment move on immediately    | The exit is purely cosmetic; the layer beneath must not wait on an animation to become interactive again.              |
-| The `intent` slot records every declared intent, drives no callback                               | Reserved as the request channel a stack-scoped close needs to traverse controlled layers.                              |
+| Position                                                                                          | Why                                                                                                                           |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `open` delegates to `@dunky.dev/controllable`; `onOpenChange` reacts to the state, not to intents | One shared mechanic across primitives, and the callback structurally can't drift from the controlled contract.                |
+| Dismissal intents are distinct events (`escape`, `interact.outside`, `history.back`)              | Their gating lives in core guards — no substrate re-implements the settings.                                                  |
+| `history.forward` is `history.back`'s mirror, gated by the same `closeOnBack`                     | Back-close and Forward-reopen are one feature — the openness tracking the history position — not two settings to drift apart. |
+| History navigation reports through `backNavigate` / `forwardNavigate` on the api                  | The callback, veto, and controlled fork live once in the connect; only the host's traversal mechanics differ per substrate.   |
+| One base id, per-part ids derived from it                                                         | The cross-part ARIA references (controls / labelledby / describedby) can never disagree.                                      |
+| Part presence lives in machine context (`part.presence` events)                                   | The rendered-parts rule holds in every substrate with no substrate bookkeeping.                                               |
+| This contract owns modality, dismissal, and focus                                                 | A substrate must not hand authority to host built-ins (e.g. `showModal()`) — behavior can't fork per host.                    |
+| The exit window is a machine state; `exit.complete` comes from the substrate                      | Reopen-during-exit is a named transition, not a substrate-side unmount race; only the host knows when paint finished.         |
+| A `closing` dialog has already left the stack — focus, Escape, containment move on immediately    | The exit is purely cosmetic; the layer beneath must not wait on an animation to become interactive again.                     |
+| The `intent` slot records every declared intent, drives no callback                               | Reserved as the request channel a stack-scoped close needs to traverse controlled layers.                                     |

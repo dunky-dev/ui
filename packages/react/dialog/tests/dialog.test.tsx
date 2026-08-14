@@ -484,6 +484,98 @@ describe('Dialog', () => {
       render(<DefaultDialog defaultOpen />)
       expect(window.history.state).toEqual(before)
     })
+
+    it('the browser Forward reopens what Back closed, guarded again', async () => {
+      render(<DefaultDialog closeOnBack defaultOpen />)
+
+      const pop = nextPop()
+      await act(async () => {
+        window.history.back()
+        await pop
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      const reenter = nextPop()
+      await act(async () => {
+        window.history.forward()
+        await reenter
+      })
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      // The reopened dialog is guarded again: the next Back closes it.
+      const unwind = nextPop()
+      await act(async () => {
+        window.history.back()
+        await unwind
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('Forward does not reopen a dialog closed any other way', async () => {
+      render(<DefaultDialog closeOnBack defaultOpen />)
+      const consume = nextPop() // the released guard consumes its entry
+      act(pressEscape)
+      await act(async () => {
+        await consume
+      })
+
+      const reenter = nextPop()
+      await act(async () => {
+        window.history.forward()
+        await reenter
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('onForwardNavigation preventDefault declines the reopen', async () => {
+      const { unmount } = render(
+        <DefaultDialog
+          closeOnBack
+          defaultOpen
+          onForwardNavigation={event => event?.preventDefault?.()}
+        />,
+      )
+      const pop = nextPop()
+      await act(async () => {
+        window.history.back()
+        await pop
+      })
+
+      const reenter = nextPop()
+      await act(async () => {
+        window.history.forward()
+        await reenter
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      // The decline left the still-watched entry current; unmounting consumes
+      // it — settle that traversal here, not in the next test.
+      const consume = nextPop()
+      unmount()
+      await act(async () => {
+        await consume
+      })
+    })
+
+    it('reopening through the trigger plants a fresh guard, truncating the spent entry', async () => {
+      render(<DefaultDialog closeOnBack defaultOpen />)
+      const pop = nextPop()
+      await act(async () => {
+        window.history.back()
+        await pop
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      openDialog()
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      const unwind = nextPop()
+      await act(async () => {
+        window.history.back()
+        await unwind
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
   })
 
   describe('exit animation', () => {

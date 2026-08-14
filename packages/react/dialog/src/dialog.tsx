@@ -53,17 +53,53 @@ export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, 
   apiRef.current = api
 
   // closeOnBack: while open, a guard entry in the session history turns the
-  // host's Back into a dismissal instead of a navigation. Every decision
-  // (gate, veto, controlled) lives in the core's backNavigate; this effect
-  // only wires the web mechanics. It lives on the root — the guard concerns
-  // the dialog's openness, not any rendered part.
+  // host's Back into a dismissal instead of a navigation — and the entry a
+  // Back press pops survives in the forward stack, so Forward reopens what
+  // Back closed. Every decision (gate, veto, controlled) lives in the core's
+  // backNavigate/forwardNavigate; this only wires the web mechanics. It lives
+  // on the root — the guard concerns the dialog's openness, not any rendered
+  // part. One registration spans the whole episode: armed while open, parked
+  // in the util through a Back-close (releasing there would end the Forward
+  // watch), released when the dialog closes any other way — or unmounts,
+  // whichever phase the registration is in.
+  const releaseGuardRef = useRef<(() => void) | null>(null)
+  const closedByBackRef = useRef(false)
+
   useEffect(() => {
-    if (!api.open || !machine.context.closeOnBack) return
-    return interceptBackNavigation(() => {
-      apiRef.current.backNavigate()
-      return !machine.matches('open')
-    })
+    if (!machine.context.closeOnBack) return
+    if (api.open) {
+      // (Re)arm on every open edge. Opened by Forward, release + re-register
+      // adopts the re-entered entry in place; opened any other way, it plants
+      // a fresh entry (truncating a stale Forward leftover, like the browser
+      // does for any navigation after a Back).
+      releaseGuardRef.current?.()
+      releaseGuardRef.current = interceptBackNavigation(
+        () => {
+          apiRef.current.backNavigate()
+          const closed = !machine.matches('open')
+          closedByBackRef.current = closed
+          return closed
+        },
+        () => {
+          apiRef.current.forwardNavigate()
+          return machine.matches('open')
+        },
+      )
+    } else if (closedByBackRef.current) {
+      closedByBackRef.current = false
+    } else {
+      releaseGuardRef.current?.()
+      releaseGuardRef.current = null
+    }
   }, [api.open, machine])
+
+  useEffect(
+    () => () => {
+      releaseGuardRef.current?.()
+      releaseGuardRef.current = null
+    },
+    [],
+  )
 
   return (
     <DialogContext.Provider value={{ api, machine, depth, container: null, backdropRef }}>
