@@ -83,7 +83,10 @@ export const Trigger: PartComponent<DialogTriggerProps, HTMLButtonElement> = for
   DialogTriggerProps
 >((props, forwardedRef) => {
   const { api } = useDialogContext()
-  const merged = mergeProps({ type: 'button' as const, ...props }, normalize(api.parts.trigger))
+  const merged = mergeProps<DialogTriggerProps>(
+    { type: 'button', ...props },
+    normalize(api.parts.trigger),
+  )
   return <button {...merged} ref={forwardedRef} />
 })
 
@@ -128,7 +131,7 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
     onClick?: (event: MouseEvent<HTMLDivElement>) => void
   } & Record<string, unknown>
 
-  const merged = mergeProps(props as Record<string, unknown>, {
+  const merged = mergeProps<DialogBackdropProps>(props, {
     ...bindings,
     // Only the topmost dialog of a stack answers an outside press.
     onClick: (event: MouseEvent<HTMLDivElement>) => {
@@ -157,7 +160,7 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
     onClick?: (event: MouseEvent<HTMLDivElement>) => void
   } & Record<string, unknown>
 
-  const merged = mergeProps(props as Record<string, unknown>, {
+  const merged = mergeProps<DialogViewportProps>(props, {
     ...bindings,
     // Content presses bubble up here — only a press that started on the
     // viewport itself is an outside interaction, and only the topmost dialog
@@ -177,18 +180,18 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
 // close, traps while modal
 // =============================================================================
 
-export interface DialogContentProps extends ComponentPropsWithoutRef<'dialog'> {
+export interface DialogContentProps extends ComponentPropsWithoutRef<'div'> {
   /** The element to focus when the dialog opens. @default the dialog window */
   initialFocus?: RefObject<HTMLElement | null>
 }
 
-export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = forwardRef<
-  HTMLDialogElement,
+export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwardRef<
+  HTMLDivElement,
   DialogContentProps
 >(({ initialFocus, ...props }, forwardedRef) => {
   const { api, machine, depth, container, backdropRef } = useDialogContext()
-  const contentRef = useRef<HTMLDialogElement>(null)
-  useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDialogElement)
+  const contentRef = useRef<HTMLDivElement>(null)
+  useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDivElement)
   const initialFocusRef = useRef(initialFocus)
   initialFocusRef.current = initialFocus
 
@@ -257,15 +260,13 @@ export const Content: PartComponent<DialogContentProps, HTMLDialogElement> = for
     last: () => document.getElementById(api.ids.close),
   })
 
-  const merged = mergeProps(props as Record<string, unknown>, {
-    ...normalize(api.parts.content),
-    // The native <dialog> is display:none without `open`; Content only mounts
-    // while the dialog occupies the tree (open or mid-exit), so the attribute
-    // is unconditionally true.
-    open: true,
-  })
+  // A neutral element with the role, not <dialog>: the window is the initial
+  // focus target, so it carries tabindex — which HTML forbids on <dialog> —
+  // and the native element only pays off via showModal(), which this contract
+  // deliberately doesn't use.
+  const merged = mergeProps<DialogContentProps>(props, normalize(api.parts.content))
 
-  return <dialog {...merged} ref={contentRef} />
+  return <div {...merged} ref={contentRef} />
 })
 
 // =============================================================================
@@ -285,7 +286,7 @@ export const Title: PartComponent<DialogTitleProps, HTMLHeadingElement> = forwar
     return () => machine.send({ type: 'part.presence', part: 'title', present: false })
   }, [machine])
 
-  const merged = mergeProps(props as Record<string, unknown>, normalize(api.parts.title))
+  const merged = mergeProps<DialogTitleProps>(props, normalize(api.parts.title))
   return <h2 {...merged} ref={forwardedRef} />
 })
 
@@ -306,7 +307,7 @@ export const Description: PartComponent<DialogDescriptionProps, HTMLDivElement> 
     return () => machine.send({ type: 'part.presence', part: 'description', present: false })
   }, [machine])
 
-  const merged = mergeProps(props as Record<string, unknown>, normalize(api.parts.description))
+  const merged = mergeProps<DialogDescriptionProps>(props, normalize(api.parts.description))
   return <div {...merged} ref={forwardedRef} />
 })
 
@@ -321,7 +322,10 @@ export const Close: PartComponent<DialogCloseProps, HTMLButtonElement> = forward
   DialogCloseProps
 >((props, forwardedRef) => {
   const { api } = useDialogContext()
-  const merged = mergeProps({ type: 'button' as const, ...props }, normalize(api.parts.close))
+  const merged = mergeProps<DialogCloseProps>(
+    { type: 'button', ...props },
+    normalize(api.parts.close),
+  )
   return <button {...merged} ref={forwardedRef} />
 })
 
