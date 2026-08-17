@@ -258,11 +258,13 @@ describe('Dialog', () => {
       expect(trigger.getAttribute('aria-controls')).toBe(screen.getByRole('dialog').id)
     })
 
-    it('renders the native dialog element, marked open', () => {
+    // The window takes initial focus, so it carries tabindex — which HTML
+    // forbids on <dialog>. Hence a neutral element with an explicit role.
+    it('renders the dialog window as a scripted focus target outside the tab order', () => {
       render(<DefaultDialog defaultOpen />)
       const dialog = screen.getByRole('dialog')
-      expect(dialog.tagName).toBe('DIALOG')
-      expect(dialog.hasAttribute('open')).toBe(true)
+      expect(dialog.tagName).not.toBe('DIALOG')
+      expect(dialog.tabIndex).toBe(-1)
     })
 
     it('content is labelled by the Title and described by the Description', () => {

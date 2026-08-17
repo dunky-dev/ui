@@ -25,9 +25,9 @@ const viewport: CSSProperties = {
   padding: 24,
 }
 const content: CSSProperties = {
-  // Reset the UA <dialog> styles so the viewport's flex centering owns position.
-  position: 'static',
-  border: 'none',
+  // `margin: auto` inside the viewport's flex box does the centering;
+  // `relative` makes the corner Close button pin to the window, not the page.
+  position: 'relative',
   margin: 'auto',
   maxWidth: 480,
   padding: 24,
