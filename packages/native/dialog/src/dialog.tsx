@@ -48,10 +48,7 @@ export const Trigger: PartComponent<DialogTriggerProps, View> = forwardRef<
   DialogTriggerProps
 >((props, forwardedRef) => {
   const { api } = useDialogContext()
-  const merged = mergeProps(
-    props as Record<string, unknown>,
-    normalize(api.parts.trigger),
-  ) as PressableProps
+  const merged = mergeProps<DialogTriggerProps>(props, normalize(api.parts.trigger))
   return <Pressable {...merged} ref={forwardedRef} />
 })
 
@@ -111,10 +108,7 @@ export const Backdrop: PartComponent<DialogBackdropProps, View> = forwardRef<
   // Only a modal dialog dims the app behind — non-modal coexists with it.
   if (!machine.context.modal) return null
 
-  const merged = mergeProps(
-    props as Record<string, unknown>,
-    normalize(api.parts.backdrop),
-  ) as PressableProps
+  const merged = mergeProps<DialogBackdropProps>(props, normalize(api.parts.backdrop))
   return <Pressable {...merged} ref={forwardedRef} />
 })
 
@@ -129,13 +123,13 @@ export const Viewport: PartComponent<DialogViewportProps, View> = forwardRef<
   DialogViewportProps
 >((props, forwardedRef) => {
   const { api } = useDialogContext()
-  const merged = mergeProps(
+  const merged = mergeProps<DialogViewportProps>(
     // `box-none`: the viewport itself never takes a press, so a press on the
     // empty area around the window falls through to the Backdrop behind it —
     // that fall-through is this substrate's viewport-press-counts-as-outside.
-    { pointerEvents: 'box-none' as const, ...(props as Record<string, unknown>) },
+    { pointerEvents: 'box-none', ...props },
     normalize(api.parts.viewport),
-  ) as ViewProps
+  )
   return <View {...merged} ref={forwardedRef} />
 })
 
@@ -150,14 +144,14 @@ export const Content: PartComponent<DialogContentProps, View> = forwardRef<
   DialogContentProps
 >((props, forwardedRef) => {
   const { api, machine } = useDialogContext()
-  const merged = mergeProps(props as Record<string, unknown>, {
+  const merged = mergeProps<DialogContentProps>(props, {
     ...normalize(api.parts.content),
     // The host's modal containment for assistive tech (iOS): everything
     // outside this view stops existing for VoiceOver — the native
     // aria-modal. The normalize translation has no home for it because only
     // views, not attributes, carry it.
     accessibilityViewIsModal: machine.context.modal,
-  }) as ViewProps
+  })
   return <View {...merged} ref={forwardedRef} />
 })
 
@@ -176,10 +170,7 @@ export const Title: PartComponent<DialogTitleProps, Text> = forwardRef<Text, Dia
       return () => machine.send({ type: 'part.presence', part: 'title', present: false })
     }, [machine])
 
-    const merged = mergeProps(
-      props as Record<string, unknown>,
-      normalize(api.parts.title),
-    ) as TextProps
+    const merged = mergeProps<DialogTitleProps>(props, normalize(api.parts.title))
     return <Text {...merged} ref={forwardedRef} />
   },
 )
@@ -201,10 +192,7 @@ export const Description: PartComponent<DialogDescriptionProps, Text> = forwardR
     return () => machine.send({ type: 'part.presence', part: 'description', present: false })
   }, [machine])
 
-  const merged = mergeProps(
-    props as Record<string, unknown>,
-    normalize(api.parts.description),
-  ) as TextProps
+  const merged = mergeProps<DialogDescriptionProps>(props, normalize(api.parts.description))
   return <Text {...merged} ref={forwardedRef} />
 })
 
@@ -217,10 +205,7 @@ export interface DialogCloseProps extends PressableProps {}
 export const Close: PartComponent<DialogCloseProps, View> = forwardRef<View, DialogCloseProps>(
   (props, forwardedRef) => {
     const { api } = useDialogContext()
-    const merged = mergeProps(
-      props as Record<string, unknown>,
-      normalize(api.parts.close),
-    ) as PressableProps
+    const merged = mergeProps<DialogCloseProps>(props, normalize(api.parts.close))
     return <Pressable {...merged} ref={forwardedRef} />
   },
 )
