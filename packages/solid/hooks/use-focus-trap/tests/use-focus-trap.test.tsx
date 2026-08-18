@@ -7,8 +7,7 @@ import { useFocusTrap } from '@dunky.dev/solid-use-focus-trap'
 
 function Trap(props: { enabled?: () => boolean }) {
   let target: HTMLDivElement | undefined
-  // The closure defers the props read to each Tab press — a direct
-  // `props.enabled` here would be a top-level reactive read.
+  // The closure defers the props read to each Tab press.
   useFocusTrap(() => target ?? null, { enabled: () => props.enabled?.() !== false })
   return (
     <div ref={el => (target = el)} tabindex={-1} data-testid='container'>

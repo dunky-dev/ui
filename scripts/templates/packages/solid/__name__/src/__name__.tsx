@@ -6,11 +6,9 @@ import { mergeProps, normalize } from '@dunky.dev/solid-state-machine'
 import { __Name__Context, use__Name__Context } from './context'
 import { use__Name__ } from './use-__name__'
 
-// A part's bindings merge INSIDE the JSX spread: the compiler wraps the
-// expression in a reactive scope, so a machine transition re-translates it.
-// `children` never rides that spread — a re-evaluated spread re-CREATES the
-// children it carries. Every part strips it and renders `{props.children}`
-// explicitly.
+// Bindings merge inside the JSX spread so they stay reactive. `children` must
+// never ride that spread: a re-evaluated spread re-creates the children.
+// Every part omits it and renders `{props.children}` explicitly.
 
 // =============================================================================
 // <__Name__> — root, owns the machine and renders no DOM

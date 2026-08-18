@@ -6,10 +6,8 @@ import type { __Name__ContextValue } from './context'
 import { __camelName__Effects } from './effects'
 
 /**
- * Owns one __name__ machine for the <__Name__> root. `useMachine` creates it
- * once (a Solid component body runs once), keeps options fresh through the
- * reactive props proxy, runs the substrate effects, and exposes the connected
- * api as a fine-grained store.
+ * Owns one __name__ machine for the <__Name__> root: created once, options
+ * stay fresh through the reactive props proxy, api is a fine-grained store.
  */
 export function use__Name__(options: __Name__Options): __Name__ContextValue {
   return useMachine(__camelName__Machine, __camelName__Connect, __camelName__Effects, options)

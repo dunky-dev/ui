@@ -23,8 +23,8 @@ const DefaultDialog = (props: DialogProps) => (
   </Dialog>
 )
 
-// Solid 2.0 defers store commits + DOM updates to the microtask queue — every
-// interaction flushes before the test reads the tree.
+// Solid 2.0 defers store commits to the microtask queue — flush after every
+// interaction before reading the tree.
 const press = (element: HTMLElement): void => {
   element.click()
   flush()
