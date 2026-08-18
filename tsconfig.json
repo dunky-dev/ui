@@ -19,12 +19,15 @@
       "@dunky.dev/dialog": ["./packages/core/dialog/src"],
       "@dunky.dev/native-dialog": ["./packages/native/dialog/src"],
       "@dunky.dev/react-dialog": ["./packages/react/dialog/src"],
+      "@dunky.dev/vue-dialog": ["./packages/vue/dialog/src"],
       "@dunky.dev/dom-overlay": ["./packages/dom/utils/overlay/src"],
       "@dunky.dev/dom-focus-trap": ["./packages/dom/utils/focus-trap/src"],
       "@dunky.dev/dom-navigation": ["./packages/dom/utils/navigation/src"],
       "@dunky.dev/dom-scroll-lock": ["./packages/dom/utils/scroll-lock/src"],
       "@dunky.dev/react-use-focus-trap": ["./packages/react/hooks/use-focus-trap/src"],
-      "@dunky.dev/react-use-scroll-lock": ["./packages/react/hooks/use-scroll-lock/src"]
+      "@dunky.dev/react-use-scroll-lock": ["./packages/react/hooks/use-scroll-lock/src"],
+      "@dunky.dev/vue-use-focus-trap": ["./packages/vue/hooks/use-focus-trap/src"],
+      "@dunky.dev/vue-use-scroll-lock": ["./packages/vue/hooks/use-scroll-lock/src"]
     },
     "types": ["@types/node", "vitest/globals"]
   },

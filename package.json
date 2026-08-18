@@ -17,6 +17,7 @@
     "scaffold": "node scripts/scaffold.ts",
     "dev": "pnpm dev:react",
     "dev:react": "pnpm --filter @dunky-dev/react dev",
+    "dev:vue": "pnpm --filter @dunky-dev/vue dev",
     "dev:expo": "pnpm --filter @dunky-dev/native dev",
     "dev:ios": "pnpm --filter @dunky-dev/native ondevice:ios",
     "dev:android": "pnpm --filter @dunky-dev/native ondevice:android",

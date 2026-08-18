@@ -17,6 +17,9 @@ const config: KnipConfig = {
     'packages/react/*': {
       entry: ['stories/*.stories.tsx'],
     },
+    'packages/vue/*': {
+      entry: ['stories/*.stories.ts'],
+    },
   },
 }
 
