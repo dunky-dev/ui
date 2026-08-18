@@ -17,6 +17,19 @@ const config: KnipConfig = {
     'packages/react/*': {
       entry: ['stories/*.stories.tsx'],
     },
+    // knip's storybook plugin doesn't know the community solid framework, so
+    // the harness config is declared an entry by hand. jest-dom is loaded via
+    // a setup file vite-plugin-solid injects by bare specifier.
+    'packages/solid': {
+      entry: ['.storybook/main.ts', '.storybook/manager.ts'],
+      ignoreDependencies: ['@testing-library/jest-dom'],
+    },
+    'packages/solid/*': {
+      entry: ['stories/*.stories.tsx'],
+      // The babel presets are referenced by name (strings) in each package's
+      // tsdown.config.ts — invisible to import analysis.
+      ignoreDependencies: ['babel-preset-solid', '@babel/preset-typescript'],
+    },
   },
 }
 

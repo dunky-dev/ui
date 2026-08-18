@@ -1,0 +1,59 @@
+{
+  "name": "@dunky.dev/solid-dialog",
+  "version": "0.0.0",
+  "description": "Solid binding for @dunky.dev/dialog.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dunky-dev/ui.git",
+    "directory": "packages/solid/dialog"
+  },
+  "files": [
+    "dist",
+    "src",
+    "SPEC.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@dunky.dev/dialog": "workspace:*",
+    "@dunky.dev/dom-navigation": "workspace:*",
+    "@dunky.dev/dom-overlay": "workspace:*",
+    "@dunky.dev/solid-state-machine": "^0.4.0",
+    "@dunky.dev/solid-use-focus-trap": "workspace:*",
+    "@dunky.dev/solid-use-scroll-lock": "workspace:*"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.4",
+    "@babel/preset-typescript": "^7.27.1",
+    "@rollup/plugin-babel": "^6.0.4",
+    "@solidjs/testing-library": "^1.0.0-beta.2",
+    "@solidjs/web": "^2.0.0-rc.0",
+    "babel-preset-solid": "^2.0.0-rc.0",
+    "solid-js": "^2.0.0-rc.0"
+  },
+  "peerDependencies": {
+    "@solidjs/web": "^2.0.0-rc.0",
+    "solid-js": "^2.0.0-rc.0"
+  }
+}
