@@ -3,7 +3,7 @@
 ---
 
 New substrate: the Solid binding for `@dunky.dev/dialog`, targeting Solid 2.0
-(peers: `solid-js` and `@solidjs/web` at `^2.0.0-rc.0`; 1.x is unsupported —
+(peers: `solid-js` and `@solidjs/web` at `^2.0.0-rc.1`; 1.x is unsupported —
 the binding stands on 2.0's primitives). The same compound anatomy and
 behavior contract as the React binding — one core machine, a new host —
 delivered in Solid's native shape: the connected api is a fine-grained store,
