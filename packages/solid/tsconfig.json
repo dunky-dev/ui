@@ -1,10 +1,7 @@
 {
-  // The Solid project: JSX is `preserve` + `@solidjs/web` as the import source
-  // (Solid 2.0 moved the web JSX namespace out of `solid-js`), so these
-  // packages and their tests see Solid's JSX namespace — not React's, which
-  // the root sets. The root tsconfig excludes packages/solid; `pnpm typecheck`
-  // runs this project separately. `paths` is inherited from the root file
-  // (resolved relative to its location), so no redeclaration.
+  // Solid 2.0's web JSX namespace lives in @solidjs/web, not React's — so
+  // packages/solid typechecks as its own project (the root tsconfig excludes
+  // it; `pnpm typecheck` runs both). `paths` is inherited from the root file.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "jsx": "preserve",

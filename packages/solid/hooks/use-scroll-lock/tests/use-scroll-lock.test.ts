@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-// The Solid lifecycle around @dunky.dev/dom-scroll-lock — the refcount/restore
-// behavior itself is covered in the util's own tests.
 import { renderHook } from '@solidjs/testing-library'
 import { describe, expect, it } from 'vitest'
 import { useScrollLock } from '@dunky.dev/solid-use-scroll-lock'

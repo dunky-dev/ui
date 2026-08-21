@@ -25,16 +25,13 @@ import { mergeProps, normalize } from '@dunky.dev/solid-state-machine'
 import { DialogContext, useDialogContext } from './context'
 import { useDialog } from './use-dialog'
 
-// A part's bindings merge INSIDE the JSX spread: the compiler wraps the
-// expression in a reactive scope, so a machine transition re-translates it.
-// `children` never rides that spread — a re-evaluated spread re-CREATES the
-// children it carries, and a child whose lifecycle writes to the machine
-// (Title's presence) would then loop machine -> spread -> remount -> machine.
-// Every part strips it and renders `{props.children}` explicitly.
+// Bindings merge inside the JSX spread so they stay reactive. `children` must
+// never ride that spread: a re-evaluated spread re-creates the children, and a
+// child that writes to the machine on mount (Title) would loop forever. Every
+// part omits it and renders `{props.children}` explicitly.
 
-// A consumer ref that crossed a component boundary is a setter function or an
-// array of them (Solid 2.0 refs are functions; arrays compose); apply it
-// alongside the part's own element capture.
+// A consumer ref that crossed a component boundary is a function or an array
+// of functions.
 function applyConsumerRef<T>(ref: Ref<T> | undefined, element: T): void {
   if (typeof ref === 'function') (ref as (element: T) => void)(element)
   else if (Array.isArray(ref)) for (const entry of ref) applyConsumerRef(entry as Ref<T>, element)
@@ -56,11 +53,8 @@ export const Dialog: Component<DialogProps> & Parts = props => {
   const backdropRef: { current: HTMLDivElement | null } = { current: null }
 
   // closeOnBack: while open, a guard entry in the session history turns the
-  // host's Back into a dismissal instead of a navigation. Every decision
-  // (gate, veto, controlled) lives in the core's backNavigate; this effect
-  // only wires the web mechanics. It tracks `api.open` alone — fresh callback
-  // identities never churn real session-history entries. It lives on the
-  // root — the guard concerns the dialog's openness, not any rendered part.
+  // browser's Back into a dismissal. The decision (gate, veto, controlled)
+  // lives in the core's backNavigate; this only wires the web mechanics.
   createEffect(
     () => api.open,
     open => {
@@ -111,8 +105,8 @@ export const Portal: Component<DialogPortalProps> = props => {
   const context = useDialogContext()
   if (isServer) return null
   return (
-    // `mounted`, not `open`: an animated dialog stays in the tree through
-    // `closing` so its exit visual can play before everything unmounts.
+    // `mounted`, not `open`: an animated dialog stays mounted through
+    // `closing` so its exit visual can play.
     <Show when={context.api.mounted}>
       {/* keyed: the host portal's mount is fixed at creation, so a container
           swap re-creates the portal on the new target. */}
@@ -140,8 +134,6 @@ export interface DialogBackdropProps extends ComponentProps<'div'> {}
 export const Backdrop: Component<DialogBackdropProps> = props => {
   const { api, machine, backdropRef } = useDialogContext()
   const rest = omit(props, 'ref', 'children')
-  // The shared slot must not outlive the element: the context box lives on
-  // the root, the element only until this part's owner disposes.
   onSettled(() => () => (backdropRef.current = null))
 
   const bindings = (): Record<string, unknown> => {
@@ -189,9 +181,8 @@ export const Viewport: Component<DialogViewportProps> = props => {
     } & Record<string, unknown>
     return {
       ...attrs,
-      // Content presses bubble up here — only a press that started on the
-      // viewport itself is an outside interaction, and only the topmost dialog
-      // of a stack answers it.
+      // Only a press that started on the viewport itself is an outside
+      // interaction, and only the topmost dialog of a stack answers it.
       onClick: (event: MouseEvent) => {
         if (event.target !== event.currentTarget) return
         if (!isTopmostLayer(machine.context.id)) return
@@ -210,8 +201,7 @@ export const Viewport: Component<DialogViewportProps> = props => {
 
 export interface DialogContentProps extends ComponentProps<'div'> {
   /** The element to focus when the dialog opens — an element, or an accessor
-   * resolved at open time (the Solid idiom for a ref variable that fills
-   * during render). @default the dialog window */
+   * resolved at open time. @default the dialog window */
   initialFocus?: HTMLElement | (() => HTMLElement | null | undefined)
 }
 
@@ -223,14 +213,11 @@ export const Content: Component<DialogContentProps> = props => {
   const rest = omit(props, 'ref', 'initialFocus', 'children')
   let contentEl: HTMLDivElement | undefined
 
-  // The machine's `open` state is the edge, not mount/unmount — an animated
-  // dialog stays mounted through `closing`, and the stack, containment, and
-  // focus must release the moment the exit starts, not when it finishes.
-  // One effect keeps the ordering right both ways: the stack joins before focus
-  // moves in, and on close it must release the layers beneath (un-inert them)
-  // before focus can move back out to one of them. Apply-phase reads go
-  // through untrack — `api.open` is the one edge; the options must not re-run
-  // the effect.
+  // The `open` state is the edge, not mount/unmount: an animated dialog stays
+  // mounted through `closing`, and the stack, containment, and focus must
+  // release the moment the exit starts. One effect keeps the order right both
+  // ways: the stack joins before focus moves in; on close it releases the
+  // layers beneath before focus moves back out.
   createEffect(
     () => api.open,
     open => {
@@ -246,13 +233,12 @@ export const Content: Component<DialogContentProps> = props => {
         backdrop: () => backdropRef.current,
       })
 
-      // preventScroll everywhere: the scroll lock already froze the surface, so
-      // moving focus must not scroll it — otherwise opening jumps the (top-of-
-      // container) dialog into view and closing jumps back to the trigger.
+      // preventScroll everywhere: moving focus must not scroll the locked
+      // surface, or open/close jumps the view.
       const target =
         untrack(() => resolveInitialFocus(props.initialFocus)) ?? getInitialFocus(content)
       target.focus({ preventScroll: true })
-      // A target that can't take focus (disabled, hidden) falls back to the panel.
+      // A target that can't take focus falls back to the panel.
       if (document.activeElement !== target) content.focus({ preventScroll: true })
 
       return () => {
@@ -262,10 +248,9 @@ export const Content: Component<DialogContentProps> = props => {
     },
   )
 
-  // The exit window: Content live while not open only happens in `closing`.
-  // The layer has already released everything above, so hide the still-painting
-  // layer from interaction and report when its visual is done; the cleanup is
-  // the reopen interrupt (and final unmount) undoing both.
+  // The exit window: mounted while not open only happens in `closing`. Hide
+  // the still-painting layer and report when its visual is done; the cleanup
+  // is the reopen interrupt (and final unmount) undoing both.
   createEffect(
     () => api.open,
     open => {
@@ -284,24 +269,19 @@ export const Content: Component<DialogContentProps> = props => {
   )
 
   // The lock spans the whole mount — through `closing` too: releasing it
-  // mid-exit would bring the scrollbar back and reflow the page under the
-  // still-painting layer. A scoped dialog locks its portal container; a page
-  // dialog locks the body.
+  // mid-exit would reflow the page under the still-painting layer.
   useScrollLock(() => machine.context.modal, container)
 
   useFocusTrap(() => contentEl ?? null, {
-    // Only a modal dialog traps, and only while topmost — a nested dialog
-    // owns focus while open.
+    // Only a modal dialog traps, and only while topmost.
     enabled: () => machine.context.modal && isTopmostLayer(machine.context.id),
-    // The Close part is the cycle's last stop wherever it renders (core
-    // SPEC); found by its derived id.
+    // Close is the cycle's last stop wherever it renders (core SPEC).
     last: () => document.getElementById(api.ids.close),
   })
 
-  // A neutral element with the role, not <dialog>: the window is the initial
-  // focus target, so it carries tabindex — which HTML forbids on <dialog> —
-  // and the native element only pays off via showModal(), which this contract
-  // deliberately doesn't use.
+  // A neutral element with the role, not <dialog>: the window carries
+  // tabindex (forbidden on <dialog>), and this contract doesn't use
+  // showModal() — see SPEC.md.
   return (
     <div
       {...mergeProps<DialogContentProps>(rest, normalize(api.parts.content))}
@@ -325,8 +305,7 @@ export const Title: Component<DialogTitleProps> = props => {
   const { api, machine } = useDialogContext()
   const rest = omit(props, 'children')
 
-  // Presence reports from the settled phase: the machine starts on the root's
-  // settle, which owner order puts before this one.
+  // onSettled: the machine starts on the root's settle, which runs first.
   onSettled(() => {
     machine.send({ type: 'part.presence', part: 'title', present: true })
     return () => machine.send({ type: 'part.presence', part: 'title', present: false })

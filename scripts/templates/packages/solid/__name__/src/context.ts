@@ -2,14 +2,13 @@ import { createContext, useContext, type Context } from 'solid-js'
 import type { __Name__Api, __Name__Machine } from '@dunky.dev/__name__'
 
 export interface __Name__ContextValue {
-  // The connected api as a fine-grained store proxy — reading a field in JSX
-  // or an effect subscribes to exactly that leaf.
+  // Fine-grained store proxy: reading a field subscribes to exactly that leaf.
   api: __Name__Api
   machine: __Name__Machine
 }
 
-// A `null` default (a default-less context throws on any un-provided read);
-// the wrapper restores the loud error for parts, naming the component.
+// A `null` default: a default-less context throws on any un-provided read;
+// the wrapper restores the loud error for parts.
 export const __Name__Context: Context<__Name__ContextValue | null> = createContext<
   __Name__ContextValue | null
 >(null)
