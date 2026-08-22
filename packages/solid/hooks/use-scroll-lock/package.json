@@ -1,6 +1,6 @@
 {
   "name": "@dunky.dev/solid-use-scroll-lock",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Solid binding for @dunky.dev/dom-scroll-lock.",
   "license": "MIT",
   "repository": {
