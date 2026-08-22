@@ -36,7 +36,7 @@ pnpm test packages/core/dialog/tests/machine.test.ts
 
 ## Storybook
 
-Each UI substrate (React, Vue, ...) is a self-contained package under
+Each UI substrate (React, Solid, ...) is a self-contained package under
 `packages/<substrate>` with its own Storybook — the fastest way to see a
 change actually render. Every substrate gets an explicit `dev:<substrate>`
 script:

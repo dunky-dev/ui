@@ -28,7 +28,7 @@ primitive, so it may import that primitive's core package and any DOM util.
 What it must not do is import a framework, or another primitive.
 
 Substrate bindings are the only consumers. Each one supplies its host's
-lifecycle — an effect, a `createEffect`, a `watchEffect` — and calls into
+lifecycle — React's `useEffect`, Solid's `createEffect` — and calls into
 these; none of them re-derives the order or the conditions.
 
 ## Behavior

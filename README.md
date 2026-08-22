@@ -35,7 +35,7 @@ machine (its **core**) and delivered through a thin binding per host environment
           v              v              v
     +-----------+  +-----------+  +-----------+
     | substrate |  | substrate |  | substrate |  packages/<substrate>/<name>
-    |  (react)  |  |   (vue)   |  |  (native) |  render + host wiring
+    |  (react)  |  |  (solid)  |  |  (native) |  render + host wiring
     +-----------+  +-----------+  +-----------+
          same behavior, same a11y — only the render differs
 ```
