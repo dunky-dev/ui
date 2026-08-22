@@ -20,6 +20,7 @@
       "@dunky.dev/native-dialog": ["./packages/native/dialog/src"],
       "@dunky.dev/react-dialog": ["./packages/react/dialog/src"],
       "@dunky.dev/solid-dialog": ["./packages/solid/dialog/src"],
+      "@dunky.dev/dom-dialog": ["./packages/dom/components/dialog/src"],
       "@dunky.dev/dom-overlay": ["./packages/dom/utils/overlay/src"],
       "@dunky.dev/dom-focus-trap": ["./packages/dom/utils/focus-trap/src"],
       "@dunky.dev/dom-navigation": ["./packages/dom/utils/navigation/src"],

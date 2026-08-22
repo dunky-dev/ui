@@ -23,6 +23,14 @@ substituted from the kebab-case name argument:
 
 Only `__name__` appears in file and directory names (e.g. `src/create-__name__.ts`).
 
+## What gets stamped
+
+One package per layer the primitive needs: `core/__name__` (the behavior),
+`dom/components/__name__` (the DOM-specific, framework-free half every DOM
+host shares), and one binding per substrate. A primitive with no DOM host can
+delete the `dom` package; a primitive whose DOM work is genuinely per-host
+still keeps it, since that is where the next substrate looks first.
+
 ## Adding a substrate
 
 A substrate is a folder under `scripts/templates/packages/`, mirroring

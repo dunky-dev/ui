@@ -36,6 +36,6 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@dunky.dev/state-machine": "^0.1.0"
+    "@dunky.dev/state-machine": "^0.3.3"
   }
 }

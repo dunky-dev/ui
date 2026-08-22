@@ -13,14 +13,14 @@ import { useFocusTrap } from '@dunky.dev/solid-use-focus-trap'
 import { useScrollLock } from '@dunky.dev/solid-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
-import { interceptBackNavigation } from '@dunky.dev/dom-navigation'
 import {
-  getInitialFocus,
-  hideExitingLayer,
-  isTopmostLayer,
-  registerLayer,
-  watchExitAnimation,
-} from '@dunky.dev/dom-overlay'
+  acceptsBackdropPress,
+  acceptsViewportPress,
+  dialogTrapOptions,
+  guardBackNavigation,
+  openDialogLayer,
+  startExitWindow,
+} from '@dunky.dev/dom-dialog'
 import { mergeProps, normalize } from '@dunky.dev/solid-state-machine'
 import { DialogContext, useDialogContext } from './context'
 import { useDialog } from './use-dialog'
@@ -52,16 +52,15 @@ export const Dialog: Component<DialogProps> & Parts = props => {
   const { api, machine } = useDialog(options)
   const backdropRef: { current: HTMLDivElement | null } = { current: null }
 
-  // closeOnBack: while open, a guard entry in the session history turns the
-  // browser's Back into a dismissal. The decision (gate, veto, controlled)
-  // lives in the core's backNavigate; this only wires the web mechanics.
+  // The guard lives on the root — it concerns the dialog's openness, not any
+  // rendered part.
   createEffect(
     () => api.open,
     open => {
       if (!open || !machine.context.closeOnBack) return
-      return interceptBackNavigation(() => {
-        untrack(() => api.backNavigate())
-        return !machine.matches('open')
+      return guardBackNavigation({
+        backNavigate: () => untrack(() => api.backNavigate()),
+        isOpen: () => machine.matches('open'),
       })
     },
   )
@@ -142,9 +141,8 @@ export const Backdrop: Component<DialogBackdropProps> = props => {
     } & Record<string, unknown>
     return {
       ...attrs,
-      // Only the topmost dialog of a stack answers an outside press.
       onClick: (event: MouseEvent) => {
-        if (isTopmostLayer(machine.context.id)) onClick?.(event)
+        if (acceptsBackdropPress(machine.context.id)) onClick?.(event)
       },
     }
   }
@@ -181,12 +179,8 @@ export const Viewport: Component<DialogViewportProps> = props => {
     } & Record<string, unknown>
     return {
       ...attrs,
-      // Only a press that started on the viewport itself is an outside
-      // interaction, and only the topmost dialog of a stack answers it.
       onClick: (event: MouseEvent) => {
-        if (event.target !== event.currentTarget) return
-        if (!isTopmostLayer(machine.context.id)) return
-        onClick?.(event)
+        if (acceptsViewportPress(machine.context.id, event)) onClick?.(event)
       },
     }
   }
@@ -214,57 +208,38 @@ export const Content: Component<DialogContentProps> = props => {
   let contentEl: HTMLDivElement | undefined
 
   // The `open` state is the edge, not mount/unmount: an animated dialog stays
-  // mounted through `closing`, and the stack, containment, and focus must
-  // release the moment the exit starts. One effect keeps the order right both
-  // ways: the stack joins before focus moves in; on close it releases the
-  // layers beneath before focus moves back out.
+  // mounted through `closing`. The sequence and its inverse are the DOM
+  // package's; this effect only ties them to Solid's lifecycle.
   createEffect(
     () => api.open,
     open => {
       const content = contentEl
       if (!open || content === undefined) return
 
-      const previous = document.activeElement
-      const unregister = registerLayer({
+      return openDialogLayer(content, {
         id: machine.context.id,
         depth,
-        element: content,
         modal: machine.context.modal,
         backdrop: () => backdropRef.current,
+        initialFocus: untrack(() => resolveInitialFocus(props.initialFocus)),
       })
-
-      // preventScroll everywhere: moving focus must not scroll the locked
-      // surface, or open/close jumps the view.
-      const target =
-        untrack(() => resolveInitialFocus(props.initialFocus)) ?? getInitialFocus(content)
-      target.focus({ preventScroll: true })
-      // A target that can't take focus falls back to the panel.
-      if (document.activeElement !== target) content.focus({ preventScroll: true })
-
-      return () => {
-        unregister()
-        if (previous instanceof HTMLElement) previous.focus({ preventScroll: true })
-      }
     },
   )
 
-  // The exit window: mounted while not open only happens in `closing`. Hide
-  // the still-painting layer and report when its visual is done; the cleanup
-  // is the reopen interrupt (and final unmount) undoing both.
+  // Mounted while not open only happens in `closing`.
   createEffect(
     () => api.open,
     open => {
       const content = contentEl
       if (open || content === undefined) return
 
-      const undoHide = untrack(() =>
-        hideExitingLayer(content, container() ?? document.body, backdropRef.current),
+      return untrack(() =>
+        startExitWindow(content, {
+          container: container(),
+          backdrop: backdropRef.current,
+          onComplete: () => machine.send({ type: 'exit.complete' }),
+        }),
       )
-      const cancelWatch = watchExitAnimation(content, () => machine.send({ type: 'exit.complete' }))
-      return () => {
-        cancelWatch()
-        undoHide()
-      }
     },
   )
 
@@ -272,12 +247,10 @@ export const Content: Component<DialogContentProps> = props => {
   // mid-exit would reflow the page under the still-painting layer.
   useScrollLock(() => machine.context.modal, container)
 
-  useFocusTrap(() => contentEl ?? null, {
-    // Only a modal dialog traps, and only while topmost.
-    enabled: () => machine.context.modal && isTopmostLayer(machine.context.id),
-    // Close is the cycle's last stop wherever it renders (core SPEC).
-    last: () => document.getElementById(api.ids.close),
-  })
+  useFocusTrap(
+    () => contentEl ?? null,
+    dialogTrapOptions(machine, () => api.ids.close),
+  )
 
   // A neutral element with the role, not <dialog>: the window carries
   // tabindex (forbidden on <dialog>), and this contract doesn't use

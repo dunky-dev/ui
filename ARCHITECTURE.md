@@ -28,8 +28,11 @@ packages/
 |
 +- dom/
 |  +- utils/              framework-free DOM utilities, one package per util
-|     +- focus-trap/      @dunky.dev/dom-focus-trap
-|     +- scroll-lock/     @dunky.dev/dom-scroll-lock
+|  |  +- focus-trap/      @dunky.dev/dom-focus-trap
+|  |  +- scroll-lock/     @dunky.dev/dom-scroll-lock
+|  |  +- ...
+|  +- components/         framework-free DOM half of a primitive
+|     +- dialog/          @dunky.dev/dom-dialog
 |     +- ...
 |
 +- <substrate>/           any future host, same shape
@@ -56,6 +59,15 @@ DOM logic that several primitives or substrates need — focus containment,
 scroll locking — lives once as a framework-free util under `dom/utils/`; each
 substrate wraps what needs a lifecycle in a thin hook under its own `hooks/`
 folder. A new substrate reuses all of it and only writes the wrappers.
+
+DOM logic that belongs to **one** primitive but to **every** DOM substrate —
+the dialog's Escape listener, the ordered sequence around its open and exit
+edges — lives under `dom/components/` instead. A util is primitive-agnostic
+and imports nothing from the repo; a component package is the opposite, and
+may import the primitive's core package and any DOM util. Both are equally
+framework-free. The split matters as substrates multiply: React, Solid, and
+Vue differ in how they schedule an effect, not in what the effect does, so the
+what is written once and each binding contributes only its lifecycle.
 
 Machine logic that several primitives need — the controlled/uncontrolled
 machinery (`@dunky.dev/controllable`) — lives the same way under
@@ -103,12 +115,15 @@ level down. Internal infra uses the `@dunky-dev` scope; published packages use
 The rules, stated as imports:
 
 - A substrate package imports its core counterpart, its substrate's
-  state-machine adapter, its own hooks, and the DOM utils — nothing else from
-  this repo.
+  state-machine adapter, its own hooks, the DOM utils, and — for a DOM
+  substrate — its primitive's `dom/components` package. Nothing else from this
+  repo.
 - A core package imports only the state-machine runtime and the agnostic
   bindings vocabulary.
 - A DOM util imports nothing from this repo; a substrate hook imports only the
   DOM util it wraps.
+- A `dom/components` package imports its core counterpart and the DOM utils —
+  never a framework, and never another primitive.
 - Primitives are independent of each other. If two need to share logic, that
   sharing is a design decision (a new package), never a cross-import.
 
@@ -163,7 +178,9 @@ packages/<substrate>/<name>/          @dunky.dev/<substrate>-<name>
     context.ts       compound context: the root provides { api, machine }
     use-<name>.ts    the machine owner: wraps the adapter's useMachine
                      (create once, option re-sync, effects), mints ids
-    effects.ts       ComponentEffects: prop-driven / document-level work
+    effects.ts       ComponentEffects: prop-driven / document-level work —
+                     only where the host has no shared package to take them
+                     from (a DOM substrate uses @dunky.dev/dom-<name>)
     <name>.tsx       root + parts: wires behavior onto host elements, via
                      the adapter's normalize + mergeProps
   tests/

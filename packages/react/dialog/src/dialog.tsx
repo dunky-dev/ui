@@ -16,14 +16,14 @@ import { useFocusTrap } from '@dunky.dev/react-use-focus-trap'
 import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
-import { interceptBackNavigation } from '@dunky.dev/dom-navigation'
 import {
-  getInitialFocus,
-  hideExitingLayer,
-  isTopmostLayer,
-  registerLayer,
-  watchExitAnimation,
-} from '@dunky.dev/dom-overlay'
+  acceptsBackdropPress,
+  acceptsViewportPress,
+  dialogTrapOptions,
+  guardBackNavigation,
+  openDialogLayer,
+  startExitWindow,
+} from '@dunky.dev/dom-dialog'
 import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
 import { DialogContext, useDialogContext } from './context'
 import { useDialog } from './use-dialog'
@@ -52,16 +52,13 @@ export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, 
   const apiRef = useRef(api)
   apiRef.current = api
 
-  // closeOnBack: while open, a guard entry in the session history turns the
-  // host's Back into a dismissal instead of a navigation. Every decision
-  // (gate, veto, controlled) lives in the core's backNavigate; this effect
-  // only wires the web mechanics. It lives on the root — the guard concerns
-  // the dialog's openness, not any rendered part.
+  // The guard lives on the root — it concerns the dialog's openness, not any
+  // rendered part.
   useEffect(() => {
     if (!api.open || !machine.context.closeOnBack) return
-    return interceptBackNavigation(() => {
-      apiRef.current.backNavigate()
-      return !machine.matches('open')
+    return guardBackNavigation({
+      backNavigate: () => apiRef.current.backNavigate(),
+      isOpen: () => machine.matches('open'),
     })
   }, [api.open, machine])
 
@@ -133,9 +130,8 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
 
   const merged = mergeProps<DialogBackdropProps>(props, {
     ...bindings,
-    // Only the topmost dialog of a stack answers an outside press.
     onClick: (event: MouseEvent<HTMLDivElement>) => {
-      if (isTopmostLayer(machine.context.id)) onClick?.(event)
+      if (acceptsBackdropPress(machine.context.id)) onClick?.(event)
     },
   })
 
@@ -162,13 +158,8 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
 
   const merged = mergeProps<DialogViewportProps>(props, {
     ...bindings,
-    // Content presses bubble up here — only a press that started on the
-    // viewport itself is an outside interaction, and only the topmost dialog
-    // of a stack answers it.
     onClick: (event: MouseEvent<HTMLDivElement>) => {
-      if (event.target !== event.currentTarget) return
-      if (!isTopmostLayer(machine.context.id)) return
-      onClick?.(event)
+      if (acceptsViewportPress(machine.context.id, event)) onClick?.(event)
     },
   })
 
@@ -196,53 +187,31 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
   initialFocusRef.current = initialFocus
 
   // The machine's `open` state is the edge, not mount/unmount — an animated
-  // dialog stays mounted through `closing`, and the stack, containment, and
-  // focus must release the moment the exit starts, not when it finishes.
-  // One effect keeps the ordering right both ways: the stack joins before focus
-  // moves in, and on close it must release the layers beneath (un-inert them)
-  // before focus can move back out to one of them.
+  // dialog stays mounted through `closing`. The sequence and its inverse are
+  // the DOM package's; this effect only ties them to React's lifecycle.
   useEffect(() => {
     const content = contentRef.current
     if (!api.open || content === null) return
 
-    const previous = document.activeElement
-    const unregister = registerLayer({
+    return openDialogLayer(content, {
       id: machine.context.id,
       depth,
-      element: content,
       modal: machine.context.modal,
       backdrop: () => backdropRef.current,
+      initialFocus: initialFocusRef.current?.current,
     })
-
-    // preventScroll everywhere: the scroll lock already froze the surface, so
-    // moving focus must not scroll it — otherwise opening jumps the (top-of-
-    // container) dialog into view and closing jumps back to the trigger.
-    const target = initialFocusRef.current?.current ?? getInitialFocus(content)
-    target.focus({ preventScroll: true })
-    // A target that can't take focus (disabled, hidden) falls back to the panel.
-    if (document.activeElement !== target) content.focus({ preventScroll: true })
-
-    return () => {
-      unregister()
-      if (previous instanceof HTMLElement) previous.focus({ preventScroll: true })
-    }
   }, [api.open, machine, depth, backdropRef])
 
-  // The exit window: Content rendered while not open only happens in
-  // `closing`. The layer has already released everything above, so hide the
-  // still-painting layer from interaction and report when its visual is done;
-  // the effect's cleanup is the reopen interrupt (and final unmount) undoing
-  // both.
+  // Content rendered while not open only happens in `closing`.
   useEffect(() => {
     const content = contentRef.current
     if (api.open || content === null) return
 
-    const undoHide = hideExitingLayer(content, container ?? document.body, backdropRef.current)
-    const cancelWatch = watchExitAnimation(content, () => machine.send({ type: 'exit.complete' }))
-    return () => {
-      cancelWatch()
-      undoHide()
-    }
+    return startExitWindow(content, {
+      container,
+      backdrop: backdropRef.current,
+      onComplete: () => machine.send({ type: 'exit.complete' }),
+    })
   }, [api.open, machine, container, backdropRef])
 
   // The lock spans the whole mount — through `closing` too: releasing it
@@ -251,14 +220,10 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
   // dialog locks the body.
   useScrollLock(machine.context.modal, container)
 
-  useFocusTrap(contentRef, {
-    // Only a modal dialog traps, and only while topmost — a nested dialog
-    // owns focus while open.
-    enabled: () => machine.context.modal && isTopmostLayer(machine.context.id),
-    // The Close part is the cycle's last stop wherever it renders (core
-    // SPEC); found by its derived id.
-    last: () => document.getElementById(api.ids.close),
-  })
+  useFocusTrap(
+    contentRef,
+    dialogTrapOptions(machine, () => api.ids.close),
+  )
 
   // A neutral element with the role, not <dialog>: the window is the initial
   // focus target, so it carries tabindex — which HTML forbids on <dialog> —
