@@ -1,6 +1,6 @@
 {
   "name": "@dunky.dev/dom-dialog",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Framework-free DOM behavior for @dunky.dev/dialog: the document-level effects, the open and exit sequences, and the outside-press gating every DOM substrate shares.",
   "license": "MIT",
   "repository": {

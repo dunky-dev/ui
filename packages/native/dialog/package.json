@@ -1,6 +1,6 @@
 {
   "name": "@dunky.dev/native-dialog",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "React Native binding for @dunky.dev/dialog.",
   "license": "MIT",
   "repository": {
