@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@dunky.dev/dialog": "workspace:*",
-    "@dunky.dev/native-state-machine": "^0.3.2"
+    "@dunky.dev/native-state-machine": "^0.4.0"
   },
   "devDependencies": {
     "@testing-library/react-native": "^13.3.3",

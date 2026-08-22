@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@dunky.dev/controllable": "workspace:*",
-    "@dunky.dev/state-machine": "^0.3.2",
-    "@dunky.dev/state-machine-bindings": "^0.3.2"
+    "@dunky.dev/state-machine": "^0.3.3",
+    "@dunky.dev/state-machine-bindings": "^0.4.1"
   }
 }

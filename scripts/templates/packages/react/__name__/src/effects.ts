@@ -7,7 +7,8 @@ type __Name__Effect = ComponentEffect<__Name__Machine, __Name__Options>
 
 // Config that lives in machine context is synced through events, so guards keep
 // working at runtime — the machine never reads props. Document listeners and
-// platform APIs also belong here (see the dialog for an example).
+// anything else a DOM host would write identically do NOT belong here — they
+// live in @dunky.dev/dom-__name__, so every DOM substrate shares one copy.
 const syncDisabled: __Name__Effect = [
   (machine, props) => {
     const disabled = props.disabled ?? false
