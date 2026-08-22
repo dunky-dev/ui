@@ -25,9 +25,9 @@ const viewport: CSSProperties = {
   padding: 24,
 }
 const content: CSSProperties = {
-  // Reset the UA <dialog> styles so the viewport's flex centering owns position.
-  position: 'static',
-  border: 'none',
+  // `margin: auto` inside the viewport's flex box does the centering;
+  // `relative` makes the corner Close button pin to the window, not the page.
+  position: 'relative',
   margin: 'auto',
   maxWidth: 480,
   padding: 24,
@@ -431,8 +431,6 @@ export const nested: StoryType = {
 // browser's Forward reopens what Back closed. The canvas has no browser
 // chrome, so the buttons stand in for real presses by calling
 // `history.back()` / `history.forward()`.
-// (The Vue substrate's story stays Back-only for now: its binding doesn't
-// wire the Forward reopen yet.)
 export const closeOnBack: StoryType = {
   render: () => (
     <>

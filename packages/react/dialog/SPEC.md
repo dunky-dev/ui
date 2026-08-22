@@ -44,11 +44,17 @@ React-specific notes on top of the core contract:
   background should be a non-scrolling positioned boundary wrapping an inner
   scroller — portal into the boundary; the overlay fills its visible box and
   the backdrop blocks the scroller behind it (see the `scoped` story).
-- **`Content`** renders the native `<dialog>` element, always with the `open`
-  attribute since it only mounts while the dialog is open. It is shown without
-  `showModal()` on purpose: modality, dismissal, and focus stay driven by the
-  core contract, consistent across browsers, instead of splitting authority
-  with the browser's built-in dialog behavior.
+- **`Content`** renders a `<div>` carrying the `dialog` (or `alertdialog`)
+  role, not the native `<dialog>` element. The dialog window is the initial
+  focus target — focusable in script, out of the tab order — which needs
+  `tabindex="-1"`, and HTML states that
+  [the `tabindex` attribute must not be specified on `dialog` elements](https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element).
+  The native element would only pay off through `showModal()`, and this
+  contract deliberately keeps modality, dismissal, and focus with the core
+  machine rather than splitting authority with the browser's built-in behavior
+  (see the core spec's Internals). With the role explicit and the element
+  neutral, there is nothing left to gain and one conformance rule left to
+  break.
 - **`Backdrop`** renders nothing when the dialog is non-modal (`modal={false}`),
   per the core parts contract.
 - **Exit animation** (`animated`): style the exit on the parts'
@@ -140,12 +146,12 @@ The positioning + scroll layer around the dialog window.
 
 ### `Dialog.Content`
 
-The dialog window; renders the native `<dialog>`.
+The dialog window; renders a `<div>` with the `dialog` role.
 
 | Prop           | Type                             | Default           | Description                                 |
 | -------------- | -------------------------------- | ----------------- | ------------------------------------------- |
 | `initialFocus` | `RefObject<HTMLElement \| null>` | the dialog window | The element to focus when the dialog opens. |
-| `...props`     | `ComponentProps<'dialog'>`       | —                 | Forwarded to the rendered `<dialog>`.       |
+| `...props`     | `ComponentProps<'div'>`          | —                 | Forwarded to the rendered `<div>`.          |
 
 ### `Dialog.Title`
 

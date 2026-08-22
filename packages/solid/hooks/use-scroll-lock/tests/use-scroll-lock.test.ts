@@ -1,0 +1,20 @@
+// @vitest-environment jsdom
+import { renderHook } from '@solidjs/testing-library'
+import { describe, expect, it } from 'vitest'
+import { useScrollLock } from '@dunky.dev/solid-use-scroll-lock'
+
+describe('useScrollLock', () => {
+  it('locks body scroll while mounted and releases on unmount', () => {
+    const { cleanup } = renderHook(() => useScrollLock())
+    expect(document.body.style.overflow).toBe('hidden')
+
+    cleanup()
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('does not lock when locked=false', () => {
+    const { cleanup } = renderHook(() => useScrollLock(false))
+    expect(document.body.style.overflow).toBe('')
+    cleanup()
+  })
+})

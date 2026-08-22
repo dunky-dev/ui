@@ -47,6 +47,10 @@ Native-specific notes on top of the core contract:
   same role Escape plays on the web — while the core default stays `false`;
   the binding seeds the substrate default into the machine config at build
   time. Opt out with `closeOnBack={false}`.
+  The core's Forward half (`forwardNavigate`, which reopens a Back-closed
+  dialog on the web) has no counterpart here and stays unwired: the platform
+  offers a Back gesture but no Forward one, and the app's own back stack is
+  the navigator's to replay, not a dialog's.
 - **Outside press** is a press on the Backdrop. The Viewport defaults to
   `pointerEvents="box-none"`, so a press on the empty area around the window
   falls through to the Backdrop behind it — same net contract as the web's

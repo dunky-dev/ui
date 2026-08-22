@@ -3,10 +3,17 @@ packages:
 allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
-  - '@dunky.dev/native-state-machine@0.3.2'
-  - '@dunky.dev/react-state-machine@0.3.2'
-  - '@dunky.dev/state-machine-bindings@0.3.2'
-  - '@dunky.dev/state-machine-utils@0.3.2'
-  - '@dunky.dev/state-machine@0.3.2'
+  - '@dunky.dev/native-state-machine@0.4.0'
+  - '@dunky.dev/react-state-machine@0.3.4'
+  - '@dunky.dev/solid-state-machine@0.3.0'
+  - '@dunky.dev/state-machine-bindings@0.4.1'
+  - '@dunky.dev/state-machine-dom@0.1.0'
+  - '@dunky.dev/state-machine-utils@0.4.0'
+  - '@dunky.dev/state-machine@0.3.3'
+  - '@dom-expressions/babel-plugin-jsx@0.50.0-next.43'
+  - '@solidjs/signals@2.0.0-rc.1'
+  - '@solidjs/web@2.0.0-rc.1'
+  - babel-preset-solid@2.0.0-rc.1
+  - solid-js@2.0.0-rc.1
 publicHoistPattern:
   - '*storybook*'

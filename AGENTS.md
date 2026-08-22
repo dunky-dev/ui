@@ -25,11 +25,12 @@ editing files in that scope — it overrides anything here for that scope
 
 ## Scopes
 
-| Scope      | Path                      | What it is                                               |
-| ---------- | ------------------------- | -------------------------------------------------------- |
-| Core       | `packages/core/**`        | Framework-free state machines, one package per primitive |
-| DOM        | `packages/dom/**`         | Framework-free DOM utilities, one package per util       |
-| Substrates | `packages/<substrate>/**` | Thin host bindings (e.g. `packages/react`)               |
+| Scope      | Path                         | What it is                                                |
+| ---------- | ---------------------------- | --------------------------------------------------------- |
+| Core       | `packages/core/**`           | Framework-free state machines, one package per primitive  |
+| DOM utils  | `packages/dom/utils/**`      | Framework-free DOM utilities, one package per util        |
+| DOM parts  | `packages/dom/components/**` | Framework-free DOM half of one primitive, shared by hosts |
+| Substrates | `packages/<substrate>/**`    | Thin host bindings (e.g. `packages/react`)                |
 
 Some changes are cross-scope. Check what else your change touches before
 calling it done.
@@ -48,13 +49,21 @@ architecture:
 
 - **Dependency direction is one-way.** A substrate package imports its core
   counterpart, its substrate's state-machine adapter
-  (`@dunky.dev/<substrate>-state-machine`), its own hooks, and the DOM utils —
-  nothing else from this repo. A core package imports only the state-machine
-  runtime, the agnostic bindings vocabulary
+  (`@dunky.dev/<substrate>-state-machine`), its own hooks, the DOM utils, and —
+  if it's a DOM host — its primitive's DOM component package
+  (`@dunky.dev/dom-<name>`). Nothing else from this repo. A core package
+  imports only the state-machine runtime, the agnostic bindings vocabulary
   (`@dunky.dev/state-machine` + `@dunky.dev/state-machine-bindings`), and the
   machine utils under `core/utils`. A machine util imports only the runtime;
-  a DOM util imports nothing from this repo; a substrate hook imports only
-  the DOM util it wraps.
+  a DOM util imports nothing from this repo; a DOM component imports its core
+  counterpart and the DOM utils, never a framework; a substrate hook imports
+  only the DOM util it wraps.
+- **DOM behavior is written once too.** Logic that is DOM-specific but not
+  framework-specific — a document listener, an ordered focus/stack sequence —
+  belongs in `dom/components/<name>`, not copied across substrates. A DOM
+  binding contributes its host's lifecycle and nothing else. Before writing an
+  effect body in a substrate, ask whether the other DOM substrates would write
+  the same one.
 - **Primitives are independent.** No cross-imports between primitives. If two
   need to share logic, that's a design decision — a new package — never a
   cross-import.
@@ -159,6 +168,13 @@ need the same config or helper, define it once at the top, not inside
 each `it()`. Reusable multi-file fixtures go in `tests/fixtures/` —
 anything shared across test files lives there, not inlined or
 duplicated.
+
+## Accessibility
+
+Accessibility is referenced, not improvised — the external specs are the
+contract, and the API is cross-matched against them.
+[`ACCESSIBILITY.md`](./ACCESSIBILITY.md) is the reference: read it before
+designing a public API.
 
 ## Versioning
 

@@ -1,0 +1,187 @@
+# SPEC / Solid / Dialog
+
+The Solid implementation of the [core spec](../../core/dialog/SPEC.md).
+
+## Docs
+
+🔗 [`dunky.dev/ui/components/dialog`](https://dunky.dev/ui/components/dialog).
+
+## Install
+
+```sh
+npm install @dunky.dev/solid-dialog
+```
+
+## Usage
+
+```tsx
+import { Dialog } from '@dunky.dev/solid-dialog'
+;<Dialog>
+  <Dialog.Trigger>Open</Dialog.Trigger>
+  <Dialog.Portal>
+    <Dialog.Backdrop />
+    <Dialog.Viewport>
+      <Dialog.Content>
+        <Dialog.Title>Title</Dialog.Title>
+        <Dialog.Description>Description</Dialog.Description>
+        <Dialog.Close>Close</Dialog.Close>
+      </Dialog.Content>
+    </Dialog.Viewport>
+  </Dialog.Portal>
+</Dialog>
+```
+
+Solid-specific notes on top of the core contract:
+
+- **`Portal`** teleports the layers to `document.body`, or to a `container`
+  you supply. Nothing is kept mounted while closed; an `animated` dialog
+  stays mounted through the core contract's `closing` state so its exit can
+  play — see the exit-animation note below. When scoped to a
+  `container`, the scroll lock applies to that container instead of the page,
+  and the backdrop/viewport must be positioned `absolute` (not `fixed`) so the
+  overlay pins to the container. Because an `absolute` overlay can't stay fixed
+  inside a scrolling element, a scoped container that needs a scrollable
+  background should be a non-scrolling positioned boundary wrapping an inner
+  scroller — portal into the boundary; the overlay fills its visible box and
+  the backdrop blocks the scroller behind it (see the `scoped` story).
+  Swapping `container` while the dialog is open re-creates the portal on the
+  new target (the host portal's mount is fixed at creation).
+- **`Content`** renders a `<div>` carrying the `dialog` (or `alertdialog`)
+  role, not the native `<dialog>` element. The dialog window is the initial
+  focus target — focusable in script, out of the tab order — which needs
+  `tabindex="-1"`, and HTML states that
+  [the `tabindex` attribute must not be specified on `dialog` elements](https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element).
+  The native element would only pay off through `showModal()`, and this
+  contract deliberately keeps modality, dismissal, and focus with the core
+  machine rather than splitting authority with the browser's built-in behavior
+  (see the core spec's Internals). With the role explicit and the element
+  neutral, there is nothing left to gain and one conformance rule left to
+  break.
+- **`Content`'s `initialFocus`** accepts an element or an accessor resolved at
+  open time — the Solid idiom for a ref variable that fills during render:
+  pass `initialFocus={() => cancelButton}`.
+- **`Backdrop`** renders nothing when the dialog is non-modal (`modal={false}`),
+  per the core parts contract.
+- **Exit animation** (`animated`): style the exit on the parts'
+  `data-state="closing"` — a CSS transition or animation on **Content** (the
+  element carrying the state, not a descendant) is what signals completion;
+  a missing exit style falls back to a short ceiling, and
+  `prefers-reduced-motion` skips the wait entirely. The exit is cosmetic:
+  focus, the dialog stack, and page interaction release the moment closing
+  starts, and the still-painting layer is made `inert` until it unmounts.
+  Enter needs no state — the parts mount straight into `data-state="open"`,
+  so a CSS animation (or a transition via `@starting-style`) plays from
+  mount.
+- **Back navigation** (`closeOnBack`): opening plants a guard entry in the
+  session history, so the browser's Back closes the dialog instead of leaving
+  the page — one layer per press in a nested stack, per the core contract. A
+  dialog closed any other way consumes its entry, leaving nothing to swallow
+  a later Back; an entry buried under in-app navigation while the dialog is
+  open is left alone (Back then both navigates and closes the dialog).
+  The entry a Back press spends survives in the forward stack, so the
+  browser's Forward reopens the dialog it closed (`onForwardNavigation`
+  fires first; `preventDefault()` vetoes, per the core contract). Reopening
+  through the trigger instead plants a fresh entry — the browser truncates
+  the spent one, exactly like navigating after a Back. Two web-mechanics
+  caveats: a controlled dialog's Back-close is completed by the consumer
+  rather than by the press itself, so its entry is consumed and Forward has
+  nothing to re-enter; and the Forward watch lives in script, so it doesn't
+  survive a reload (the navigation util's SPEC covers why).
+- Everything ships headless, per the core contract's
+  [Internals](../../core/dialog/SPEC.md#internals).
+
+## API
+
+### `Dialog`
+
+The root: owns open/close state, renders no DOM. Accepts the core
+`DialogOptions`.
+
+| Prop                     | Type                        | Default                                   | Description                                                                                                                                   |
+| ------------------------ | --------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open`                   | `boolean`                   | —                                         | Controlled open state — the dialog follows it alone. Back to `undefined` hands the state over, uncontrolled in place.                         |
+| `defaultOpen`            | `boolean`                   | `false`                                   | Initial open state for the uncontrolled dialog.                                                                                               |
+| `onOpenChange`           | `(open: boolean) => void`   | —                                         | Fired on every open/close transition with the new value.                                                                                      |
+| `modal`                  | `boolean`                   | `true`                                    | `aria-modal`, focus trap, scroll lock, backdrop.                                                                                              |
+| `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'`                                | The ARIA pattern.                                                                                                                             |
+| `closeOnEscape`          | `boolean`                   | `true`                                    | Whether Escape closes the dialog.                                                                                                             |
+| `escapeScope`            | `'layer' \| 'stack'`        | `'layer'`                                 | How far an allowed Escape reaches: this dialog, or its whole stack.                                                                           |
+| `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether pressing the backdrop/viewport closes the dialog.                                                                                     |
+| `animated`               | `boolean`                   | `false`                                   | Keeps the dialog mounted through `data-state="closing"` while its exit animation plays.                                                       |
+| `closeOnBack`            | `boolean`                   | `false`                                   | The browser's Back closes the open dialog instead of navigating (a guard entry in the session history), and Forward reopens what Back closed. |
+| `onBackNavigation`       | `(event?) => void`          | —                                         | Fired before a back-navigation dismissal; `preventDefault()` vetoes.                                                                          |
+| `onForwardNavigation`    | `(event?) => void`          | —                                         | Fired before a forward-navigation reopen; `preventDefault()` vetoes.                                                                          |
+| `onEscapeKeyDown`        | `(event) => void`           | —                                         | Fired before an Escape dismissal; `preventDefault()` vetoes.                                                                                  |
+| `onInteractOutside`      | `(event?) => void`          | —                                         | Fired before an outside-press dismissal; `preventDefault()` vetoes.                                                                           |
+| `id`                     | `string`                    | auto (`createUniqueId`)                   | Base id for the parts; per-part ids are derived from it.                                                                                      |
+| `children`               | `JSX.Element`               | —                                         | The dialog's parts.                                                                                                                           |
+
+### `Dialog.Trigger`
+
+Opens the dialog; focus returns here on close.
+
+| Prop       | Type                       | Default | Description                           |
+| ---------- | -------------------------- | ------- | ------------------------------------- |
+| `...props` | `ComponentProps<'button'>` | —       | Forwarded to the rendered `<button>`. |
+
+### `Dialog.Portal`
+
+Teleports the layers out of the tree while open; unmounts them while closed.
+
+| Prop        | Type                  | Default         | Description                 |
+| ----------- | --------------------- | --------------- | --------------------------- |
+| `container` | `HTMLElement \| null` | `document.body` | The element to portal into. |
+| `children`  | `JSX.Element`         | —               | The layers to teleport.     |
+
+### `Dialog.Backdrop`
+
+The layer behind the dialog window; renders nothing when `modal={false}`.
+
+| Prop       | Type                    | Default | Description                        |
+| ---------- | ----------------------- | ------- | ---------------------------------- |
+| `...props` | `ComponentProps<'div'>` | —       | Forwarded to the rendered `<div>`. |
+
+### `Dialog.Viewport`
+
+The positioning + scroll layer around the dialog window.
+
+| Prop       | Type                    | Default | Description                        |
+| ---------- | ----------------------- | ------- | ---------------------------------- |
+| `...props` | `ComponentProps<'div'>` | —       | Forwarded to the rendered `<div>`. |
+
+### `Dialog.Content`
+
+The dialog window; renders a `<div>` with the `dialog` role.
+
+| Prop           | Type                                                      | Default           | Description                                                         |
+| -------------- | --------------------------------------------------------- | ----------------- | ------------------------------------------------------------------- |
+| `initialFocus` | `HTMLElement \| (() => HTMLElement \| null \| undefined)` | the dialog window | The element to focus when the dialog opens — resolved at open time. |
+| `...props`     | `ComponentProps<'div'>`                                   | —                 | Forwarded to the rendered `<div>`.                                  |
+
+### `Dialog.Title`
+
+Names the dialog (wires `aria-labelledby` on Content).
+
+| Prop       | Type                   | Default | Description                       |
+| ---------- | ---------------------- | ------- | --------------------------------- |
+| `...props` | `ComponentProps<'h2'>` | —       | Forwarded to the rendered `<h2>`. |
+
+### `Dialog.Description`
+
+Describes the dialog (wires `aria-describedby` on Content).
+
+| Prop       | Type                    | Default | Description                        |
+| ---------- | ----------------------- | ------- | ---------------------------------- |
+| `...props` | `ComponentProps<'div'>` | —       | Forwarded to the rendered `<div>`. |
+
+### `Dialog.Close`
+
+Dismisses the dialog from inside — the single dismissal affordance (the
+corner `×`), rendered once per dialog and kept the focus cycle's last stop per
+the core contract. Action buttons (Cancel/Confirm) are your own `<button>`s
+driving state, so they keep their natural Tab order.
+
+| Prop       | Type                       | Default   | Description                                                    |
+| ---------- | -------------------------- | --------- | -------------------------------------------------------------- |
+| `scope`    | `'layer' \| 'stack'`       | `'layer'` | Dismiss just its own dialog, or unwind the whole nested stack. |
+| `...props` | `ComponentProps<'button'>` | —         | Forwarded to the rendered `<button>`.                          |

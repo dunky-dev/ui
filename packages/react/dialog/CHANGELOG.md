@@ -1,5 +1,72 @@
 # @dunky.dev/react-dialog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#40](https://github.com/dunky-dev/ui/pull/40) [`148ee66`](https://github.com/dunky-dev/ui/commit/148ee66481f70852734a77814643814af5b339fc) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `Dialog.Content` now renders a `<div>` carrying the `dialog` (or `alertdialog`) role instead of the native `<dialog>` element. Consumers styling `dialog { ... }` should target the part directly (or its role), and a forwarded ref is now an `HTMLDivElement`; `...props` accept `ComponentProps<'div'>`.
+
+  The dialog window is the initial focus target — focusable in script, out of the tab order — which needs `tabindex="-1"`, and HTML states that [the `tabindex` attribute must not be specified on `dialog` elements](https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element). The native element would only pay off through `showModal()`, and this contract deliberately keeps modality, dismissal, and focus in the core machine rather than splitting authority with the browser's built-in behavior — so the element brought nothing but a conformance violation. Nothing about the exposed semantics changes: the same role, `aria-modal`, name, description, and focus behavior as before. UA `<dialog>` resets (`position: static`, `border: none`) are no longer needed in consumer styles.
+
+### Patch Changes
+
+- [#44](https://github.com/dunky-dev/ui/pull/44) [`e3a5e96`](https://github.com/dunky-dev/ui/commit/e3a5e96b13499b3a0b1dc49d6ec195f67b2d0071) Thanks [@ivanbanov](https://github.com/ivanbanov)! - New package: `@dunky.dev/dom-dialog`, the framework-free DOM half of the
+  Dialog. The React and Solid bindings had grown two copies of the same
+  document-level code — the Escape listener, the ordered focus/stack sequence
+  around the open edge, the exit window, the session-history guard, the
+  outside-press gating — differing only in which lifecycle scheduled them. That
+  duplication is the drift risk the architecture exists to remove, and it would
+  have been copied a third time for Vue.
+
+  Both bindings now contribute only their host's lifecycle:
+
+  ```ts
+  // before — the same twenty lines in every DOM substrate
+  const previous = document.activeElement
+  const unregister = registerLayer({
+    id,
+    depth,
+    element: content,
+    modal,
+    backdrop,
+  })
+  const target = initialFocus ?? getInitialFocus(content)
+  target.focus({ preventScroll: true })
+  // ...
+
+  // after
+  return openDialogLayer(content, { id, depth, modal, backdrop, initialFocus })
+  ```
+
+  The ordering that made those sequences correct — the stack joins before focus
+  moves in, and releases the layers beneath before focus moves back out — is now
+  stated and tested in one place rather than re-derived per substrate.
+
+  No consumer-visible behavior changes in either binding; this is an internal
+  extraction. `@dunky.dev/dom-dialog` is published because the bindings depend on
+  it at runtime, and a substrate outside this repo can build on it directly.
+
+  This also establishes `packages/dom/components/` as a layer: a DOM package
+  scoped to one primitive, which may import that primitive's core package and any
+  DOM util, but never a framework. `pnpm scaffold <name>` stamps one for every new
+  primitive.
+
+- [#44](https://github.com/dunky-dev/ui/pull/44) [`e3a5e96`](https://github.com/dunky-dev/ui/commit/e3a5e96b13499b3a0b1dc49d6ec195f67b2d0071) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Update the state-machine packages to the 2026-08-22 release: runtime `0.3.3`,
+  bindings `0.4.1`, utils `0.4.0`, and the React (`0.3.4`), Solid (`0.3.0`), and
+  native (`0.4.0`) adapters.
+
+  Every range moves together on purpose. The published adapters pin the runtime
+  exactly (`@dunky.dev/state-machine: 0.3.3`), so a package left on an older
+  caret would have pulled a second physical copy of the runtime into a consumer's
+  install — the dependency diamond `ARCHITECTURE.md` warns about, where anything
+  identity-sensitive (a singleton, a `WeakMap`, module-level state) silently stops
+  agreeing across the two copies. `@dunky.dev/controllable` was the oldest
+  offender, still on `^0.1.0`; the tree now resolves to a single runtime.
+
+- Updated dependencies [[`e3a5e96`](https://github.com/dunky-dev/ui/commit/e3a5e96b13499b3a0b1dc49d6ec195f67b2d0071), [`e3a5e96`](https://github.com/dunky-dev/ui/commit/e3a5e96b13499b3a0b1dc49d6ec195f67b2d0071)]:
+  - @dunky.dev/dom-dialog@0.1.0
+  - @dunky.dev/dialog@0.3.1
+
 ## 0.2.2
 
 ### Patch Changes
