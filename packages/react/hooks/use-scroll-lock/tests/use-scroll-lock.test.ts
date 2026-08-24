@@ -19,4 +19,10 @@ describe('useScrollLock', () => {
     expect(document.body.style.overflow).toBe('')
     unmount()
   })
+
+  it('locks nothing when target is null — a target not yet resolved', () => {
+    const { unmount } = renderHook(() => useScrollLock(true, null))
+    expect(document.body.style.overflow).toBe('')
+    unmount()
+  })
 })

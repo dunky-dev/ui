@@ -29,6 +29,9 @@ Solid-specific notes on top of the DOM contract:
   `MaybeAccessor` — a static value or an accessor — so the lock tracks
   reactive state: a `target` change releases the old container and locks
   the new one.
+- An omitted `target` means the page body; `null` means "no target yet"
+  and locks nothing. A plain `ref` read is not reactive — pass a
+  signal-backed element so the lock engages once the node resolves.
 - The DOM contract's shared per-container lock does the multi-holder
   arithmetic: several live lockers (nested modal layers) hold one lock,
   and the container restores when the last releases.
@@ -39,7 +42,7 @@ Solid-specific notes on top of the DOM contract:
 
 Returns nothing — the lock lives and dies with the owner.
 
-| Param    | Type                                              | Default       | Description                                                                                 |
-| -------- | ------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------- |
-| `locked` | `MaybeAccessor<boolean>`                          | `true`        | Whether the lock is held.                                                                   |
-| `target` | `MaybeAccessor<HTMLElement \| null \| undefined>` | the page body | The scroll container to lock (e.g. a scoped surface locks its own container, not the page). |
+| Param    | Type                                              | Default       | Description                                                                                                       |
+| -------- | ------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `locked` | `MaybeAccessor<boolean>`                          | `true`        | Whether the lock is held.                                                                                         |
+| `target` | `MaybeAccessor<HTMLElement \| null \| undefined>` | the page body | The scroll container to lock (e.g. a scoped surface locks its own container, not the page). `null` locks nothing. |

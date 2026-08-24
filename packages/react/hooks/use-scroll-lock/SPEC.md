@@ -27,6 +27,10 @@ React-specific notes on top of the DOM contract:
 - The lock holds while the component is mounted and `locked` is true;
   unmounting or turning `locked` off releases it. A `target` change
   releases the old container and locks the new one.
+- An omitted `target` means the page body; `null` means "no target yet"
+  and locks nothing. Since a ref populating doesn't re-render, pass a node
+  held in state rather than `ref.current` — the latter stays `null` for
+  the effect and nothing ever locks.
 - The DOM contract's shared per-container lock does the multi-holder
   arithmetic: several mounted lockers (nested modal layers) hold one lock,
   and the container restores when the last unmounts.
@@ -37,7 +41,7 @@ React-specific notes on top of the DOM contract:
 
 Returns nothing — the lock lives and dies with the component.
 
-| Param    | Type                  | Default       | Description                                                                                 |
-| -------- | --------------------- | ------------- | ------------------------------------------------------------------------------------------- |
-| `locked` | `boolean`             | `true`        | Whether the lock is held.                                                                   |
-| `target` | `HTMLElement \| null` | the page body | The scroll container to lock (e.g. a scoped surface locks its own container, not the page). |
+| Param    | Type                  | Default       | Description                                                                                                       |
+| -------- | --------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `locked` | `boolean`             | `true`        | Whether the lock is held.                                                                                         |
+| `target` | `HTMLElement \| null` | the page body | The scroll container to lock (e.g. a scoped surface locks its own container, not the page). `null` locks nothing. |

@@ -244,8 +244,13 @@ export const Content: Component<DialogContentProps> = props => {
   )
 
   // The lock spans the whole mount — through `closing` too: releasing it
-  // mid-exit would reflow the page under the still-painting layer.
-  useScrollLock(() => machine.context.modal, container)
+  // mid-exit would reflow the page under the still-painting layer. The
+  // context's `null` means "page body", not the hook's "no target yet" —
+  // map it to the hook's body default.
+  useScrollLock(
+    () => machine.context.modal,
+    () => container() ?? undefined,
+  )
 
   useFocusTrap(
     () => contentEl ?? null,
