@@ -12,6 +12,7 @@ export default defineConfig({
     globals: false,
     // node by default; DOM tests opt into jsdom per-file via `@vitest-environment`.
     environment: 'node',
+    setupFiles: ['../../vitest.setup.ts'],
     include: ['**/tests/**/*.test.{ts,tsx}'],
   },
 })
