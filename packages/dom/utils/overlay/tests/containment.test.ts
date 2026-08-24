@@ -67,7 +67,7 @@ describe('registerLayer containment', () => {
 
   it('leaves pre-hidden elements and content-less tags to their author', () => {
     const authored = document.createElement('div')
-    authored.setAttribute('aria-hidden', 'false')
+    authored.setAttribute('aria-hidden', 'true')
     const script = document.createElement('script')
     document.body.append(authored, script)
     const layer = mountLayer()
@@ -77,7 +77,23 @@ describe('registerLayer containment', () => {
     expect(script.hasAttribute('inert')).toBe(false)
 
     unregister()
-    expect(authored.getAttribute('aria-hidden')).toBe('false')
+    expect(authored.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('hides an aria-hidden="false" sibling and restores the value on unregister', () => {
+    // "false" asserts visible — the opposite of author-hidden — so the skip
+    // for authored hiding must not cover it.
+    const asserted = document.createElement('main')
+    asserted.setAttribute('aria-hidden', 'false')
+    document.body.append(asserted)
+    const layer = mountLayer()
+
+    const unregister = register({ id: 'a', depth: 1, element: layer.content, modal: true })
+    expect(hiddenFrom(asserted)).toBe(true)
+
+    unregister()
+    expect(asserted.getAttribute('aria-hidden')).toBe('false')
+    expect(asserted.hasAttribute('inert')).toBe(false)
   })
 
   it('hides nothing for a non-modal layer', () => {

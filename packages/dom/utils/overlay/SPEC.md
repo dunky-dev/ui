@@ -27,9 +27,11 @@ against each other.
   layer's own backdrop — rendered outside the content's subtree yet part of
   the layer — stays pressable so an outside press can still dismiss.
 - Containment re-syncs on every stack change: a nested layer hides the one
-  beneath it, and closing it restores the layer. Restoring removes exactly
-  what was added — an `aria-hidden` or `inert` the author already set stays
-  theirs, untouched in both directions.
+  beneath it, and closing it restores the layer. Restoring puts back exactly
+  what was there — an `inert` or a truthy `aria-hidden` the author already
+  set stays theirs, untouched in both directions. `aria-hidden="false"`
+  asserts visible, the opposite of author-hidden, so such an element is
+  hidden like any other and its authored value restored afterwards.
 - The backdrop is resolved through a getter, not a snapshot: a re-hide (a
   layer above closing) sees the element current at that moment.
 
@@ -47,7 +49,9 @@ again — but keeps painting until its exit visual finishes:
 - `hideExitingLayer` takes the still-painting layer (the content's outermost
   portalled ancestor below the boundary, plus its backdrop) out of
   interaction with `aria-hidden` + `inert`, returning an undo for the reopen
-  interrupt.
+  interrupt. A boundary that isn't an ancestor of the content scopes the
+  hide to the content itself — never the document root, which would take the
+  whole page out.
 - `watchExitAnimation` reports the end of the exit visual once — the
   substrate forwards it to the machine as `exit.complete`. Completion is the
   element's own `transitionend` / `animationend` (bubbled ends from

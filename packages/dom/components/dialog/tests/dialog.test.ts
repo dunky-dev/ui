@@ -162,6 +162,18 @@ describe('openDialogLayer', () => {
     expect(document.activeElement).toBe(content)
   })
 
+  it('warns when focus cannot move into the dialog at all', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    // A dialog window without tabindex can't take the fallback focus.
+    const content = document.createElement('div')
+    document.body.append(content)
+
+    registered.push(openDialogLayer(content, options))
+
+    expect(document.activeElement).not.toBe(content)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('tabindex="-1"'))
+  })
+
   it('restores focus to whatever held it before the dialog opened', () => {
     const trigger = document.createElement('button')
     document.body.append(trigger)
