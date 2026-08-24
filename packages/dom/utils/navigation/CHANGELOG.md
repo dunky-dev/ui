@@ -1,4 +1,4 @@
-# @dunky.dev/dom-navigation
+# @dunky.dev/browser-navigation
 
 ## 0.1.1
 

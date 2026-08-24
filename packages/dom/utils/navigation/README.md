@@ -1,11 +1,11 @@
-# @dunky.dev/dom-navigation
+# @dunky.dev/browser-navigation
 
 Framework-free browser-navigation helpers.
 
 ## Install
 
 ```sh
-npm install @dunky.dev/dom-navigation
+npm install @dunky.dev/browser-navigation
 ```
 
 ## interceptBackNavigation
@@ -14,7 +14,7 @@ Plants a guard entry in the session history so the host's Back dismisses an
 overlaid layer — a dialog, drawer, sheet — instead of leaving the page.
 
 ```ts
-import { interceptBackNavigation } from '@dunky.dev/dom-navigation'
+import { interceptBackNavigation } from '@dunky.dev/browser-navigation'
 
 // On open — arm the guard. `onBack` returns whether the layer closed.
 const release = interceptBackNavigation(() => {

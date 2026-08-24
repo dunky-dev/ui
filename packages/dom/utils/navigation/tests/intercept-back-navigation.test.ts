@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
-import { interceptBackNavigation } from '@dunky.dev/dom-navigation'
+import { interceptBackNavigation } from '@dunky.dev/browser-navigation'
 
 // jsdom's history traversal is asynchronous: back() returns immediately and
 // the state change + popstate land on a later task — await the event itself.
