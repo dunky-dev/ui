@@ -17,8 +17,9 @@ behavior.
 - **No layout shift.** Locking pads for the vanished scrollbars using
   logical properties: the vertical scrollbar always sits at `inline-end`
   (right in LTR, left in RTL) and the horizontal one at `block-end`, so
-  writing direction is handled for free. A zero-width scrollbar (overlay
-  scrollbars, or none) adds no padding.
+  writing direction is handled for free. The footprint is added on top of
+  the target's computed padding, not assigned over it. A zero-width
+  scrollbar (overlay scrollbars, or none) adds no padding.
 - The body's scrollbars live on the viewport and are measured from the
   window; any other container owns its scrollbars, measured from its own
   boxes (borders excluded).
@@ -37,10 +38,15 @@ behavior.
   holder saw.
 - The registry is shared across duplicate copies of the module on the same
   page.
+- A body lock relies on overflow propagation: per CSS Overflow 3 the
+  body's `overflow` applies to the viewport only while `html` computes to
+  `visible` in both axes, so a host page with e.g.
+  `html { overflow-y: scroll }` keeps scrolling. A host-environment
+  limitation, not addressable here.
 
 ## Internals
 
 | Position                                                                      | Why                                                                                                                                                                                            |
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The registry anchors on a realm-global keyed by `Symbol.for`, resolved lazily | Duplicate module copies (monorepo, micro-frontend) would double-lock or leak the lock — the duplicate-singleton bug class of radix-ui/primitives#2815. Lazy keeps `sideEffects: false` honest. |
-| Restore removes an originally-unset longhand instead of assigning `''`        | Assigning `''` doesn't clear a longhand in jsdom's CSSOM.                                                                                                                                      |
+| Restore assigns saved values via `setProperty`, not the camelCase setters     | A saved `''` (originally unset) must remove the declaration, which `setProperty` does per CSSOM.                                                                                               |

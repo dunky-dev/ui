@@ -11,6 +11,7 @@ export default defineConfig({
           name: 'default',
           globals: false,
           environment: 'node',
+          setupFiles: ['./vitest.setup.ts'],
           // scripts/templates holds __name__-tokenized stubs (not runnable),
           // .worktrees/.claude hold local checkouts, packages/native runs on
           // jest-expo — see packages/native/jest.config.cjs.

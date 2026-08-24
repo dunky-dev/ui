@@ -17,4 +17,10 @@ describe('useScrollLock', () => {
     expect(document.body.style.overflow).toBe('')
     cleanup()
   })
+
+  it('locks nothing when target is null — a target not yet resolved', () => {
+    const { cleanup } = renderHook(() => useScrollLock(true, () => null))
+    expect(document.body.style.overflow).toBe('')
+    cleanup()
+  })
 })

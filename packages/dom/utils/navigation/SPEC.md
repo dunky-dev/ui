@@ -51,8 +51,9 @@ it — Back then closes for free and needs no interceptor.
 
 - One shared registry and one `popstate` listener module-wide — the
   one-pop-one-guard ordering is the whole unwinding contract.
-- The listener detaches only when nothing is left to hear: no guards and no
-  in-flight self-caused pop.
+- The listener detaches only when nothing is left to hear: no guards, no
+  in-flight self-caused pop, and no release still waiting on its deferred
+  consumption.
 
 ## Internals
 
