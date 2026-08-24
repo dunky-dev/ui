@@ -36,7 +36,18 @@ export function openDialogLayer(content: HTMLElement, options: OpenDialogLayerOp
   const target = options.initialFocus ?? getInitialFocus(content)
   target.focus({ preventScroll: true })
   // A target that can't take focus (disabled, hidden) falls back to the panel.
-  if (document.activeElement !== target) content.focus({ preventScroll: true })
+  if (document.activeElement !== target) {
+    content.focus({ preventScroll: true })
+    // Focus still outside the layer breaks the APG modal pattern — a window
+    // without tabindex can't take the fallback. Make the miss loud.
+    if (!content.contains(document.activeElement)) {
+      console.warn(
+        '[openDialogLayer] focus could not move into the dialog: neither the ' +
+          'initial focus target nor the dialog window can take focus. ' +
+          'Give the dialog window tabindex="-1".',
+      )
+    }
+  }
 
   return () => {
     unregister()

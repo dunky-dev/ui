@@ -70,15 +70,15 @@ importers:
 
   packages/dom/components/dialog:
     dependencies:
+      '@dunky.dev/browser-navigation':
+        specifier: workspace:*
+        version: link:../../utils/navigation
       '@dunky.dev/dialog':
         specifier: workspace:*
         version: link:../../../core/dialog
       '@dunky.dev/dom-focus-trap':
         specifier: workspace:*
         version: link:../../utils/focus-trap
-      '@dunky.dev/dom-navigation':
-        specifier: workspace:*
-        version: link:../../utils/navigation
       '@dunky.dev/dom-overlay':
         specifier: workspace:*
         version: link:../../utils/overlay

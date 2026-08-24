@@ -1,4 +1,4 @@
-import { interceptBackNavigation } from '@dunky.dev/dom-navigation'
+import { interceptBackNavigation } from '@dunky.dev/browser-navigation'
 
 export interface BackNavigationGuardOptions {
   /** The api's `backNavigate` — every decision (gate, veto, controlled) is the core's. */

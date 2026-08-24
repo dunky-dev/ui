@@ -12,33 +12,36 @@ const HIDE_SKIP = /^(SCRIPT|STYLE|LINK|TEMPLATE)$/
  * time.
  */
 export function hideOutside(target: HTMLElement, exclude?: Element | null): () => void {
-  const hidden: Element[] = []
+  const hidden: Array<[Element, string | null]> = []
 
   let node: HTMLElement | null = target
   while (node !== null && node !== document.body && node.parentElement !== null) {
     for (const sibling of Array.from(node.parentElement.children)) {
       // Skip the path itself, the layer's own excluded element, content-less
-      // tags, and anything the author already controls — an existing
-      // `aria-hidden` (any value) or `inert` is theirs.
+      // tags, and anything the author already hides — an existing `inert` or
+      // a truthy `aria-hidden` is theirs. `aria-hidden="false"` asserts
+      // visible, the opposite of author-hidden, so it doesn't count.
+      const ariaHidden = sibling.getAttribute('aria-hidden')
       if (
         sibling === node ||
         sibling === exclude ||
         HIDE_SKIP.test(sibling.tagName) ||
-        sibling.hasAttribute('aria-hidden') ||
+        (ariaHidden !== null && ariaHidden !== 'false') ||
         sibling.hasAttribute('inert')
       ) {
         continue
       }
       sibling.setAttribute('aria-hidden', 'true')
       sibling.setAttribute('inert', '')
-      hidden.push(sibling)
+      hidden.push([sibling, ariaHidden])
     }
     node = node.parentElement
   }
 
   return () => {
-    for (const element of hidden) {
-      element.removeAttribute('aria-hidden')
+    for (const [element, previousAriaHidden] of hidden) {
+      if (previousAriaHidden === null) element.removeAttribute('aria-hidden')
+      else element.setAttribute('aria-hidden', previousAriaHidden)
       element.removeAttribute('inert')
     }
   }

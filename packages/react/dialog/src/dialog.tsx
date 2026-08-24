@@ -232,8 +232,9 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
   // The lock spans the whole mount — through `closing` too: releasing it
   // mid-exit would bring the scrollbar back and reflow the page under the
   // still-painting layer. A scoped dialog locks its portal container; a page
-  // dialog locks the body.
-  useScrollLock(machine.context.modal, container)
+  // dialog locks the body. The context's `null` means "page body", not the
+  // hook's "no target yet" — map it to the hook's body default.
+  useScrollLock(machine.context.modal, container ?? undefined)
 
   useFocusTrap(
     contentRef,

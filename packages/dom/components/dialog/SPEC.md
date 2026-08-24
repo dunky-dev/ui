@@ -53,6 +53,11 @@ veto through `preventDefault` before it moves the machine.
 3. move focus to the consumer's `initialFocus`, or the overlay's own choice,
 4. fall back to the dialog window when that target refuses focus.
 
+When the fallback misses too — the dialog window itself can't take focus,
+typically because it lacks `tabindex="-1"` — focus is stranded outside the
+layer, against the modal dialog pattern. That miss is loud: a `console.warn`
+names the fix instead of failing silently.
+
 The disposer releases the stack **before** restoring focus. Both orders are
 load-bearing: the stack must exist before focus moves in, and the layers
 beneath must be un-inerted before focus can land on one of them.

@@ -10,8 +10,11 @@ function access<T>(value: MaybeAccessor<T>): T {
 
 /**
  * Locks scrolling while the owner lives and `locked` — the Solid lifecycle
- * around `lockScroll`. Targets the page body unless a `target` is given. The
- * lock is shared per container: it restores when the last holder releases.
+ * around `lockScroll`. Targets the page body unless a `target` is given. A
+ * `null` target means "no target yet" and locks nothing; a plain `ref` read
+ * is not reactive, so pass a signal-backed element and the lock engages once
+ * the node resolves. The lock is shared per container: it restores when the
+ * last holder releases.
  */
 export function useScrollLock(
   locked: MaybeAccessor<boolean> = true,
@@ -20,8 +23,8 @@ export function useScrollLock(
   createEffect(
     () => [access(locked), target === undefined ? undefined : access(target)] as const,
     ([isLocked, container]) => {
-      if (!isLocked) return
-      return lockScroll(container ?? undefined)
+      if (!isLocked || container === null) return
+      return lockScroll(container)
     },
   )
 }

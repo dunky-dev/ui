@@ -1,5 +1,5 @@
 ---
-'@dunky.dev/dom-navigation': minor
+'@dunky.dev/browser-navigation': minor
 '@dunky.dev/dom-dialog': minor
 '@dunky.dev/dialog': minor
 '@dunky.dev/react-dialog': minor

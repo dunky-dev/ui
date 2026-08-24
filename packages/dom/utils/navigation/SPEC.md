@@ -36,7 +36,9 @@ it reopens the layer.
   for good).
 - **The Forward watch ends** when the layer releases, when a newly planted
   entry truncates the forward stack the spent entry lives in, or when a new
-  registration adopts the entry.
+  registration adopts the entry. A layer that releases itself inside `onBack`
+  never parks at all — it tore itself down rather than closing, so there is
+  nothing to offer a reopen to.
 - **Release** (the layer closed by any other means, or gone for good)
   consumes a still-current guard entry so it can't swallow the next Back,
   and ends a parked guard's Forward watch. An entry buried under later
@@ -73,7 +75,8 @@ itself from it — Back then closes for free and needs no interceptor.
   topmost entries, and every planted entry truncates the forward stack the
   parked ones live in.
 - The listener detaches only when nothing is left to hear: no armed guards,
-  no parked watchers, and no in-flight self-caused pop.
+  no parked watchers, no in-flight self-caused pop, and no release still
+  waiting on its deferred consumption.
 
 ## Internals
 

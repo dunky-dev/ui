@@ -23,7 +23,7 @@
       "@dunky.dev/dom-dialog": ["./packages/dom/components/dialog/src"],
       "@dunky.dev/dom-overlay": ["./packages/dom/utils/overlay/src"],
       "@dunky.dev/dom-focus-trap": ["./packages/dom/utils/focus-trap/src"],
-      "@dunky.dev/dom-navigation": ["./packages/dom/utils/navigation/src"],
+      "@dunky.dev/browser-navigation": ["./packages/dom/utils/navigation/src"],
       "@dunky.dev/dom-scroll-lock": ["./packages/dom/utils/scroll-lock/src"],
       "@dunky.dev/react-use-focus-trap": ["./packages/react/hooks/use-focus-trap/src"],
       "@dunky.dev/react-use-scroll-lock": ["./packages/react/hooks/use-scroll-lock/src"],
