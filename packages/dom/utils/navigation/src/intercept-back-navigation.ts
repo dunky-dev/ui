@@ -19,6 +19,11 @@ let nextGuardId = 0
 // browser reports them through the same popstate as a user's Back — count
 // them so they are never read as one and unwind another layer.
 let swallow = 0
+// Releases whose deferred consumption hasn't run yet. Each may still queue a
+// self-caused pop, so the listener must outlive them: without this, one
+// release's idle check could detach the listener while a sibling release from
+// the same turn is about to call history.back().
+let pendingReleases = 0
 
 function currentGuardId(): number | undefined {
   const state: unknown = history.state
@@ -33,9 +38,10 @@ function isRegistered(id: number): boolean {
 }
 
 // The listener detaches only when nothing is left to hear: an in-flight
-// self-caused pop (swallow) still needs it even with every guard released.
+// self-caused pop (swallow) or an undecided release (pendingReleases) still
+// needs it even with every guard released.
 function detachWhenIdle(): void {
-  if (guards.length === 0 && swallow === 0) {
+  if (guards.length === 0 && swallow === 0 && pendingReleases === 0) {
     window.removeEventListener('popstate', onPopState)
   }
 }
@@ -59,7 +65,10 @@ function onPopState(): void {
     const top = guards[guards.length - 1] as BackGuard
     if (top.id === current) break
     if (top.onBack()) {
-      guards.pop()
+      // By identity, not position: onBack may have released this guard
+      // itself, and a positional pop would evict the guard beneath.
+      const index = guards.indexOf(top)
+      if (index !== -1) guards.splice(index, 1)
       continue
     }
     // Declined — vetoed, or a controlled layer that hasn't followed yet:
@@ -102,7 +111,9 @@ export function interceptBackNavigation(onBack: () => boolean): () => void {
     const index = guards.indexOf(guard)
     if (index === -1) return // already unwound by the Back press itself
     guards.splice(index, 1)
+    pendingReleases++
     queueMicrotask(() => {
+      pendingReleases--
       // Still ours and still current: nobody adopted it and no Back popped
       // it — consume the entry. The listener stays until the pop lands.
       if (currentGuardId() === guard.id) {

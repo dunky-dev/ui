@@ -69,6 +69,46 @@ describe('interceptBackNavigation', () => {
     expect(lower).toHaveBeenCalledTimes(1)
   })
 
+  // Two sibling layers closing in the same commit: the first release's
+  // deferred check must not detach the listener while the second release's
+  // self-caused pop is still on its way.
+  it('two releases in the same turn leave the next guard able to hear Back', async () => {
+    const before: unknown = history.state
+    const releaseLower = interceptBackNavigation(() => true)
+    const releaseUpper = interceptBackNavigation(() => true)
+
+    const pop = nextPop()
+    releaseLower()
+    releaseUpper()
+    await pop // the upper release's self-caused pop lands
+
+    const onBack = vi.fn(() => true)
+    interceptBackNavigation(onBack)
+    await pressBack()
+    expect(onBack).toHaveBeenCalledTimes(1)
+    expect(history.state).toEqual(before)
+  })
+
+  it('a guard releasing itself inside onBack leaves the guard beneath armed', async () => {
+    const before: unknown = history.state
+    const lower = vi.fn(() => true)
+    interceptBackNavigation(lower)
+    let releaseUpper = (): void => undefined
+    const upper = vi.fn(() => {
+      releaseUpper()
+      return true
+    })
+    releaseUpper = interceptBackNavigation(upper)
+
+    await pressBack()
+    expect(upper).toHaveBeenCalledTimes(1)
+    expect(lower).not.toHaveBeenCalled()
+
+    await pressBack()
+    expect(lower).toHaveBeenCalledTimes(1)
+    expect(history.state).toEqual(before)
+  })
+
   // The StrictMode shape: a synchronous release -> re-register (double-invoked
   // effect, same-commit reopen) must adopt the still-current entry in place —
   // zero traversals, so there is no self-caused pop to race or misread.
