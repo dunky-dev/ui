@@ -21,11 +21,23 @@ against each other.
 
 - Every open overlay registers with its element, modality, depth, and — when
   it has one — its backdrop. Topmost follows the core stack's rule.
-- While a modal layer is topmost, everything outside its subtree is hidden
-  from assistive tech and taken out of pointer and keyboard reach
-  (`aria-hidden` + `inert` on the siblings of its ancestor path). The
-  layer's own backdrop — rendered outside the content's subtree yet part of
-  the layer — stays pressable so an outside press can still dismiss.
+- Containment follows the **topmost modal layer**, not the topmost layer.
+  Everything outside that layer's subtree is hidden from assistive tech and
+  taken out of pointer and keyboard reach (`aria-hidden` + `inert` on the
+  siblings of its ancestor path). Two kinds of element are held out of it:
+  the layer's own backdrop — rendered outside the content's subtree yet part
+  of the layer — so an outside press can still dismiss, and every layer
+  stacked above it.
+- A non-modal layer above a modal one does not release the modal layer's
+  containment. The ordinary layers — a select menu, a combobox list, a
+  tooltip, a context menu — are non-modal, and living inside a dialog is
+  their normal habitat; `aria-modal` means the modal window is the only
+  content exposed for as long as it is open, so containment cannot lapse
+  just because a menu opened on top of it. Such a layer still takes over
+  Escape and the focus trap, because it is topmost; it simply leaves
+  containment where it is. Since these layers portal to the body — siblings
+  of the dialog rather than descendants — holding them out of the
+  containment is what keeps them reachable.
 - Containment re-syncs on every stack change: a nested layer hides the one
   beneath it, and closing it restores the layer. Restoring puts back exactly
   what was there — an `inert` or a truthy `aria-hidden` the author already
@@ -86,5 +98,6 @@ again — but keeps painting until its exit visual finishes:
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The store anchors on a realm-global keyed by `Symbol.for`, resolved lazily | A monorepo or micro-frontend can load duplicate copies of this module; separate stores drift apart (the duplicate-singleton bug class of radix-ui/primitives#2815). Lazy keeps `sideEffects: false` honest. |
 | Containment re-runs from scratch on every stack change                     | Undo-then-rehide is idempotent and order-free; incremental patching would have to reason about interleaved opens and closes.                                                                                |
+| Excluded elements match by containment, not identity                       | A layer above is reached through its own portal wrapper, and it is the wrapper that turns up as the sibling on the walk; an identity check would inert the layer with it.                                   |
 | Containment sync guards on `element.isConnected`                           | At teardown the content may already be detached; hiding against a dead node would leak the undo.                                                                                                            |
 | Completion is the element's own end event, first one wins                  | A transition ends once per property and descendants bubble theirs; the exit belongs to the element carrying `data-state`, styled to finish as one piece.                                                    |

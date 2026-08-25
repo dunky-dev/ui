@@ -31,6 +31,16 @@ describe('createLayerStack', () => {
     const stack = createLayerStack<TestLayer>()
     expect(stack.topmost()).toBeUndefined()
     expect(stack.isTopmost('anything')).toBe(false)
+    expect(stack.ordered()).toEqual([])
+  })
+
+  it('orders every layer topmost first', () => {
+    const stack = createLayerStack<TestLayer>()
+    stack.register({ id: 'shallow', depth: 1 })
+    stack.register({ id: 'deep-first', depth: 2 })
+    stack.register({ id: 'deep-second', depth: 2 })
+
+    expect(stack.ordered().map(layer => layer.id)).toEqual(['deep-second', 'deep-first', 'shallow'])
   })
 
   it('lists the layers beneath a layer in unwinding order, topmost first', () => {
