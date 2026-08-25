@@ -60,14 +60,15 @@ again — but keeps painting until its exit visual finishes:
 
 ## API
 
-| Export                                           | Description                                                                          |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| `registerLayer(layer)`                           | Joins the shared stack and syncs containment; returns the disposer that restores it. |
-| `Layer`                                          | `OverlayLayer` + `element`, `modal`, and an optional `backdrop` getter.              |
-| `isTopmostLayer(id)`                             | Whether the layer owns Escape and the focus trap right now.                          |
-| `getInitialFocus(content)`                       | The element to focus on open: first form field, else the overlay window itself.      |
-| `hideExitingLayer(content, boundary, backdrop?)` | Inerts the still-painting layer for the exit window; returns the undo.               |
-| `watchExitAnimation(element, onComplete)`        | Reports the exit visual's end once; returns the cancel.                              |
+| Export                                           | Description                                                                                    |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `registerLayer(layer)`                           | Joins the shared stack and syncs containment; returns the disposer that restores it.           |
+| `Layer`                                          | `OverlayLayer` + `element`, `modal`, an optional `backdrop` getter, and an optional `dismiss`. |
+| `isTopmostLayer(id)`                             | Whether the layer owns Escape and the focus trap right now.                                    |
+| `layersBelow(id)`                                | The layers stacked beneath, topmost first — the unwinding order for a stack-scoped dismissal.  |
+| `getInitialFocus(content)`                       | The element to focus on open: first form field, else the overlay window itself.                |
+| `hideExitingLayer(content, boundary, backdrop?)` | Inerts the still-painting layer for the exit window; returns the undo.                         |
+| `watchExitAnimation(element, onComplete)`        | Reports the exit visual's end once; returns the cancel.                                        |
 
 ## Constraints
 

@@ -14,6 +14,12 @@ export interface Layer extends OverlayLayer {
    * closes — sees the element current at that moment.
    */
   backdrop?: () => Element | null
+  /**
+   * Closes this layer, for a dismissal scoped to the whole stack rather than
+   * one layer: the layer that received the intent unwinds the ones beneath by
+   * calling theirs. A layer that provides none opts out and stays open.
+   */
+  dismiss?: () => void
 }
 
 // One Escape closes exactly one layer only if every overlay shares a single
@@ -65,4 +71,11 @@ export function registerLayer(layer: Layer): () => void {
 
 export function isTopmostLayer(id: string): boolean {
   return getStore().stack.isTopmost(id)
+}
+
+// The layers beneath `id`, topmost first — the unwinding order for a
+// stack-scoped dismissal. Read it before closing the layer that received the
+// intent: leaving the stack takes the answer with it.
+export function layersBelow(id: string): Layer[] {
+  return getStore().stack.below(id)
 }
