@@ -608,12 +608,13 @@ describe('Dialog', () => {
       await traverse(() => window.history.forward())
       expect(layers()).toBe('OI')
 
-      // Both layers are armed again; unmounting frees their entries in one
-      // traversal — settle it here, not in the next test.
+      // Both layers are armed again; unmounting frees their entries one
+      // traversal at a time — settle both pops here, not in the next test.
       const consume = nextPop()
       unmount()
       await act(async () => {
         await consume
+        await nextPop()
       })
     })
 
@@ -642,10 +643,11 @@ describe('Dialog', () => {
       const { rerender } = render(<GuardedStack open />)
       expect(window.history.state).not.toEqual(before)
 
-      const consume = nextPop() // one traversal for both entries
+      const consume = nextPop() // the chain spends the entries one pop at a time
       rerender(<GuardedStack open={false} />)
       await act(async () => {
         await consume
+        await nextPop()
       })
       expect(window.history.state).toEqual(before)
     })

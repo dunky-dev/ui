@@ -84,8 +84,8 @@ describe('interceptBackNavigation', () => {
   })
 
   // Two sibling layers closing in the same commit: the first release's
-  // deferred check must not detach the listener while the second release's
-  // self-caused pop is still on its way.
+  // deferred check must not detach the listener while the consumption chain's
+  // pops are still on their way.
   it('two releases in the same turn leave the next guard able to hear Back', async () => {
     const before: unknown = history.state
     const releaseLower = interceptBackNavigation(() => true)
@@ -94,7 +94,8 @@ describe('interceptBackNavigation', () => {
     const pop = nextPop()
     releaseLower()
     releaseUpper()
-    await pop // the upper release's self-caused pop lands
+    await pop // the consumption chain's first pop lands...
+    await nextPop() // ...and its second consumes the sibling entry beneath
 
     const onBack = vi.fn(() => true)
     interceptBackNavigation(onBack)
@@ -104,18 +105,19 @@ describe('interceptBackNavigation', () => {
   })
 
   // A whole stack freed in one commit — close-all, or an unmounting subtree.
-  // Only the topmost entry is current, so consuming one at a time would leave
-  // every entry beneath behind, each swallowing a later Back. Release order is
-  // irrelevant: the run is read from the entry order, not the call order.
+  // Only the topmost entry is current, so a single check would leave every
+  // entry beneath behind, each swallowing a later Back. The chain consumes one
+  // traversal at a time; release order is irrelevant.
   it('a stack released in one turn consumes every entry it planted', async () => {
     const before: unknown = history.state
     const releaseLower = interceptBackNavigation(() => true)
     const releaseUpper = interceptBackNavigation(() => true)
 
-    const pop = nextPop() // one traversal for the whole run
+    const pop = nextPop()
     releaseUpper()
     releaseLower()
     await pop
+    await nextPop()
     expect(history.state).toEqual(before)
 
     const outerFirst = interceptBackNavigation(() => true)
@@ -124,6 +126,55 @@ describe('interceptBackNavigation', () => {
     outerFirst()
     innerFirst()
     await second
+    await nextPop()
+    expect(history.state).toEqual(before)
+  })
+
+  // A mid-stack release buried beneath a live layer: the next Back pops the
+  // live guard's entry and lands on the dead one. The guard the press crossed
+  // must still close, and the dead entry must be consumed rather than left to
+  // swallow the press.
+  it('a Back landing on a released entry beneath a live guard still unwinds it', async () => {
+    const before: unknown = history.state
+    const lower = vi.fn(() => true)
+    const upper = vi.fn(() => true)
+    const releaseLower = interceptBackNavigation(lower)
+    interceptBackNavigation(upper)
+
+    releaseLower() // buried under the upper guard's entry — nothing to consume yet
+    await new Promise<void>(resolve => queueMicrotask(resolve))
+
+    const pop = nextPop()
+    history.back()
+    await pop // the user's Back: closes upper, lands on the dead entry...
+    await nextPop() // ...which the chain consumes
+    expect(upper).toHaveBeenCalledTimes(1)
+    expect(lower).not.toHaveBeenCalled()
+    expect(history.state).toEqual(before)
+  })
+
+  // A throwing onBack must not corrupt the unwind: the layer didn't confirm
+  // closing, so it counts as a decline while the error propagates.
+  it('a throwing onBack re-arms the guard and keeps it reachable', async () => {
+    const before: unknown = history.state
+    let shouldThrow = true
+    const onBack = vi.fn(() => {
+      if (shouldThrow) throw new Error('consumer bug')
+      return true
+    })
+    interceptBackNavigation(onBack)
+
+    // jsdom reports listener exceptions through window "error" — absorb it.
+    const absorb = (event: ErrorEvent): void => event.preventDefault()
+    window.addEventListener('error', absorb)
+    await pressBack()
+    window.removeEventListener('error', absorb)
+    expect(onBack).toHaveBeenCalledTimes(1)
+    expect(history.state).not.toEqual(before) // re-armed
+
+    shouldThrow = false
+    await pressBack()
+    expect(onBack).toHaveBeenCalledTimes(2)
     expect(history.state).toEqual(before)
   })
 

@@ -22,7 +22,9 @@ it reopens the layer.
   traversal crossed, topmost first.
 - **`onBack` returns whether the layer actually closed.** A decline —
   vetoed, or a controlled layer whose consumer hasn't followed — re-arms the
-  guard entry, so the next Back reaches the same layer again.
+  guard entry, so the next Back reaches the same layer again. An `onBack`
+  that throws counts as a decline: the guard re-arms and the error
+  propagates.
 - **Forward reopens** (opt-in `onForward`): the entry a Back press spent
   still marks the layer's open ground in the forward stack, and a traversal
   re-entering it fires `onForward`, which returns whether the layer actually
@@ -50,9 +52,12 @@ it reopens the layer.
   nothing left to reopen.
 - **Release** (the layer closed by any other means, or gone for good)
   consumes a still-current guard entry so it can't swallow the next Back,
-  and ends a parked guard's Forward watch. An entry buried under later
-  in-app navigation is unreachable and left alone — Back then both navigates
-  and closes the layer.
+  and ends a parked guard's Forward watch. Layers closing together consume
+  all their entries, one traversal at a time, until a live guard's entry —
+  or navigation this package doesn't own — surfaces. An entry buried under
+  later in-app navigation is unreachable and left alone — Back then both
+  navigates and closes the layer; a released entry a later Back does surface
+  is consumed then, alongside the layer that press unwound.
 - **A whole stack closing at once** — a close-all affordance, an unmounting
   subtree — leaves nothing behind either: every entry the layers planted is
   gone, so the next Back goes back rather than being spent on a layer that is
@@ -103,6 +108,13 @@ Back then closes for free and needs no interceptor.
 - A claim identifies ground, not an instance: it has to outlive the
   registration that planted the entry, which is the whole point, so it can
   only ever be as precise as the caller's own naming of that ground.
+- **Nested layers that open in the same commit unwind outside-in.** Arming
+  order is the caller's lifecycle order, and effect-based hosts (React runs
+  child effects before parent effects) arm an inner layer that mounts
+  already open beneath its parent — the first Back then closes the outer
+  layer. A layer that opens after its parent is already mounted unwinds
+  inside-out as expected. An ordering signal that isn't mount order is
+  tracked separately.
 
 ## Internals
 
@@ -113,5 +125,5 @@ Back then closes for free and needs no interceptor.
 | Self-caused pops are counted, and re-arm a live guard whose entry they consumed                                                    | The browser reports them through the same `popstate` as a user's Back; uncounted, one release would unwind another layer.                                                                                                                                                                                                      |
 | A Back-closed guard parks instead of dropping; ownership of the landing entry — not traversal direction — decides reopen vs unwind | `popstate` carries no direction. A parked or stale marker can only be forward residue above the armed guards (pushes truncate it everywhere else), so landing on one must never unwind — it would close layers on a Forward.                                                                                                   |
 | Reopening re-arms the guard on the spent entry in place                                                                            | The traversal already made the entry current; planting another would truncate the remaining forward stack and stack junk entries.                                                                                                                                                                                              |
-| Consumption is batched per turn, over a snapshot of the entry order                                                                | A multi-entry `go` is one traversal and one `popstate`, so a freed run costs the same as a single entry. The snapshot is taken before the first release splices, so the call order of sibling releases can't change the run.                                                                                                   |
+| Sibling releases consume entries one traversal at a time, not one `history.go(-n)`                                                 | Entries below the current one are opaque, so a multi-step jump could cross navigation this package doesn't own; chaining single pops — each landing continuing the chain — stops at the first entry that isn't ours to spend. Call order still can't matter: the pending set is order-free.                                    |
 | Built on the History API, not the Navigation API                                                                                   | The Navigation API answers natively what this module reconstructs — whose traversal it was and which direction it ran — dissolving the self-caused-pop counting and the direction inference. It is not cross-browser yet (Chromium ships it; Safari and Firefox don't fully); once it is, this module should be rebuilt on it. |

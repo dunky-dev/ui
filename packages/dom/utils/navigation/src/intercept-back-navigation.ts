@@ -49,14 +49,13 @@ let nextGuardId = 0
 // Pops this module caused itself — counted so they are never read as a user's
 // Back and unwind another layer.
 let swallow = 0
-// Releases whose deferred consumption hasn't run — the listener must outlive
-// them, or one release's idle check could detach it under a sibling's pop.
-let pendingReleases = 0
-// A turn's releases, consumed together: a stack closing at once has only its
-// topmost entry current, so one-at-a-time would strand every entry beneath.
-// `order` snapshots the entry order before the first release splices.
-let batch: Set<number> | null = null
-let order: number[] | null = null
+// Entries whose guards released but whose consumption hasn't happened yet.
+// Sibling releases from one turn all land here; consumption then chains one
+// traversal at a time (each pop surfaces the next spent entry) instead of one
+// history.go(-n) jump, because entries below the current one are opaque — a
+// multi-step jump could cross navigation this module doesn't own.
+const pendingConsumption = new Set<number>()
+let consumptionScheduled = false
 
 function currentGuardId(): number | undefined {
   const state: unknown = history.state
@@ -108,43 +107,29 @@ function plantEntry(guard: BackGuard): void {
   history.pushState({ [STATE_KEY]: guard.id, [CLAIM_KEY]: guard.claim }, '')
 }
 
-// Once per turn, after every release in it: consume the freed run of entries —
-// current one down, while contiguous — in a single traversal.
-function consumeBatch(): void {
-  const released = batch as Set<number>
-  const entryOrder = order as number[]
-  batch = null
-  order = null
-  pendingReleases = 0
-
+// Consume the current entry if its guard released: one history.back() whose
+// pop re-enters onPopState and continues the chain from there.
+function consumeCurrentIfPending(): void {
   const current = currentGuardId()
-  // Nothing of ours is current: buried under later navigation, or adopted by a
-  // same-turn re-register. Unreachable entries are left alone.
-  if (current === undefined || !released.has(current)) {
-    detachWhenIdle()
-    return
+  if (current !== undefined && pendingConsumption.delete(current)) {
+    swallow++
+    history.back()
   }
-  // A guard that both registered and released inside this turn isn't in the
-  // snapshot; its own entry is still the one to consume.
-  const top = entryOrder.indexOf(current)
-  let count = 1
-  for (let index = top - 1; index >= 0 && released.has(entryOrder[index] as number); index--) {
-    count++
-  }
-  swallow++
-  history.go(-count)
 }
 
 // Detach only when nothing is left to hear — parked guards, claim watchers,
-// in-flight self-caused pops, and undecided releases all still need it.
+// in-flight self-caused pops, and a scheduled consumption pass all still need
+// it. Entries still pending at that point are buried under navigation this
+// module doesn't own — unreachable for good.
 function detachWhenIdle(): void {
   if (
     guards.length === 0 &&
     parked.length === 0 &&
     watchers.length === 0 &&
     swallow === 0 &&
-    pendingReleases === 0
+    !consumptionScheduled
   ) {
+    pendingConsumption.clear()
     window.removeEventListener('popstate', onPopState)
   }
 }
@@ -157,16 +142,21 @@ function onPopState(): void {
     const top = guards[guards.length - 1]
     if (top !== undefined && top.id !== currentGuardId()) {
       plantEntry(top)
+    } else {
+      // The pop may have surfaced the next spent sibling entry — continue.
+      consumeCurrentIfPending()
     }
     detachWhenIdle()
     return
   }
   const current = currentGuardId()
-  // A marked entry with no armed owner is forward residue and never unwinds
-  // anything. A parked owner reopens (every crossed guard, lowest first; a
-  // decline stays parked). No owner at all: offer the entry's claim to the
-  // layer that took the planter's place.
-  if (current !== undefined && !isArmed(current)) {
+  // A marked entry with no armed owner and no pending consumption is forward
+  // residue and never unwinds anything. A parked owner reopens (every crossed
+  // guard, lowest first; a decline stays parked). No owner at all: offer the
+  // entry's claim to the layer that took the planter's place. An entry
+  // pending consumption is the opposite of residue — a dead entry a user's
+  // Back just surfaced — so it falls through to the unwind below.
+  if (current !== undefined && !isArmed(current) && !pendingConsumption.has(current)) {
     const landed = parkedIndex(current)
     if (landed !== -1) {
       for (let index = parked.length - 1; index >= landed; index--) {
@@ -189,23 +179,29 @@ function onPopState(): void {
   while (guards.length > 0) {
     const top = guards[guards.length - 1] as BackGuard
     if (top.id === current) break
-    if (top.onBack()) {
-      // By identity, not position: onBack may have released this guard
-      // itself, and a positional pop would evict the guard beneath.
-      const index = guards.indexOf(top)
-      if (index !== -1) {
-        guards.splice(index, 1)
-        // Park for the way back — unless the guard released itself in onBack:
-        // gone for good, nothing left to reopen.
-        if (top.onForward !== undefined) parked.push(top)
-      }
-      continue
+    let closed = false
+    try {
+      closed = top.onBack()
+    } finally {
+      // Declined — vetoed, a controlled layer that hasn't followed yet, or
+      // onBack threw: re-arm the guard entry so the next Back reaches this
+      // layer again, even as the error propagates.
+      if (!closed) plantEntry(top)
     }
-    // Declined — vetoed, or a controlled layer that hasn't followed yet:
-    // re-arm the guard entry so the next Back reaches this layer again.
-    plantEntry(top)
-    break
+    if (!closed) break
+    // By identity, not position: onBack may have released this guard
+    // itself, and a positional pop would evict the guard beneath.
+    const index = guards.indexOf(top)
+    if (index !== -1) {
+      guards.splice(index, 1)
+      // Park for the way back — unless the guard released itself in onBack:
+      // gone for good, nothing left to reopen.
+      if (top.onForward !== undefined) parked.push(top)
+    }
   }
+  // The unwind may have landed on an entry whose guard already released (a
+  // mid-stack release buried beneath a live layer) — consume it.
+  consumeCurrentIfPending()
   detachWhenIdle()
 }
 
@@ -217,9 +213,11 @@ function onPopState(): void {
  * entry in place.
  *
  * Consumption is deferred a microtask so a same-turn release + re-register
- * adopts the entry in place with zero traversals — a queued `history.back()`
- * is not reliably delivered once another push lands first, so not queuing one
- * removes the race. See SPEC.md for the full contract.
+ * adopts the entry in place (rewrites the marker and withdraws it from pending
+ * consumption), so the deferred pass finds nothing to spend and queues no
+ * traversal — a queued `history.back()` is not reliably delivered once another
+ * push lands first, so not queuing one removes the race. See SPEC.md for the
+ * full contract.
  */
 export function interceptBackNavigation(
   onBack: () => boolean,
@@ -236,10 +234,12 @@ export function interceptBackNavigation(
   const current = currentGuardId()
   guards.push(guard)
   if (current !== undefined && !isArmed(current)) {
-    // Adoption steals the entry from a parked watcher too — the ground now
-    // belongs to this registration.
+    // Adoption steals the entry from a parked watcher too, and withdraws it
+    // from any pending consumption — the ground now belongs to this
+    // registration, so no traversal may spend it.
     const stale = parkedIndex(current)
     if (stale !== -1) parked.splice(stale, 1)
+    pendingConsumption.delete(current)
     history.replaceState({ [STATE_KEY]: guard.id, [CLAIM_KEY]: guard.claim }, '')
   } else {
     plantEntry(guard)
@@ -247,24 +247,39 @@ export function interceptBackNavigation(
 
   return (releaseOptions: ReleaseOptions = {}) => {
     if (releaseOptions.keepClaim !== true) abandoned.add(guard.id)
-    // Snapshot the entry order before this turn's first release splices it.
-    if (batch === null) {
-      batch = new Set()
-      order = [...guards.map(entry => entry.id), ...parked.map(entry => entry.id)]
-      queueMicrotask(consumeBatch)
-    }
 
     const rest = parked.indexOf(guard)
     if (rest !== -1) {
       parked.splice(rest, 1)
-    } else {
-      const index = guards.indexOf(guard)
-      if (index === -1) return // already unwound by the Back press itself
-      guards.splice(index, 1)
+      // A parked guard's entry sits in the forward stack — not the chain's to
+      // spend — unless a declined reopen left it current: consume that one,
+      // or it swallows the next Back.
+      if (currentGuardId() === guard.id) {
+        pendingConsumption.add(guard.id)
+        scheduleConsumption()
+      } else {
+        detachWhenIdle()
+      }
+      return
     }
-    batch.add(guard.id)
-    pendingReleases++
+    const index = guards.indexOf(guard)
+    if (index === -1) return // already unwound by the Back press itself
+    guards.splice(index, 1)
+    pendingConsumption.add(guard.id)
+    scheduleConsumption()
   }
+}
+
+// One deferred pass per turn, shared by every sibling release; it starts the
+// consumption chain, and each landing pop continues it.
+function scheduleConsumption(): void {
+  if (consumptionScheduled) return
+  consumptionScheduled = true
+  queueMicrotask(() => {
+    consumptionScheduled = false
+    consumeCurrentIfPending()
+    detachWhenIdle()
+  })
 }
 
 /**

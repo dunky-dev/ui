@@ -16,8 +16,8 @@ releaseOuter()
 
 history.back()
 // before: ❌ nothing happens — spent on outer's leftover entry
-// after:  ✅ leaves the page — the freed run was consumed as one traversal
+// after:  ✅ leaves the page — every freed entry was consumed
 ```
 
-Release order doesn't matter (the run is read from the entry order), and an
-entry genuinely buried under later in-app navigation is still left alone.
+Release order doesn't matter, and an entry genuinely buried under later
+in-app navigation is still left alone.
