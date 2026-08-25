@@ -123,6 +123,25 @@ describe('trapFocus', () => {
     expect(document.activeElement?.id).toBe('last')
   })
 
+  it('includes iframes and a details summary in the cycle', () => {
+    const container = mount(
+      '<button type="button" id="first">first</button>' +
+        '<iframe id="frame" title="embedded"></iframe>' +
+        '<details><summary id="summary">more</summary>content</details>' +
+        '<button type="button" id="last">last</button>',
+    )
+    document.getElementById('first')?.focus()
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('frame')
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('summary')
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('last')
+  })
+
   it('collapses a same-name radio group to its checked radio', () => {
     const container = mount(
       '<button type="button" id="before">before</button>' +
