@@ -1,5 +1,39 @@
 # @dunky.dev/dom-focus-trap
 
+## 0.1.2
+
+### Patch Changes
+
+- [#39](https://github.com/dunky-dev/ui/pull/39) [`560d539`](https://github.com/dunky-dev/ui/commit/560d539dac5d2ed4b318b9ddad08f9717ddb8f00) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Two fixes to which elements the trap's Tab cycle visits:
+  - **Rendered-ness is now decided by a computed-style walk instead of
+    `Element.checkVisibility()`.** The API is recent (Chrome/Edge 105+,
+    Firefox 106+, Safari 17.4+), and the trap resolves focusables after the Tab
+    keydown's `preventDefault()` — on a browser without it, the resulting throw
+    left Tab dead entirely. The walk checks the same conditions (`hidden`
+    attribute, `visibility: hidden`, `display: none` on the element or an
+    ancestor) and works everywhere.
+  - **`iframe` and `details > summary` now participate in the cycle.** Browsers
+    tab to both, but the trap — which steps focus itself — skipped them, making
+    them unreachable by keyboard while trapped. Only a details' first summary is
+    matched, since that is the disclosure widget browsers focus.
+
+- [#48](https://github.com/dunky-dev/ui/pull/48) [`6ed64a2`](https://github.com/dunky-dev/ui/commit/6ed64a213a42f2f03d07759afd84b456fd753218) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Make the trap's Tab cycle match what a browser would actually focus.
+
+  Three fixes, all consumer-visible:
+  - **The trap now intercepts Tab from anywhere in the document.** The keydown
+    listener moved from the container to the document (capture phase), so a Tab
+    pressed while focus is still outside — on the trigger, or on `body` — wraps
+    into the cycle at the edge instead of following native tab order out of the
+    trap. Initial focus on open remains the caller's job.
+  - **Non-rendered elements no longer enter the cycle.** Elements hidden via the
+    `hidden` attribute, `display: none` (own or ancestor), or
+    `visibility: hidden` are filtered out. Focusing a non-rendered element is a
+    no-op, so a hidden element in the cycle used to stall the trap on it.
+  - **A same-name radio group is one tab stop.** Per the APG radio group
+    pattern, the stop is the checked radio, else the group's first; groups are
+    scoped by name and form owner. The trap steps focus itself, so it now
+    reproduces the browser's grouping instead of visiting every radio.
+
 ## 0.1.1
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @dunky.dev/native-dialog
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`ffa4fad`](https://github.com/dunky-dev/ui/commit/ffa4fada7719daa8661adab52c20952f3d8d7559), [`6b51d8d`](https://github.com/dunky-dev/ui/commit/6b51d8de4d1069863a56c7ac5f74cb3c8dfaa20c)]:
+  - @dunky.dev/dialog@0.4.0
+
 ## 0.1.1
 
 ### Patch Changes
