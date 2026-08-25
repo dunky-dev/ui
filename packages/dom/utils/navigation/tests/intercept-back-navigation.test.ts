@@ -103,6 +103,30 @@ describe('interceptBackNavigation', () => {
     expect(history.state).toEqual(before)
   })
 
+  // A whole stack freed in one commit — close-all, or an unmounting subtree.
+  // Only the topmost entry is current, so consuming one at a time would leave
+  // every entry beneath behind, each swallowing a later Back. Release order is
+  // irrelevant: the run is read from the entry order, not the call order.
+  it('a stack released in one turn consumes every entry it planted', async () => {
+    const before: unknown = history.state
+    const releaseLower = interceptBackNavigation(() => true)
+    const releaseUpper = interceptBackNavigation(() => true)
+
+    const pop = nextPop() // one traversal for the whole run
+    releaseUpper()
+    releaseLower()
+    await pop
+    expect(history.state).toEqual(before)
+
+    const outerFirst = interceptBackNavigation(() => true)
+    const innerFirst = interceptBackNavigation(() => true)
+    const second = nextPop()
+    outerFirst()
+    innerFirst()
+    await second
+    expect(history.state).toEqual(before)
+  })
+
   it('a guard releasing itself inside onBack leaves the guard beneath armed', async () => {
     const before: unknown = history.state
     const lower = vi.fn(() => true)
@@ -150,7 +174,7 @@ describe('interceptBackNavigation', () => {
   it('a Back-closed guard reopens on Forward and re-arms on the entry in place', async () => {
     const onBack = vi.fn(() => true)
     const onForward = vi.fn(() => true)
-    const release = interceptBackNavigation(onBack, onForward)
+    const release = interceptBackNavigation(onBack, { onForward })
     await pressBack()
     expect(onBack).toHaveBeenCalledTimes(1)
 
@@ -168,7 +192,7 @@ describe('interceptBackNavigation', () => {
   it('a declined reopen keeps watching; a later Forward offers again', async () => {
     let accept = false
     const onForward = vi.fn(() => accept)
-    const release = interceptBackNavigation(() => true, onForward)
+    const release = interceptBackNavigation(() => true, { onForward })
     await pressBack()
 
     await pressForward()
@@ -183,7 +207,7 @@ describe('interceptBackNavigation', () => {
 
   it('release while parked ends the Forward watch', async () => {
     const onForward = vi.fn(() => true)
-    const release = interceptBackNavigation(() => true, onForward)
+    const release = interceptBackNavigation(() => true, { onForward })
     await pressBack()
     release()
     await new Promise<void>(resolve => queueMicrotask(resolve))
@@ -198,10 +222,13 @@ describe('interceptBackNavigation', () => {
   it('a guard releasing itself inside onBack never parks', async () => {
     const onForward = vi.fn(() => true)
     let release = (): void => undefined
-    release = interceptBackNavigation(() => {
-      release()
-      return true
-    }, onForward)
+    release = interceptBackNavigation(
+      () => {
+        release()
+        return true
+      },
+      { onForward },
+    )
 
     await pressBack()
     await pressForward() // re-enters the spent entry, nobody watching
@@ -211,7 +238,7 @@ describe('interceptBackNavigation', () => {
 
   it('a newly planted entry ends the Forward watch of the layer before it', async () => {
     const firstForward = vi.fn(() => true)
-    interceptBackNavigation(() => true, firstForward)
+    interceptBackNavigation(() => true, { onForward: firstForward })
     await pressBack() // parked, entry in the forward stack
 
     const second = vi.fn(() => true)
@@ -227,8 +254,8 @@ describe('interceptBackNavigation', () => {
   it('stacked Back-closed guards reopen one per Forward, lowest first', async () => {
     const lowerForward = vi.fn(() => true)
     const upperForward = vi.fn(() => true)
-    const releaseLower = interceptBackNavigation(() => true, lowerForward)
-    const releaseUpper = interceptBackNavigation(() => true, upperForward)
+    const releaseLower = interceptBackNavigation(() => true, { onForward: lowerForward })
+    const releaseUpper = interceptBackNavigation(() => true, { onForward: upperForward })
     await pressBack()
     await pressBack()
 

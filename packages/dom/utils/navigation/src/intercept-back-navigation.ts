@@ -1,43 +1,92 @@
 // Marks a layer's guard entry in the session history; the value says which
 // interceptor owns the entry.
 const STATE_KEY = '@dunky.back'
+// The layer's name for its ground — outlives the registration (and a reload),
+// so a layer that comes back can recognize its entry (see `watchSpentEntry`).
+const CLAIM_KEY = '@dunky.claim'
 
 interface BackGuard {
   id: number
+  claim: string | undefined
   onBack: () => boolean
   onForward: (() => boolean) | undefined
 }
 
-// One shared registry + one popstate listener across every layer: a Back
-// press pops exactly one entry, so only the interceptor whose guard entry
-// vanished may answer — the ones beneath see their entry still current and
-// stay armed. That ordering is what makes stacked layers (nested dialogs,
-// a drawer under a sheet) unwind one per press with no cross-layer
-// bookkeeping.
+export interface BackNavigationOptions {
+  /** Fires when a traversal re-enters the entry a Back press spent; returns
+   * whether the layer actually reopened. */
+  onForward?: () => boolean
+  /** Stamped into the entry; see `watchSpentEntry`. */
+  claim?: string
+}
+
+// Closed layers waiting for a landing on a spent entry bearing their claim —
+// the way back when the registration that planted the entry didn't survive.
+interface ClaimWatcher {
+  claim: string
+  reopen: () => boolean
+}
+
+const watchers: ClaimWatcher[] = []
+// Entries whose layer closed rather than being torn down: given up on purpose,
+// so no later layer may claim them — Forward must not undo a deliberate close.
+const abandoned = new Set<number>()
+
+export interface ReleaseOptions {
+  /** The layer is being torn down, not closed — keep its entry claimable so
+   * the layer that takes its place may reopen from it. @default false */
+  keepClaim?: boolean
+}
+
+// One shared registry + one popstate listener: a Back pops exactly one entry,
+// so only the guard whose entry vanished answers — stacked layers unwind one
+// per press with no cross-layer bookkeeping.
 const guards: BackGuard[] = []
-// Guards whose entry a Back press already popped, kept for the way back: the
-// popped entry survives in the session's forward stack, and a traversal
-// re-entering it is the host's Forward — `onForward` asks the layer to
-// reopen. Parked entries always sit above every armed one: parking only ever
-// pops topmost entries, and any planted entry truncates the forward stack
-// they live in (see plantEntry).
+// Guards whose entry a Back press popped, kept so the host's Forward can
+// reopen the layer. Parked entries always sit above every armed one.
 const parked: BackGuard[] = []
 let nextGuardId = 0
-// Pops this module caused itself (consuming a guard entry on release). The
-// browser reports them through the same popstate as a user's Back — count
-// them so they are never read as one and unwind another layer.
+// Pops this module caused itself — counted so they are never read as a user's
+// Back and unwind another layer.
 let swallow = 0
-// Releases whose deferred consumption hasn't run yet. Each may still queue a
-// self-caused pop, so the listener must outlive them: without this, one
-// release's idle check could detach the listener while a sibling release from
-// the same turn is about to call history.back().
+// Releases whose deferred consumption hasn't run — the listener must outlive
+// them, or one release's idle check could detach it under a sibling's pop.
 let pendingReleases = 0
+// A turn's releases, consumed together: a stack closing at once has only its
+// topmost entry current, so one-at-a-time would strand every entry beneath.
+// `order` snapshots the entry order before the first release splices.
+let batch: Set<number> | null = null
+let order: number[] | null = null
 
 function currentGuardId(): number | undefined {
   const state: unknown = history.state
   if (typeof state !== 'object' || state === null) return undefined
   const id = (state as Record<string, unknown>)[STATE_KEY]
   return typeof id === 'number' ? id : undefined
+}
+
+function currentClaim(): string | undefined {
+  const state: unknown = history.state
+  if (typeof state !== 'object' || state === null) return undefined
+  const claim = (state as Record<string, unknown>)[CLAIM_KEY]
+  return typeof claim === 'string' ? claim : undefined
+}
+
+// Offers a spent entry to the layer that has taken the planter's place. Only a
+// sole candidate may answer: two layers claiming the same ground can't be told
+// apart, and reopening the wrong one is worse than reopening none.
+function offerToClaimant(): void {
+  const id = currentGuardId()
+  if (id !== undefined && abandoned.has(id)) return
+  const claim = currentClaim()
+  if (claim === undefined) return
+  let candidate: ClaimWatcher | undefined
+  for (const watcher of watchers) {
+    if (watcher.claim !== claim) continue
+    if (candidate !== undefined) return
+    candidate = watcher
+  }
+  candidate?.reopen()
 }
 
 function isArmed(id: number): boolean {
@@ -54,16 +103,48 @@ function parkedIndex(id: number): number {
 
 // Every planted entry truncates the forward stack, taking every parked entry
 // with it — the guards watching them have nothing left to hear.
-function plantEntry(id: number): void {
+function plantEntry(guard: BackGuard): void {
   parked.length = 0
-  history.pushState({ [STATE_KEY]: id }, '')
+  history.pushState({ [STATE_KEY]: guard.id, [CLAIM_KEY]: guard.claim }, '')
 }
 
-// The listener detaches only when nothing is left to hear: a parked watcher,
-// an in-flight self-caused pop (swallow), or an undecided release
-// (pendingReleases) all still need it even with every guard released.
+// Once per turn, after every release in it: consume the freed run of entries —
+// current one down, while contiguous — in a single traversal.
+function consumeBatch(): void {
+  const released = batch as Set<number>
+  const entryOrder = order as number[]
+  batch = null
+  order = null
+  pendingReleases = 0
+
+  const current = currentGuardId()
+  // Nothing of ours is current: buried under later navigation, or adopted by a
+  // same-turn re-register. Unreachable entries are left alone.
+  if (current === undefined || !released.has(current)) {
+    detachWhenIdle()
+    return
+  }
+  // A guard that both registered and released inside this turn isn't in the
+  // snapshot; its own entry is still the one to consume.
+  const top = entryOrder.indexOf(current)
+  let count = 1
+  for (let index = top - 1; index >= 0 && released.has(entryOrder[index] as number); index--) {
+    count++
+  }
+  swallow++
+  history.go(-count)
+}
+
+// Detach only when nothing is left to hear — parked guards, claim watchers,
+// in-flight self-caused pops, and undecided releases all still need it.
 function detachWhenIdle(): void {
-  if (guards.length === 0 && parked.length === 0 && swallow === 0 && pendingReleases === 0) {
+  if (
+    guards.length === 0 &&
+    parked.length === 0 &&
+    watchers.length === 0 &&
+    swallow === 0 &&
+    pendingReleases === 0
+  ) {
     window.removeEventListener('popstate', onPopState)
   }
 }
@@ -75,19 +156,16 @@ function onPopState(): void {
     // (it adopted the entry while the traversal was in flight), re-arm it.
     const top = guards[guards.length - 1]
     if (top !== undefined && top.id !== currentGuardId()) {
-      plantEntry(top.id)
+      plantEntry(top)
     }
     detachWhenIdle()
     return
   }
   const current = currentGuardId()
-  // A marked entry with no armed owner is forward residue — ground above
-  // every armed entry (a plant would have truncated it anywhere else), so
-  // nothing may unwind here whichever way the traversal ran. A parked owner
-  // means the host re-entered "layer open" ground: offer every crossed guard
-  // a reopen, lowest first. A decline — vetoed, or a controlled layer that
-  // hasn't followed — stays parked, so a later landing offers again. No
-  // owner at all is a dead entry; nothing to do.
+  // A marked entry with no armed owner is forward residue and never unwinds
+  // anything. A parked owner reopens (every crossed guard, lowest first; a
+  // decline stays parked). No owner at all: offer the entry's claim to the
+  // layer that took the planter's place.
   if (current !== undefined && !isArmed(current)) {
     const landed = parkedIndex(current)
     if (landed !== -1) {
@@ -100,6 +178,8 @@ function onPopState(): void {
           guards.push(guard)
         }
       }
+    } else {
+      offerToClaimant()
     }
     detachWhenIdle()
     return
@@ -115,54 +195,42 @@ function onPopState(): void {
       const index = guards.indexOf(top)
       if (index !== -1) {
         guards.splice(index, 1)
-        // The popped entry lives on in the forward stack: park the guard so
-        // the host's Forward can reopen the layer. A guard that released
-        // itself inside `onBack` is gone for good — nothing left to reopen.
+        // Park for the way back — unless the guard released itself in onBack:
+        // gone for good, nothing left to reopen.
         if (top.onForward !== undefined) parked.push(top)
       }
       continue
     }
     // Declined — vetoed, or a controlled layer that hasn't followed yet:
     // re-arm the guard entry so the next Back reaches this layer again.
-    plantEntry(top.id)
+    plantEntry(top)
     break
   }
   detachWhenIdle()
 }
 
 /**
- * Plants a guard entry in the session history so the host's Back dismisses a
- * layer (a dialog, drawer, sheet — anything overlaid) instead of leaving the
- * page. `onBack` fires when the user pops the entry and returns whether the
- * layer actually closed — a decline re-arms the guard. The returned release
- * (for a layer closed by any other means, or gone for good) consumes a
- * still-current guard entry so it can't swallow the next Back; an entry
- * buried under later navigation is unreachable and left alone.
+ * Plants a guard entry so the host's Back dismisses a layer instead of leaving
+ * the page. `onBack` returns whether the layer closed — a decline re-arms. The
+ * returned release consumes a still-current entry (a buried one is left
+ * alone); with `onForward`, Forward reopens what Back closed, re-armed on the
+ * entry in place.
  *
- * With `onForward`, a Back-closed layer keeps a way back: its popped entry
- * survives in the forward stack, and a traversal re-entering it fires
- * `onForward`, which returns whether the layer actually reopened — the guard
- * re-arms on the entry in place. A decline keeps the watch for a later
- * landing; the watch ends when the layer releases, when a newly planted
- * entry truncates the forward stack, or when a new registration adopts the
- * entry.
- *
- * Consumption is deferred a microtask so a release immediately followed by a
- * re-register in the same synchronous turn nets out to zero traversals: the
- * re-register finds the entry still current but no longer owned and adopts it
- * in place (rewrites the marker), so when the deferred consumption runs the
- * entry is no longer this guard's and no `history.back()` is queued. That
- * matters because a traversal queued by `history.back()` is not reliably
- * delivered once another entry is pushed before it lands; not queuing one in
- * that window removes the race instead of compensating for it. The same
- * adoption is how a layer reopened by Forward re-registers on its own spent
- * entry without a traversal.
+ * Consumption is deferred a microtask so a same-turn release + re-register
+ * adopts the entry in place with zero traversals — a queued `history.back()`
+ * is not reliably delivered once another push lands first, so not queuing one
+ * removes the race. See SPEC.md for the full contract.
  */
 export function interceptBackNavigation(
   onBack: () => boolean,
-  onForward?: () => boolean,
-): () => void {
-  const guard: BackGuard = { id: ++nextGuardId, onBack, onForward }
+  options: BackNavigationOptions = {},
+): (releaseOptions?: ReleaseOptions) => void {
+  const guard: BackGuard = {
+    id: ++nextGuardId,
+    claim: options.claim,
+    onBack,
+    onForward: options.onForward,
+  }
   // Identical (type, listener) pairs dedupe, so attaching is idempotent.
   window.addEventListener('popstate', onPopState)
   const current = currentGuardId()
@@ -172,12 +240,20 @@ export function interceptBackNavigation(
     // belongs to this registration.
     const stale = parkedIndex(current)
     if (stale !== -1) parked.splice(stale, 1)
-    history.replaceState({ [STATE_KEY]: guard.id }, '')
+    history.replaceState({ [STATE_KEY]: guard.id, [CLAIM_KEY]: guard.claim }, '')
   } else {
-    plantEntry(guard.id)
+    plantEntry(guard)
   }
 
-  return () => {
+  return (releaseOptions: ReleaseOptions = {}) => {
+    if (releaseOptions.keepClaim !== true) abandoned.add(guard.id)
+    // Snapshot the entry order before this turn's first release splices it.
+    if (batch === null) {
+      batch = new Set()
+      order = [...guards.map(entry => entry.id), ...parked.map(entry => entry.id)]
+      queueMicrotask(consumeBatch)
+    }
+
     const rest = parked.indexOf(guard)
     if (rest !== -1) {
       parked.splice(rest, 1)
@@ -186,17 +262,25 @@ export function interceptBackNavigation(
       if (index === -1) return // already unwound by the Back press itself
       guards.splice(index, 1)
     }
+    batch.add(guard.id)
     pendingReleases++
-    queueMicrotask(() => {
-      pendingReleases--
-      // Still ours and still current: nobody adopted it and no Back popped
-      // it — consume the entry. The listener stays until the pop lands.
-      if (currentGuardId() === guard.id) {
-        swallow++
-        history.back()
-      } else {
-        detachWhenIdle()
-      }
-    })
+  }
+}
+
+/**
+ * Reopens a layer whose guard is gone (unmounted, or reloaded): landing on a
+ * spent entry with a matching `claim` asks `reopen`. If two watchers share a
+ * claim, neither answers.
+ */
+export function watchSpentEntry(claim: string, reopen: () => boolean): () => void {
+  const watcher: ClaimWatcher = { claim, reopen }
+  // Identical (type, listener) pairs dedupe, so attaching is idempotent.
+  window.addEventListener('popstate', onPopState)
+  watchers.push(watcher)
+  return () => {
+    const index = watchers.indexOf(watcher)
+    if (index === -1) return
+    watchers.splice(index, 1)
+    detachWhenIdle()
   }
 }
