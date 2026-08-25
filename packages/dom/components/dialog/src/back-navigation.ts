@@ -1,4 +1,8 @@
-import { interceptBackNavigation } from '@dunky.dev/browser-navigation'
+import {
+  interceptBackNavigation,
+  watchSpentEntry,
+  type ReleaseOptions,
+} from '@dunky.dev/browser-navigation'
 
 export interface BackNavigationGuardOptions {
   /** The api's `backNavigate` — every decision (gate, veto, controlled) is the core's. */
@@ -7,13 +11,20 @@ export interface BackNavigationGuardOptions {
   forwardNavigate: () => void
   /** Whether the machine is open, read back after a navigation ran. */
   isOpen: () => boolean
+  /**
+   * The dialog's nesting depth (1 = top-level). It is what a returning dialog
+   * recognizes its own spent entry by: the machine is new after a remount, but
+   * the position in the stack is the same.
+   */
+  depth: number
 }
 
 export interface BackNavigationGuard {
   /**
    * The dialog's open state, reported on every change: an open edge (re)arms
    * the guard, a close either parks it — the Back press itself closed the
-   * dialog, so Forward may still reopen it — or releases it.
+   * dialog, so Forward may still reopen it — or releases it and watches for
+   * the dialog's own ground to be re-entered.
    */
   sync: (open: boolean) => void
   /** The dialog is gone for good; ends the episode in whichever phase it is. */
@@ -29,15 +40,30 @@ export interface BackNavigationGuard {
  * a decline leaves the guard armed.
  *
  * One registration spans the whole episode rather than the open state alone —
- * releasing on a Back-close would end the Forward watch along with it.
+ * releasing on a Back-close would end the Forward watch along with it. A closed
+ * dialog keeps the weaker watch instead: not on an entry it owns, but on its
+ * own ground being re-entered, which is the only way back for a nested dialog
+ * that was unmounted with the parent it was opened from.
  */
 export function guardBackNavigation(options: BackNavigationGuardOptions): BackNavigationGuard {
-  let releaseIntercept: (() => void) | null = null
+  const claim = `dialog:${options.depth}`
+  let releaseIntercept: ((options?: ReleaseOptions) => void) | null = null
+  let releaseWatch: (() => void) | null = null
   let closedByBack = false
 
+  // Torn down (unmounted) rather than closed: the dialog's ground stays its
+  // own, so the instance that takes its place can reopen from it. A close is
+  // the opposite — see `sync`.
   const release = (): void => {
-    releaseIntercept?.()
+    releaseIntercept?.({ keepClaim: true })
     releaseIntercept = null
+    releaseWatch?.()
+    releaseWatch = null
+  }
+
+  const reopen = (): boolean => {
+    options.forwardNavigate()
+    return options.isOpen()
   }
 
   return {
@@ -54,16 +80,21 @@ export function guardBackNavigation(options: BackNavigationGuardOptions): BackNa
             closedByBack = !options.isOpen()
             return closedByBack
           },
-          () => {
-            options.forwardNavigate()
-            return options.isOpen()
-          },
+          { onForward: reopen, claim },
         )
       } else if (closedByBack) {
-        // The registration stays parked in the util, watching the spent entry.
+        // The registration stays parked in the util, watching the spent entry
+        // it still owns — a stronger claim than the one below.
         closedByBack = false
       } else {
-        release()
+        // Closed by something other than Back: this dialog is done with its
+        // entry, and Forward must not bring it back. It still watches for its
+        // own ground to be re-entered — ground a previous instance of this
+        // dialog lost when it was torn down mid-episode.
+        releaseIntercept?.()
+        releaseIntercept = null
+        releaseWatch?.()
+        releaseWatch = watchSpentEntry(claim, reopen)
       }
     },
     release,

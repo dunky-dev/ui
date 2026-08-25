@@ -45,12 +45,14 @@ const pressEscape = (): boolean =>
 const registered: (() => void)[] = []
 
 // A layer, mounted and registered, standing in for a rendered dialog window.
-const mountLayer = (id: string, depth: number, html = ''): HTMLElement => {
+const mountLayer = (id: string, depth: number, html = '', dismiss?: () => void): HTMLElement => {
   const content = document.createElement('div')
   content.tabIndex = -1
   content.innerHTML = html
   document.body.append(content)
-  registered.push(registerLayer({ id, depth, element: content, modal: true, backdrop: () => null }))
+  registered.push(
+    registerLayer({ id, depth, element: content, modal: true, backdrop: () => null, dismiss }),
+  )
   return content
 }
 
@@ -88,6 +90,30 @@ describe('domDialogEffects — Escape', () => {
 
     pressEscape()
     expect(service.matches('open')).toBe(true)
+  })
+
+  // escapeScope: 'stack' — the receiving dialog gates and vetoes, then the
+  // layers beneath get a plain close, top-down.
+  it('unwinds the whole stack when the topmost dialog scopes Escape to it', () => {
+    const lower = build({ defaultOpen: true, id: 'lower' })
+    const upper = build({ defaultOpen: true, id: 'upper', escapeScope: 'stack' })
+    mountLayer('lower', 1, '', () => lower.send({ type: 'close' }))
+    mountLayer('upper', 2, '', () => upper.send({ type: 'close' }))
+    armEscape(upper)
+
+    pressEscape()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([false, false])
+  })
+
+  it('leaves the stack alone when the topmost dialog vetoes its stack-scoped Escape', () => {
+    const lower = build({ defaultOpen: true, id: 'lower' })
+    const upper = build({ defaultOpen: true, id: 'upper', escapeScope: 'stack' })
+    mountLayer('lower', 1, '', () => lower.send({ type: 'close' }))
+    mountLayer('upper', 2, '', () => upper.send({ type: 'close' }))
+    armEscape(upper, { onEscapeKeyDown: event => event.preventDefault?.() })
+
+    pressEscape()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([true, true])
   })
 
   it('detaches its listener on dispose', () => {
@@ -257,6 +283,7 @@ describe('guardBackNavigation', () => {
       backNavigate: () => void (opened = false),
       forwardNavigate: () => void (opened = true),
       isOpen: () => opened,
+      depth: 1,
     })
     const report = (): void => {
       if (opened === reported) return

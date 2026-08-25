@@ -40,16 +40,27 @@ listener, as the same plain-data tuples the core defines. A substrate passes
 the list to its adapter's `useMachine` untouched.
 
 Escape is bound on the document in the capture phase, not on a part: it must
-answer wherever focus is. It closes only the topmost layer, so a nested stack
-unwinds one dialog per press, and it offers the consumer's `onEscapeKeyDown` a
-veto through `preventDefault` before it moves the machine.
+answer wherever focus is. Only the topmost layer answers, and it offers the
+consumer's `onEscapeKeyDown` a veto through `preventDefault` before it moves
+the machine.
+
+How far an allowed Escape reaches is that dialog's `escapeScope`: itself, so a
+nested stack unwinds one dialog per press, or the whole stack at once. Either
+way the dialog that received the press is the only one that gates or vetoes
+it — a veto leaves the stack standing — and a stack-scoped press closes the
+layers beneath from the top down, each one plainly, as if its consumer had
+closed it.
+
+Overlays that offer no way to be closed from above are left open, so a stack
+that mixes primitives is never dismissed out from under them.
 
 ### The open edge
 
 `openDialogLayer` runs one ordered sequence and returns its exact inverse:
 
 1. remember what had focus,
-2. join the shared layer stack (which re-syncs assistive-tech containment),
+2. join the shared layer stack (which re-syncs assistive-tech containment, and
+   makes the layer reachable by a stack-scoped dismissal from above),
 3. move focus to the consumer's `initialFocus`, or the overlay's own choice,
 4. fall back to the dialog window when that target refuses focus.
 
@@ -80,20 +91,23 @@ interrupt as much as the final unmount.
 
 ### Back navigation
 
-`guardBackNavigation` plants the session-history entry that turns the host's
-Back into a dismissal, and watches the entry a Back press spends so the host's
-Forward reopens what it closed. It wires mechanics only: whether the dialog may
+`guardBackNavigation` makes the host's Back a dismissal, and its Forward the
+reopen of what Back closed. It wires mechanics only: whether the dialog may
 close or reopen, whether the consumer vetoed, and whether a controlled dialog
 followed are all the core's answers, read back as "is it open".
 
-The guard is an episode, not an open state, so it does not fit a single
-lifecycle scope: the substrate reports every change through `sync(open)` and
-ends it with `release()`. An open edge (re)arms; a close either parks the
-registration — the Back press itself closed the dialog, so the spent entry is
-still worth watching — or releases it, because a dialog closed any other way
-has no way back. That decision is the reason the episode lives here: a
-substrate that scoped the guard to "while open" would drop the Forward watch
-with the close.
+The guard outlives the open state, because the Forward watch has to: a dialog
+the host's Back closed can still be reopened by the host's Forward, while a
+dialog closed any other way is gone and leaves no way back. So the substrate
+reports the dialog's open state as it changes and says when the dialog is gone
+for good; which of those two closes just happened is answered here, once, for
+every substrate.
+
+A nested dialog doesn't outlive the parent it was opened from — closing the
+parent unmounts it, machine and all — so the ground it lost to a Back press
+would be lost with it. It isn't: the ground belongs to the dialog's place in
+the stack, so the dialog that comes back with the parent reopens from it. Two
+dialogs at the same place can't be told apart, and then neither reopens.
 
 ### Outside presses
 
@@ -113,15 +127,15 @@ part is the cycle's last stop wherever it renders.
 
 ## API
 
-| Export                                | Description                                                             |
-| ------------------------------------- | ----------------------------------------------------------------------- |
-| `domDialogEffects`                    | Core effects + the document Escape listener, as `DialogEffect` tuples.  |
-| `openDialogLayer(content, options)`   | The open sequence; returns the close sequence.                          |
-| `startExitWindow(content, options)`   | Hides and watches the still-painting layer; returns the undo.           |
-| `guardBackNavigation(options)`        | The history guard episode: `sync(open)` per change, `release()` to end. |
-| `acceptsBackdropPress(id)`            | Whether a backdrop press is this dialog's outside interaction.          |
-| `acceptsViewportPress(id, event)`     | Same for the viewport, ignoring presses that bubbled from the content.  |
-| `dialogTrapOptions(machine, closeId)` | `TrapFocusOptions` for the dialog window.                               |
+| Export                                | Description                                                                 |
+| ------------------------------------- | --------------------------------------------------------------------------- |
+| `domDialogEffects`                    | Core effects + the document Escape listener, as `DialogEffect` tuples.      |
+| `openDialogLayer(content, options)`   | The open sequence; returns the close sequence.                              |
+| `startExitWindow(content, options)`   | Hides and watches the still-painting layer; returns the undo.               |
+| `guardBackNavigation(options)`        | The history guard: report the open state as it changes, release at the end. |
+| `acceptsBackdropPress(id)`            | Whether a backdrop press is this dialog's outside interaction.              |
+| `acceptsViewportPress(id, event)`     | Same for the viewport, ignoring presses that bubbled from the content.      |
+| `dialogTrapOptions(machine, closeId)` | `TrapFocusOptions` for the dialog window.                                   |
 
 ## Constraints
 
@@ -138,10 +152,12 @@ part is the cycle's last stop wherever it renders.
 
 ## Internals
 
-| Position                                                       | Why                                                                                                                                                                   |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The open edge is one call, not a `registerLayer` + focus pair  | The two orders (join before focus in, release before focus out) are the contract; splitting them puts that ordering back in every substrate, where it drifted before. |
-| `dialogTrapOptions` takes the machine rather than plain values | `modal` and the layer id are read per Tab press. Snapshotting them freezes the trap against a context the machine still owns.                                         |
-| `closeId` is an accessor while the machine is not              | The machine instance is stable; the connected api that carries the ids is re-created per render.                                                                      |
-| Press gating takes a structural `{ target, currentTarget }`    | React's synthetic event and Solid's native one share only that shape; requiring either would drag a framework type into this layer.                                   |
-| The back guard reports state instead of returning a disposer   | Its life spans a Back-close, so no host's "while open" scope fits it. Reporting the open state keeps the arm/park/release decision here rather than in each host.     |
+| Position                                                          | Why                                                                                                                                                                                                                                                             |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The open edge is one call, not a `registerLayer` + focus pair     | The two orders (join before focus in, release before focus out) are the contract; splitting them puts that ordering back in every substrate, where it drifted before.                                                                                           |
+| `dialogTrapOptions` takes the machine rather than plain values    | `modal` and the layer id are read per Tab press. Snapshotting them freezes the trap against a context the machine still owns.                                                                                                                                   |
+| `closeId` is an accessor while the machine is not                 | The machine instance is stable; the connected api that carries the ids is re-created per render.                                                                                                                                                                |
+| Press gating takes a structural `{ target, currentTarget }`       | React's synthetic event and Solid's native one share only that shape; requiring either would drag a framework type into this layer.                                                                                                                             |
+| The back guard reports state instead of returning a disposer      | Its life spans a Back-close, so no host's "while open" scope fits it. Reporting the open state keeps the arm/park/release decision here rather than in each host.                                                                                               |
+| A stack-scoped Escape reads the stack before it moves the machine | Closing the layer releases it from the stack, and the answer to "what was beneath me" goes with it. Dismissing only after the machine actually left `open` is what makes a veto leave the stack standing.                                                       |
+| A returning dialog is recognized by its nesting depth, not its id | The auto-generated id does not survive the remount (React's `useId` mints a fresh one), and requiring an explicit id would make the reopen an opt-in. Depth is what genuinely survives — at the cost of the same-depth ambiguity, resolved by reopening nobody. |

@@ -9,6 +9,9 @@ export interface OpenDialogLayerOptions {
   backdrop: () => Element | null
   /** The consumer's `initialFocus`, already resolved. @default the window */
   initialFocus?: HTMLElement | null
+  /** Closes this dialog when a layer above unwinds the whole stack; see
+   * `Layer.dismiss` in dom-overlay. */
+  dismiss?: () => void
 }
 
 /**
@@ -28,6 +31,7 @@ export function openDialogLayer(content: HTMLElement, options: OpenDialogLayerOp
     element: content,
     modal: options.modal,
     backdrop: options.backdrop,
+    dismiss: options.dismiss,
   })
 
   // preventScroll everywhere: the scroll lock already froze the surface, so
