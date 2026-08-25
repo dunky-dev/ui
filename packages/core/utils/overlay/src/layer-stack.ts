@@ -1,10 +1,11 @@
 // The overlay family — dialog, drawer, popover, menu, combobox — shares one
 // coordination problem: when overlays stack, which layer is topmost? The
-// topmost owns Escape, the focus trap, and (when modal) assistive-tech
-// containment. This is the agnostic half of the answer: the registry and the
-// topmost decision, with no host assumptions. A host realization (DOM, native)
-// gives each layer a payload — the element or view — and applies its own
-// containment when the stack shifts.
+// topmost owns Escape and the focus trap; assistive-tech containment follows
+// the topmost modal layer, which is not always the same one. This is the
+// agnostic half of the answer: the registry and the ranking decision, with no
+// host assumptions. A host realization (DOM, native) gives each layer a
+// payload — the element or view — and applies its own containment when the
+// stack shifts.
 
 export interface OverlayLayer {
   id: string
@@ -21,7 +22,16 @@ export interface LayerStack<T extends OverlayLayer> {
   register: (layer: T) => () => void
   // The topmost layer, or undefined when the stack is empty.
   topmost: () => T | undefined
+  // Every layer, topmost first. A host that treats layers differently by kind
+  // — containment follows the topmost *modal* layer, not the topmost layer —
+  // needs to look past the top of the stack; the kind itself stays the host's
+  // concern, so this orders and the host decides.
+  ordered: () => T[]
   isTopmost: (id: string) => boolean
+  // The layers stacked beneath `id`, topmost first — the unwinding order for a
+  // dismissal scoped to the whole stack rather than one layer. An id that
+  // isn't registered has nothing beneath it.
+  below: (id: string) => T[]
 }
 
 // One stack per running host: a browser page or a native app is one or the
@@ -32,18 +42,25 @@ export function createLayerStack<T extends OverlayLayer>(): LayerStack<T> {
   const layers: Array<T & { order: number }> = []
   let nextOrder = 0
 
+  // Topmost first: deeper nesting wins, open order breaks ties at equal depth.
+  const isAbove = (layer: T & { order: number }, other: T & { order: number }): boolean =>
+    layer.depth > other.depth || (layer.depth === other.depth && layer.order > other.order)
+
   const topmost = (): T | undefined => {
     let top: (T & { order: number }) | undefined
     for (const layer of layers) {
-      if (
-        top === undefined ||
-        layer.depth > top.depth ||
-        (layer.depth === top.depth && layer.order > top.order)
-      ) {
-        top = layer
-      }
+      if (top === undefined || isAbove(layer, top)) top = layer
     }
     return top
+  }
+
+  const ordered = (): T[] => {
+    // Copy before sorting: the registry's own order is identity, not rank.
+    // The comparator never returns 0, which is fine — `order` is unique per
+    // layer, so `isAbove` is a strict total order over distinct layers.
+    const sorted = layers.slice()
+    sorted.sort((a, b) => (isAbove(a, b) ? -1 : 1))
+    return sorted
   }
 
   return {
@@ -56,8 +73,21 @@ export function createLayerStack<T extends OverlayLayer>(): LayerStack<T> {
       }
     },
     topmost,
+    ordered,
     isTopmost(id) {
       return topmost()?.id === id
+    },
+    below(id) {
+      const self = layers.find(layer => layer.id === id)
+      if (self === undefined) return []
+      // Same ordering as `topmost`, applied to the whole stack: deeper first,
+      // open order breaking ties.
+      return layers
+        .filter(
+          layer =>
+            layer.depth < self.depth || (layer.depth === self.depth && layer.order < self.order),
+        )
+        .sort((left, right) => right.depth - left.depth || right.order - left.order)
     },
   }
 }

@@ -1,6 +1,7 @@
 import {
   createEffect,
   omit,
+  onCleanup,
   onSettled,
   untrack,
   useContext,
@@ -20,6 +21,7 @@ import {
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
+  type BackNavigationGuard,
 } from '@dunky.dev/dom-dialog'
 import { mergeProps, normalize } from '@dunky.dev/solid-state-machine'
 import { DialogContext, useDialogContext } from './context'
@@ -53,17 +55,29 @@ export const Dialog: Component<DialogProps> & Parts = props => {
   const backdropRef: { current: HTMLDivElement | null } = { current: null }
 
   // The guard lives on the root — it concerns the dialog's openness, not any
-  // rendered part.
+  // rendered part. It spans more than the open state, so it can't be this
+  // effect's cleanup: a Back-close leaves the registration parked for the
+  // Forward that may reopen it, and only disposal ends the episode outright.
+  let guard: BackNavigationGuard | null = null
+
   createEffect(
     () => api.open,
     open => {
-      if (!open || !machine.context.closeOnBack) return
-      return guardBackNavigation({
+      if (!machine.context.closeOnBack) return
+      guard ??= guardBackNavigation({
         backNavigate: () => untrack(() => api.backNavigate()),
+        forwardNavigate: () => untrack(() => api.forwardNavigate()),
         isOpen: () => machine.matches('open'),
+        depth,
       })
+      guard.sync(open)
     },
   )
+
+  onCleanup(() => {
+    guard?.release()
+    guard = null
+  })
 
   return (
     <DialogContext value={{ api, machine, depth, container: () => null, backdropRef }}>
@@ -222,6 +236,7 @@ export const Content: Component<DialogContentProps> = props => {
         modal: machine.context.modal,
         backdrop: () => backdropRef.current,
         initialFocus: untrack(() => resolveInitialFocus(props.initialFocus)),
+        dismiss: () => machine.send({ type: 'close' }),
       })
     },
   )

@@ -23,6 +23,7 @@ import {
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
+  type BackNavigationGuard,
 } from '@dunky.dev/dom-dialog'
 import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
 import { DialogContext, useDialogContext } from './context'
@@ -53,14 +54,29 @@ export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, 
   apiRef.current = api
 
   // The guard lives on the root — it concerns the dialog's openness, not any
-  // rendered part.
+  // rendered part. It spans more than the open state, so it outlives this
+  // effect: a Back-close leaves the registration parked for the Forward that
+  // may reopen it, and only an unmount ends the episode outright.
+  const guardRef = useRef<BackNavigationGuard | null>(null)
+
   useEffect(() => {
-    if (!api.open || !machine.context.closeOnBack) return
-    return guardBackNavigation({
+    if (!machine.context.closeOnBack) return
+    guardRef.current ??= guardBackNavigation({
       backNavigate: () => apiRef.current.backNavigate(),
+      forwardNavigate: () => apiRef.current.forwardNavigate(),
       isOpen: () => machine.matches('open'),
+      depth,
     })
-  }, [api.open, machine])
+    guardRef.current.sync(api.open)
+  }, [api.open, machine, depth])
+
+  useEffect(
+    () => () => {
+      guardRef.current?.release()
+      guardRef.current = null
+    },
+    [],
+  )
 
   return (
     <DialogContext.Provider value={{ api, machine, depth, container: null, backdropRef }}>
@@ -199,6 +215,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
       modal: machine.context.modal,
       backdrop: () => backdropRef.current,
       initialFocus: initialFocusRef.current?.current,
+      dismiss: () => machine.send({ type: 'close' }),
     })
   }, [api.open, machine, depth, backdropRef])
 

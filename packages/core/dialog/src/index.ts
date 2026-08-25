@@ -5,6 +5,7 @@ export type {
   BackNavigationPayload,
   DialogCallbacks,
   DialogContext,
+  DialogEscapeScope,
   DialogIds,
   DialogMachineEvent,
   DialogOptions,

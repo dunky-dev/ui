@@ -1,6 +1,7 @@
 interface Lock {
   count: number
-  savedOverflow: string
+  savedOverflowX: string
+  savedOverflowY: string
   savedPaddingInlineEnd: string
   savedPaddingBlockEnd: string
 }
@@ -69,7 +70,13 @@ export function lockScroll(target: HTMLElement = document.body): () => void {
   if (lock === undefined) {
     lock = {
       count: 0,
-      savedOverflow: target.style.overflow,
+      // Both axes are handled by longhand throughout — saved, hidden, and
+      // restored. The `overflow` shorthand serializes back to '' unless both
+      // longhands are set, so a container that scrolls on one axis
+      // (`overflow-y: auto`) would save as "unset" and restore by removing
+      // the consumer's own declaration.
+      savedOverflowX: target.style.overflowX,
+      savedOverflowY: target.style.overflowY,
       savedPaddingInlineEnd: target.style.paddingInlineEnd,
       savedPaddingBlockEnd: target.style.paddingBlockEnd,
     }
@@ -91,7 +98,8 @@ export function lockScroll(target: HTMLElement = document.body): () => void {
         }px`
       }
     }
-    target.style.overflow = 'hidden'
+    target.style.overflowX = 'hidden'
+    target.style.overflowY = 'hidden'
   }
   lock.count++
 
@@ -104,7 +112,8 @@ export function lockScroll(target: HTMLElement = document.body): () => void {
     locks.delete(target)
     // setProperty, not the camelCase setters: a saved `''` (originally unset)
     // must remove the declaration, which setProperty does per CSSOM.
-    target.style.setProperty('overflow', held.savedOverflow)
+    target.style.setProperty('overflow-x', held.savedOverflowX)
+    target.style.setProperty('overflow-y', held.savedOverflowY)
     target.style.setProperty('padding-inline-end', held.savedPaddingInlineEnd)
     target.style.setProperty('padding-block-end', held.savedPaddingBlockEnd)
   }

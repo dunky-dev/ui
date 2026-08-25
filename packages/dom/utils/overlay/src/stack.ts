@@ -14,6 +14,12 @@ export interface Layer extends OverlayLayer {
    * closes — sees the element current at that moment.
    */
   backdrop?: () => Element | null
+  /**
+   * Closes this layer, for a dismissal scoped to the whole stack rather than
+   * one layer: the layer that received the intent unwinds the ones beneath by
+   * calling theirs. A layer that provides none opts out and stays open.
+   */
+  dismiss?: () => void
 }
 
 // One Escape closes exactly one layer only if every overlay shares a single
@@ -41,16 +47,39 @@ function getStore(): OverlayStore {
   return store
 }
 
-// Keep the assistive-tech view in sync: only the topmost modal layer stays
-// reachable; everything else is hidden. Re-runs whenever the stack changes so a
-// nested layer hides the one beneath it, and closing it restores the layer.
+// Keep the assistive-tech view in sync: the topmost modal layer and the layers
+// stacked above it stay reachable; everything else is hidden. Re-runs whenever
+// the stack changes so a nested layer hides the one beneath it, and closing it
+// restores the layer.
 function syncContainment(store: OverlayStore): void {
   store.undoHide?.()
   store.undoHide = undefined
-  const top = store.stack.topmost()
-  if (top?.modal !== true) return
+
+  // Containment follows the topmost *modal* layer, not the topmost layer: the
+  // ordinary layers — a select menu, a combobox list, a tooltip — are
+  // non-modal and live inside dialogs, and a modal layer's containment must
+  // not lapse for as long as one of them is open on top of it.
+  const ordered = store.stack.ordered()
+  const index = ordered.findIndex(layer => layer.modal)
+  if (index === -1) return
+
+  const modal = ordered[index]
   // `isConnected` guards teardown, when the content is already detached.
-  if (top.element.isConnected) store.undoHide = hideOutside(top.element, top.backdrop?.() ?? null)
+  if (!modal.element.isConnected) return
+
+  // The layers at or above the modal one are legitimately open and portalled
+  // outside its subtree, so they'd be caught by its containment: hold them
+  // out. For the modal layer itself only the backdrop needs it — its element
+  // is the containment target.
+  const exclude: Element[] = []
+  for (let i = 0; i <= index; i++) {
+    const layer = ordered[i]
+    if (i !== index) exclude.push(layer.element)
+    const backdrop = layer.backdrop?.()
+    if (backdrop != null) exclude.push(backdrop)
+  }
+
+  store.undoHide = hideOutside(modal.element, exclude)
 }
 
 export function registerLayer(layer: Layer): () => void {
@@ -65,4 +94,11 @@ export function registerLayer(layer: Layer): () => void {
 
 export function isTopmostLayer(id: string): boolean {
   return getStore().stack.isTopmost(id)
+}
+
+// The layers beneath `id`, topmost first — the unwinding order for a
+// stack-scoped dismissal. Read it before closing the layer that received the
+// intent: leaving the stack takes the answer with it.
+export function layersBelow(id: string): Layer[] {
+  return getStore().stack.below(id)
 }

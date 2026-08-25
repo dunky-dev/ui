@@ -13,9 +13,8 @@ Three fixes, all consumer-visible:
   trap. Initial focus on open remains the caller's job.
 - **Non-rendered elements no longer enter the cycle.** Elements hidden via the
   `hidden` attribute, `display: none` (own or ancestor), or
-  `visibility: hidden` are filtered out with `Element.checkVisibility()`.
-  Focusing a non-rendered element is a no-op, so a hidden element in the cycle
-  used to stall the trap on it.
+  `visibility: hidden` are filtered out. Focusing a non-rendered element is a
+  no-op, so a hidden element in the cycle used to stall the trap on it.
 - **A same-name radio group is one tab stop.** Per the APG radio group
   pattern, the stop is the checked radio, else the group's first; groups are
   scoped by name and form owner. The trap steps focus itself, so it now

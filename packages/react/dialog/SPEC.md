@@ -73,6 +73,16 @@ React-specific notes on top of the core contract:
   dialog closed any other way consumes its entry, leaving nothing to swallow
   a later Back; an entry buried under in-app navigation while the dialog is
   open is left alone (Back then both navigates and closes the dialog).
+  The entry a Back press spends survives in the forward stack, so the
+  browser's Forward reopens the dialog it closed (`onForwardNavigation`
+  fires first; `preventDefault()` vetoes, per the core contract). Reopening
+  through the trigger instead plants a fresh entry — the browser truncates
+  the spent one, exactly like navigating after a Back. Two web-mechanics
+  caveat: a controlled dialog's Back-close is completed by the consumer rather
+  than by the press itself, so its entry is consumed and Forward has nothing to
+  re-enter. A nested dialog unmounted along with the parent it was opened from
+  does come back, and so does one whose page reloaded in between — the entry
+  remembers the dialog's place in the stack, not the instance that planted it.
 - Everything ships headless, per the core contract's
   [Internals](../../core/dialog/SPEC.md#internals).
 
@@ -83,23 +93,24 @@ React-specific notes on top of the core contract:
 The root: owns open/close state, renders no DOM. Accepts the core
 `DialogOptions`.
 
-| Prop                     | Type                        | Default                                   | Description                                                                                                           |
-| ------------------------ | --------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `open`                   | `boolean`                   | —                                         | Controlled open state — the dialog follows it alone. Back to `undefined` hands the state over, uncontrolled in place. |
-| `defaultOpen`            | `boolean`                   | `false`                                   | Initial open state for the uncontrolled dialog.                                                                       |
-| `onOpenChange`           | `(open: boolean) => void`   | —                                         | Fired on every open/close transition with the new value.                                                              |
-| `modal`                  | `boolean`                   | `true`                                    | `aria-modal`, focus trap, scroll lock, backdrop.                                                                      |
-| `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'`                                | The ARIA pattern.                                                                                                     |
-| `closeOnEscape`          | `boolean`                   | `true`                                    | Whether Escape closes the dialog.                                                                                     |
-| `escapeScope`            | `'layer' \| 'stack'`        | `'layer'`                                 | How far an allowed Escape reaches: this dialog, or its whole stack.                                                   |
-| `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether pressing the backdrop/viewport closes the dialog.                                                             |
-| `animated`               | `boolean`                   | `false`                                   | Keeps the dialog mounted through `data-state="closing"` while its exit animation plays.                               |
-| `closeOnBack`            | `boolean`                   | `false`                                   | The browser's Back closes the open dialog instead of navigating (a guard entry in the session history).               |
-| `onBackNavigation`       | `(event?) => void`          | —                                         | Fired before a back-navigation dismissal; `preventDefault()` vetoes.                                                  |
-| `onEscapeKeyDown`        | `(event) => void`           | —                                         | Fired before an Escape dismissal; `preventDefault()` vetoes.                                                          |
-| `onInteractOutside`      | `(event?) => void`          | —                                         | Fired before an outside-press dismissal; `preventDefault()` vetoes.                                                   |
-| `id`                     | `string`                    | auto (`useId`)                            | Base id for the parts; per-part ids are derived from it.                                                              |
-| `children`               | `ReactNode`                 | —                                         | The dialog's parts.                                                                                                   |
+| Prop                     | Type                        | Default                                   | Description                                                                                                                                   |
+| ------------------------ | --------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open`                   | `boolean`                   | —                                         | Controlled open state — the dialog follows it alone. Back to `undefined` hands the state over, uncontrolled in place.                         |
+| `defaultOpen`            | `boolean`                   | `false`                                   | Initial open state for the uncontrolled dialog.                                                                                               |
+| `onOpenChange`           | `(open: boolean) => void`   | —                                         | Fired on every open/close transition with the new value.                                                                                      |
+| `modal`                  | `boolean`                   | `true`                                    | `aria-modal`, focus trap, scroll lock, backdrop.                                                                                              |
+| `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'`                                | The ARIA pattern.                                                                                                                             |
+| `closeOnEscape`          | `boolean`                   | `true`                                    | Whether Escape closes the dialog.                                                                                                             |
+| `escapeScope`            | `'layer' \| 'stack'`        | `'layer'`                                 | How far an allowed Escape reaches: this dialog, or its whole stack.                                                                           |
+| `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether pressing the backdrop/viewport closes the dialog.                                                                                     |
+| `animated`               | `boolean`                   | `false`                                   | Keeps the dialog mounted through `data-state="closing"` while its exit animation plays.                                                       |
+| `closeOnBack`            | `boolean`                   | `false`                                   | The browser's Back closes the open dialog instead of navigating (a guard entry in the session history), and Forward reopens what Back closed. |
+| `onBackNavigation`       | `(event?) => void`          | —                                         | Fired before a back-navigation dismissal; `preventDefault()` vetoes.                                                                          |
+| `onForwardNavigation`    | `(event?) => void`          | —                                         | Fired before a forward-navigation reopen; `preventDefault()` vetoes.                                                                          |
+| `onEscapeKeyDown`        | `(event) => void`           | —                                         | Fired before an Escape dismissal; `preventDefault()` vetoes.                                                                                  |
+| `onInteractOutside`      | `(event?) => void`          | —                                         | Fired before an outside-press dismissal; `preventDefault()` vetoes.                                                                           |
+| `id`                     | `string`                    | auto (`useId`)                            | Base id for the parts; per-part ids are derived from it.                                                                                      |
+| `children`               | `ReactNode`                 | —                                         | The dialog's parts.                                                                                                                           |
 
 ### `Dialog.Trigger`
 

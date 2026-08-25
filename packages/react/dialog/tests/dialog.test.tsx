@@ -414,15 +414,15 @@ describe('Dialog', () => {
     it('locks body scroll while a modal dialog is open', () => {
       render(<DefaultDialog />)
       openDialog()
-      expect(document.body.style.overflow).toBe('hidden')
+      expect(document.body.style.overflowY).toBe('hidden')
 
       act(pressEscape)
-      expect(document.body.style.overflow).not.toBe('hidden')
+      expect(document.body.style.overflowY).not.toBe('hidden')
     })
 
     it('does not lock scroll when modal=false', () => {
       render(<DefaultDialog defaultOpen modal={false} />)
-      expect(document.body.style.overflow).not.toBe('hidden')
+      expect(document.body.style.overflowY).not.toBe('hidden')
     })
 
     it('locks the portal container, not the body, when scoped', () => {
@@ -437,11 +437,11 @@ describe('Dialog', () => {
         </Dialog>,
       )
 
-      expect(panel.style.overflow).toBe('hidden')
-      expect(document.body.style.overflow).not.toBe('hidden')
+      expect(panel.style.overflowY).toBe('hidden')
+      expect(document.body.style.overflowY).not.toBe('hidden')
 
       act(pressEscape)
-      expect(panel.style.overflow).not.toBe('hidden')
+      expect(panel.style.overflowY).not.toBe('hidden')
       panel.remove()
     })
   })
@@ -485,6 +485,191 @@ describe('Dialog', () => {
       const before: unknown = window.history.state
       render(<DefaultDialog defaultOpen />)
       expect(window.history.state).toEqual(before)
+    })
+
+    it('the browser Forward reopens what Back closed, guarded again', async () => {
+      render(<DefaultDialog closeOnBack defaultOpen />)
+
+      const pop = nextPop()
+      await act(async () => {
+        window.history.back()
+        await pop
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      const reenter = nextPop()
+      await act(async () => {
+        window.history.forward()
+        await reenter
+      })
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      // The reopened dialog is guarded again: the next Back closes it.
+      const unwind = nextPop()
+      await act(async () => {
+        window.history.back()
+        await unwind
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('Forward does not reopen a dialog closed any other way', async () => {
+      render(<DefaultDialog closeOnBack defaultOpen />)
+      const consume = nextPop() // the released guard consumes its entry
+      act(pressEscape)
+      await act(async () => {
+        await consume
+      })
+
+      const reenter = nextPop()
+      await act(async () => {
+        window.history.forward()
+        await reenter
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('onForwardNavigation preventDefault declines the reopen', async () => {
+      const { unmount } = render(
+        <DefaultDialog
+          closeOnBack
+          defaultOpen
+          onForwardNavigation={event => event?.preventDefault?.()}
+        />,
+      )
+      const pop = nextPop()
+      await act(async () => {
+        window.history.back()
+        await pop
+      })
+
+      const reenter = nextPop()
+      await act(async () => {
+        window.history.forward()
+        await reenter
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      // The decline left the still-watched entry current; unmounting consumes
+      // it — settle that traversal here, not in the next test.
+      const consume = nextPop()
+      unmount()
+      await act(async () => {
+        await consume
+      })
+    })
+
+    // The nested round-trip: closing the outer takes the inner's whole
+    // registration with it (unmounted with the content that held it), so the
+    // inner that comes back with the outer is a different machine. It reopens
+    // anyway — the entry it lost is still its own ground.
+    const NestedGuards = () => (
+      <Dialog defaultOpen closeOnBack>
+        <Dialog.Portal>
+          <Dialog.Viewport>
+            <Dialog.Content aria-label='outer'>
+              <Dialog closeOnBack>
+                <Dialog.Trigger>open inner</Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Viewport>
+                    <Dialog.Content aria-label='inner' />
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    )
+
+    const layers = (): string =>
+      `${screen.queryByLabelText('outer') ? 'O' : '-'}${screen.queryByLabelText('inner') ? 'I' : '-'}`
+
+    it('Back unwinds a nested stack one layer per press and Forward restores it the same way', async () => {
+      const { unmount } = render(<NestedGuards />)
+      act(() => screen.getByText('open inner').click())
+      expect(layers()).toBe('OI')
+
+      const traverse = async (go: () => void): Promise<void> => {
+        const pop = nextPop()
+        await act(async () => {
+          go()
+          await pop
+        })
+      }
+
+      await traverse(() => window.history.back())
+      expect(layers()).toBe('O-')
+      await traverse(() => window.history.back())
+      expect(layers()).toBe('--')
+
+      await traverse(() => window.history.forward())
+      expect(layers()).toBe('O-')
+      await traverse(() => window.history.forward())
+      expect(layers()).toBe('OI')
+
+      // Both layers are armed again; unmounting frees their entries one
+      // traversal at a time — settle both pops here, not in the next test.
+      const consume = nextPop()
+      unmount()
+      await act(async () => {
+        await consume
+        await nextPop()
+      })
+    })
+
+    // Both layers guarded and closed in one commit — a "close all" affordance,
+    // or a route change that takes the whole stack with it.
+    const GuardedStack = ({ open }: { open: boolean }) => (
+      <Dialog open={open} closeOnBack>
+        <Dialog.Portal>
+          <Dialog.Viewport>
+            <Dialog.Content aria-label='outer'>
+              <Dialog open={open} closeOnBack>
+                <Dialog.Portal>
+                  <Dialog.Viewport>
+                    <Dialog.Content aria-label='inner' />
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    )
+
+    it('closing a whole stack at once leaves no entry to swallow a later Back', async () => {
+      const before: unknown = window.history.state
+      const { rerender } = render(<GuardedStack open />)
+      expect(window.history.state).not.toEqual(before)
+
+      const consume = nextPop() // the chain spends the entries one pop at a time
+      rerender(<GuardedStack open={false} />)
+      await act(async () => {
+        await consume
+        await nextPop()
+      })
+      expect(window.history.state).toEqual(before)
+    })
+
+    it('reopening through the trigger plants a fresh guard, truncating the spent entry', async () => {
+      render(<DefaultDialog closeOnBack defaultOpen />)
+      const pop = nextPop()
+      await act(async () => {
+        window.history.back()
+        await pop
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      openDialog()
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      const unwind = nextPop()
+      await act(async () => {
+        window.history.back()
+        await unwind
+      })
+      expect(screen.queryByRole('dialog')).toBeNull()
     })
   })
 
@@ -577,6 +762,33 @@ describe('Dialog', () => {
       expect(screen.queryByText('Outer')).toBeNull()
     })
 
+    it('a stack-scoped Escape on the topmost dialog unwinds every layer', () => {
+      render(
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Viewport>
+              <Dialog.Content>
+                <Dialog.Title>Outer</Dialog.Title>
+                <Dialog defaultOpen escapeScope='stack'>
+                  <Dialog.Portal>
+                    <Dialog.Viewport>
+                      <Dialog.Content>
+                        <Dialog.Title>Inner</Dialog.Title>
+                      </Dialog.Content>
+                    </Dialog.Viewport>
+                  </Dialog.Portal>
+                </Dialog>
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>,
+      )
+
+      act(pressEscape)
+      expect(screen.queryByText('Inner')).toBeNull()
+      expect(screen.queryByText('Outer')).toBeNull()
+    })
+
     it('hides the dialog beneath the topmost from assistive tech and makes it inert', () => {
       render(<NestedDialog />)
       const outer = screen.getByTestId('outer-viewport')
@@ -626,7 +838,7 @@ describe('Dialog', () => {
       rerender(<NestedDialog open={false} />)
       expect(screen.queryByText('Outer')).toBeNull()
       expect(screen.queryByText('Inner')).toBeNull()
-      expect(document.body.style.overflow).not.toBe('hidden')
+      expect(document.body.style.overflowY).not.toBe('hidden')
       expect(container.hasAttribute('aria-hidden')).toBe(false)
       expect(container.hasAttribute('inert')).toBe(false)
     })

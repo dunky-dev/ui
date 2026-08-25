@@ -15,6 +15,7 @@ import {
   acceptsViewportPress,
   dialogTrapOptions,
   domDialogEffects,
+  guardBackNavigation,
   openDialogLayer,
   startExitWindow,
 } from '@dunky.dev/dom-dialog'
@@ -44,12 +45,14 @@ const pressEscape = (): boolean =>
 const registered: (() => void)[] = []
 
 // A layer, mounted and registered, standing in for a rendered dialog window.
-const mountLayer = (id: string, depth: number, html = ''): HTMLElement => {
+const mountLayer = (id: string, depth: number, html = '', dismiss?: () => void): HTMLElement => {
   const content = document.createElement('div')
   content.tabIndex = -1
   content.innerHTML = html
   document.body.append(content)
-  registered.push(registerLayer({ id, depth, element: content, modal: true, backdrop: () => null }))
+  registered.push(
+    registerLayer({ id, depth, element: content, modal: true, backdrop: () => null, dismiss }),
+  )
   return content
 }
 
@@ -87,6 +90,30 @@ describe('domDialogEffects — Escape', () => {
 
     pressEscape()
     expect(service.matches('open')).toBe(true)
+  })
+
+  // escapeScope: 'stack' — the receiving dialog gates and vetoes, then the
+  // layers beneath get a plain close, top-down.
+  it('unwinds the whole stack when the topmost dialog scopes Escape to it', () => {
+    const lower = build({ defaultOpen: true, id: 'lower' })
+    const upper = build({ defaultOpen: true, id: 'upper', escapeScope: 'stack' })
+    mountLayer('lower', 1, '', () => lower.send({ type: 'close' }))
+    mountLayer('upper', 2, '', () => upper.send({ type: 'close' }))
+    armEscape(upper)
+
+    pressEscape()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([false, false])
+  })
+
+  it('leaves the stack alone when the topmost dialog vetoes its stack-scoped Escape', () => {
+    const lower = build({ defaultOpen: true, id: 'lower' })
+    const upper = build({ defaultOpen: true, id: 'upper', escapeScope: 'stack' })
+    mountLayer('lower', 1, '', () => lower.send({ type: 'close' }))
+    mountLayer('upper', 2, '', () => upper.send({ type: 'close' }))
+    armEscape(upper, { onEscapeKeyDown: event => event.preventDefault?.() })
+
+    pressEscape()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([true, true])
   })
 
   it('detaches its listener on dispose', () => {
@@ -230,6 +257,100 @@ describe('startExitWindow', () => {
     expect(content.hasAttribute('inert')).toBe(false)
     content.dispatchEvent(new Event('transitionend'))
     expect(onComplete).not.toHaveBeenCalled()
+  })
+})
+
+describe('guardBackNavigation', () => {
+  // jsdom's history traversal is asynchronous — await the popstate itself.
+  const nextPop = (): Promise<void> =>
+    new Promise(resolve => {
+      window.addEventListener('popstate', () => resolve(), { once: true })
+    })
+
+  // A dialog reduced to what the guard reads: an open flag the core would
+  // move, plus the host's job of reporting every change — and only a change,
+  // the way an effect keyed on the open state does.
+  const wire = (): {
+    isOpen: () => boolean
+    open: () => void
+    close: () => void
+    report: () => void
+    release: () => void
+  } => {
+    let opened = false
+    let reported = false
+    const guard = guardBackNavigation({
+      backNavigate: () => void (opened = false),
+      forwardNavigate: () => void (opened = true),
+      isOpen: () => opened,
+      depth: 1,
+    })
+    const report = (): void => {
+      if (opened === reported) return
+      reported = opened
+      guard.sync(opened)
+    }
+    return {
+      isOpen: () => opened,
+      open: () => {
+        opened = true
+        report()
+      },
+      close: () => {
+        opened = false
+        report()
+      },
+      report,
+      release: guard.release,
+    }
+  }
+
+  // A host traversal, then the report the substrate makes once it landed.
+  const traverse = async (dialog: ReturnType<typeof wire>, go: () => void): Promise<void> => {
+    const pop = nextPop()
+    go()
+    await pop
+    dialog.report()
+  }
+
+  it('parks a Back-closed dialog so Forward reopens it, guarded again', async () => {
+    const dialog = wire()
+    dialog.open()
+
+    await traverse(dialog, () => window.history.back())
+    expect(dialog.isOpen()).toBe(false)
+
+    await traverse(dialog, () => window.history.forward())
+    expect(dialog.isOpen()).toBe(true)
+
+    await traverse(dialog, () => window.history.back())
+    expect(dialog.isOpen()).toBe(false)
+    dialog.release() // parked, so nothing left to consume
+  })
+
+  it('releases on a close by any other means — Forward reopens nothing', async () => {
+    const dialog = wire()
+    dialog.open()
+
+    // The release consumes the still-current guard entry through a real
+    // traversal; settle it here rather than in the next test.
+    const consume = nextPop()
+    dialog.close()
+    await consume
+
+    await traverse(dialog, () => window.history.forward())
+    expect(dialog.isOpen()).toBe(false)
+  })
+
+  it('release ends a parked episode — the Forward watch goes with it', async () => {
+    const dialog = wire()
+    dialog.open()
+
+    await traverse(dialog, () => window.history.back())
+    dialog.release()
+
+    await traverse(dialog, () => window.history.forward())
+    expect(dialog.isOpen()).toBe(false)
   })
 })
 

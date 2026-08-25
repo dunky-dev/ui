@@ -138,6 +138,73 @@ describe('registerLayer containment', () => {
   })
 })
 
+describe('containment under a non-modal layer', () => {
+  // The ordinary layers — select menu, combobox list, tooltip, context menu —
+  // are non-modal and portal to the body, so inside a dialog they land as a
+  // sibling of it rather than a descendant.
+  const setup = (): {
+    outside: HTMLElement
+    dialog: MountedLayer
+    menu: MountedLayer
+    unregisterMenu: () => void
+  } => {
+    const outside = document.createElement('main')
+    document.body.append(outside)
+    const dialog = mountLayer()
+    const menu = mountLayer()
+
+    register({
+      id: 'dialog',
+      depth: 1,
+      element: dialog.content,
+      modal: true,
+      backdrop: () => dialog.backdrop,
+    })
+    const unregisterMenu = register({ id: 'menu', depth: 2, element: menu.content, modal: false })
+    return { outside, dialog, menu, unregisterMenu }
+  }
+
+  it("keeps the modal layer's containment while a non-modal layer is topmost", () => {
+    const { outside } = setup()
+
+    // The decoupling: topmost has moved to the non-modal layer — it owns
+    // Escape and the trap — yet containment stays with the modal layer.
+    expect(isTopmostLayer('menu')).toBe(true)
+    expect(hiddenFrom(outside)).toBe(true)
+  })
+
+  it('leaves the non-modal layer above reachable through its portal wrapper', () => {
+    const { outside, menu } = setup()
+
+    // Asserted against live containment: the menu's own portal wrapper is what
+    // turns up as the sibling on the walk, so an identity-only exclude check
+    // would inert the menu along with it.
+    expect(hiddenFrom(outside)).toBe(true)
+    expect(menu.viewport.hasAttribute('inert')).toBe(false)
+    expect(menu.content.hasAttribute('inert')).toBe(false)
+  })
+
+  it('holds containment through the non-modal layer closing', () => {
+    const { outside, unregisterMenu } = setup()
+
+    unregisterMenu()
+    expect(hiddenFrom(outside)).toBe(true)
+  })
+
+  it('follows the upper modal layer when a non-modal layer sits above both', () => {
+    const outer = mountLayer()
+    const inner = mountLayer()
+    const menu = mountLayer()
+    register({ id: 'outer', depth: 1, element: outer.content, modal: true })
+    register({ id: 'inner', depth: 2, element: inner.content, modal: true })
+    register({ id: 'menu', depth: 3, element: menu.content, modal: false })
+
+    expect(hiddenFrom(outer.viewport)).toBe(true)
+    expect(inner.viewport.hasAttribute('inert')).toBe(false)
+    expect(menu.viewport.hasAttribute('inert')).toBe(false)
+  })
+})
+
 describe('layer stack global anchoring', () => {
   it('shares its stack with a duplicate module copy via the realm global', () => {
     // A second bundled copy of this module resolves the same stack through this

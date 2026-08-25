@@ -2,6 +2,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { lockScroll } from '@dunky.dev/dom-scroll-lock'
 
+// Both axes by name, never the `overflow` shorthand: the shorthand can't
+// express a one-axis declaration, and jsdom doesn't link it to its longhands,
+// so asserting it would pass whatever the axes actually hold.
+function expectOverflow(target: HTMLElement, value: 'hidden' | ''): void {
+  expect(target.style.overflowX).toBe(value)
+  expect(target.style.overflowY).toBe(value)
+}
+
 // Browsers resolve computed lengths on a rendered element to `Npx`; jsdom
 // returns '' for logical longhands, so tests exercising the padding math hand
 // lockScroll the values a browser would compute. One-shot: lockScroll reads
@@ -18,10 +26,10 @@ afterEach(() => {
 describe('lockScroll', () => {
   it('locks body scroll by default and releases it', () => {
     const release = lockScroll()
-    expect(document.body.style.overflow).toBe('hidden')
+    expectOverflow(document.body, 'hidden')
 
     release()
-    expect(document.body.style.overflow).toBe('')
+    expectOverflow(document.body, '')
   })
 
   it('holds the lock until the last holder releases, in any order', () => {
@@ -29,10 +37,10 @@ describe('lockScroll', () => {
     const releaseSecond = lockScroll()
 
     releaseFirst()
-    expect(document.body.style.overflow).toBe('hidden')
+    expectOverflow(document.body, 'hidden')
 
     releaseSecond()
-    expect(document.body.style.overflow).toBe('')
+    expectOverflow(document.body, '')
   })
 
   it('ignores a double release', () => {
@@ -41,10 +49,10 @@ describe('lockScroll', () => {
 
     releaseFirst()
     releaseFirst()
-    expect(document.body.style.overflow).toBe('hidden')
+    expectOverflow(document.body, 'hidden')
 
     releaseSecond()
-    expect(document.body.style.overflow).toBe('')
+    expectOverflow(document.body, '')
   })
 
   it('compensates both vanished scrollbars logically and clears them on release', () => {
@@ -67,9 +75,11 @@ describe('lockScroll', () => {
     mockComputedStyleOnce({ paddingInlineEnd: '7px', paddingBlockEnd: '9px' })
 
     const release = lockScroll()
-    expect(document.body.style.overflow).toBe('hidden')
+    expectOverflow(document.body, 'hidden')
 
     release()
+    // The shorthand, not the axes: this test declared the shorthand, and
+    // that's the inline state restore must hand back.
     expect(document.body.style.overflow).toBe('auto')
     expect(document.body.style.paddingInlineEnd).toBe('7px')
     expect(document.body.style.paddingBlockEnd).toBe('9px')
@@ -117,16 +127,33 @@ describe('lockScroll', () => {
     document.body.append(container)
 
     const releaseContainer = lockScroll(container)
-    expect(container.style.overflow).toBe('hidden')
-    expect(document.body.style.overflow).toBe('')
+    expectOverflow(container, 'hidden')
+    expectOverflow(document.body, '')
 
     const releaseBody = lockScroll()
     releaseContainer()
-    expect(container.style.overflow).toBe('')
-    expect(document.body.style.overflow).toBe('hidden')
+    expectOverflow(container, '')
+    expectOverflow(document.body, 'hidden')
 
     releaseBody()
-    expect(document.body.style.overflow).toBe('')
+    expectOverflow(document.body, '')
+    container.remove()
+  })
+
+  it('restores a container that declares its scrolling on one axis only', () => {
+    // The `overflow` shorthand serializes back to '' unless both longhands
+    // are set, so a one-axis container has to be saved and restored per axis
+    // or release removes the consumer's own declaration.
+    const container = document.createElement('div')
+    container.style.overflowY = 'auto'
+    document.body.append(container)
+
+    const release = lockScroll(container)
+    expectOverflow(container, 'hidden')
+
+    release()
+    expect(container.style.overflowY).toBe('auto')
+
     container.remove()
   })
 })

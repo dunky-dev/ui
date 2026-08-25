@@ -28,10 +28,13 @@ export interface DialogIds {
   close: string
 }
 
+export type DialogEscapeScope = 'layer' | 'stack'
+
 export interface DialogContext {
   role: DialogRole
   modal: boolean
   closeOnEscape: boolean
+  escapeScope: DialogEscapeScope
   closeOnInteractOutside: boolean
   closeOnBack: boolean
   // The consumer-ownable open value. A controlled machine never moves on its
@@ -59,13 +62,15 @@ export type DialogMachineEvent =
   | { type: 'escape' }
   | { type: 'interact.outside' }
   | { type: 'history.back' }
+  | { type: 'history.forward' }
   | { type: 'exit.complete' }
   | ControlledSync<boolean>
   | { type: 'part.presence'; part: DialogPart; present: boolean }
 
-/** The payload for a back-navigation dismissal. Synthesized by the connect —
- * the host's back has no cancelable event of its own — carrying only the veto
- * contract every dismissal callback shares. */
+/** The payload for a history-navigation change — a Back dismissal or a
+ * Forward reopen. Synthesized by the connect — the host's traversal has no
+ * cancelable event of its own — carrying only the veto contract every
+ * dismissal callback shares. */
 export interface BackNavigationPayload {
   defaultPrevented?: boolean
   preventDefault?: () => void
@@ -80,6 +85,8 @@ export interface DialogCallbacks {
   onInteractOutside?: (event?: PointerPayload) => void
   /** Fired before a back-navigation dismissal; `preventDefault()` vetoes it. */
   onBackNavigation?: (event?: BackNavigationPayload) => void
+  /** Fired before a forward-navigation reopen; `preventDefault()` vetoes it. */
+  onForwardNavigation?: (event?: BackNavigationPayload) => void
 }
 
 /**
@@ -103,13 +110,19 @@ export interface DialogOptions extends DialogCallbacks {
   role?: DialogRole
   /** Whether Escape closes the dialog. @default true */
   closeOnEscape?: boolean
+  /** How far an allowed Escape reaches in a nested stack: this layer only, so
+   * the stack unwinds one press at a time, or the whole stack at once. Only
+   * this dialog gates and vetoes it; the layers beneath receive a plain close.
+   * @default 'layer' */
+  escapeScope?: DialogEscapeScope
   /** Whether pressing the backdrop closes the dialog.
    * @default true — false when `role="alertdialog"` */
   closeOnInteractOutside?: boolean
   /** Treats the host's Back navigation as a dismissal: while the dialog is
    * open, Back closes it instead of leaving the page — one layer per press in
-   * a nested stack. The substrate wires the host mechanics (the web plants a
-   * guard entry in the session history). @default false */
+   * a nested stack — and, on a host with a forward stack, Forward reopens
+   * what Back closed. The substrate wires the host mechanics (the web plants
+   * a guard entry in the session history). @default false */
   closeOnBack?: boolean
   /** Reserves an exit window for a close animation: closing passes through the
    * `closing` state (`data-state="closing"` styles the exit) and the dialog
