@@ -178,7 +178,7 @@ stack of dialogs only the topmost one exists until it closes.
   topmost again — re-exposed, interactive, with focus restored to the element
   focused before the closed dialog opened (normally its trigger).
 - **Closing the stack**: a close intent can be scoped to the whole stack — an
-  Escape whose scope is the stack, or a stack-scoped Close press. Only the
+  Escape whose scope is the stack (`escapeScope`). Only the
   dialog that received the intent gates or vetoes it; once allowed, the stack
   unwinds top-down, every layer beneath receiving a plain close — no Escape or
   outside-press gating — and reporting it through its own callback, a

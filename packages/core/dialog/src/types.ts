@@ -28,10 +28,13 @@ export interface DialogIds {
   close: string
 }
 
+export type DialogEscapeScope = 'layer' | 'stack'
+
 export interface DialogContext {
   role: DialogRole
   modal: boolean
   closeOnEscape: boolean
+  escapeScope: DialogEscapeScope
   closeOnInteractOutside: boolean
   closeOnBack: boolean
   // The consumer-ownable open value. A controlled machine never moves on its
@@ -107,6 +110,11 @@ export interface DialogOptions extends DialogCallbacks {
   role?: DialogRole
   /** Whether Escape closes the dialog. @default true */
   closeOnEscape?: boolean
+  /** How far an allowed Escape reaches in a nested stack: this layer only, so
+   * the stack unwinds one press at a time, or the whole stack at once. Only
+   * this dialog gates and vetoes it; the layers beneath receive a plain close.
+   * @default 'layer' */
+  escapeScope?: DialogEscapeScope
   /** Whether pressing the backdrop closes the dialog.
    * @default true — false when `role="alertdialog"` */
   closeOnInteractOutside?: boolean

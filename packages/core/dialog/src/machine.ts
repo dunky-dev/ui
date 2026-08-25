@@ -42,6 +42,7 @@ export function dialogMachine(
     role,
     modal: options.modal ?? true,
     closeOnEscape: options.closeOnEscape ?? true,
+    escapeScope: options.escapeScope ?? 'layer',
     // An alert dialog interrupts for a response — an outside press must not
     // dismiss it unless explicitly opted in.
     closeOnInteractOutside: options.closeOnInteractOutside ?? role === 'dialog',
