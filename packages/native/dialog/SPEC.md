@@ -79,6 +79,7 @@ option as a prop.
 | `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'` | The dialog flavor (see core spec for alert defaults).                                       |
 | `modal`                  | `boolean`                   | `true`     | Modality; carried to assistive tech.                                                        |
 | `closeOnEscape`          | `boolean`                   | `true`     | Kept for cross-substrate parity; no Escape key on touch.                                    |
+| `escapeScope`            | `'layer' \| 'stack'`        | `'layer'`  | Same parity: with no Escape on touch, nothing reads it here.                                |
 | `closeOnInteractOutside` | `boolean`                   | varies     | Whether a Backdrop press dismisses.                                                         |
 | `closeOnBack`            | `boolean`                   | `true`     | Whether the hardware Back press dismisses. Native default diverges from the core's `false`. |
 | `onInteractOutside`      | `(event?) => void`          | —          | Outside-press report; `preventDefault()` vetoes.                                            |
