@@ -434,15 +434,15 @@ describe('Dialog', () => {
     it('locks body scroll while a modal dialog is open', () => {
       render(() => <DefaultDialog />)
       openDialog()
-      expect(document.body.style.overflow).toBe('hidden')
+      expect(document.body.style.overflowY).toBe('hidden')
 
       pressEscape()
-      expect(document.body.style.overflow).not.toBe('hidden')
+      expect(document.body.style.overflowY).not.toBe('hidden')
     })
 
     it('does not lock scroll when modal=false', () => {
       render(() => <DefaultDialog defaultOpen modal={false} />)
-      expect(document.body.style.overflow).not.toBe('hidden')
+      expect(document.body.style.overflowY).not.toBe('hidden')
     })
 
     it('locks the portal container, not the body, when scoped', () => {
@@ -457,11 +457,11 @@ describe('Dialog', () => {
         </Dialog>
       ))
 
-      expect(panel.style.overflow).toBe('hidden')
-      expect(document.body.style.overflow).not.toBe('hidden')
+      expect(panel.style.overflowY).toBe('hidden')
+      expect(document.body.style.overflowY).not.toBe('hidden')
 
       pressEscape()
-      expect(panel.style.overflow).not.toBe('hidden')
+      expect(panel.style.overflowY).not.toBe('hidden')
       panel.remove()
     })
   })
@@ -834,7 +834,7 @@ describe('Dialog', () => {
       flush()
       expect(screen.queryByText('Outer')).toBeNull()
       expect(screen.queryByText('Inner')).toBeNull()
-      expect(document.body.style.overflow).not.toBe('hidden')
+      expect(document.body.style.overflowY).not.toBe('hidden')
       expect(container.hasAttribute('aria-hidden')).toBe(false)
       expect(container.hasAttribute('inert')).toBe(false)
     })
