@@ -1,5 +1,12 @@
 # @dunky.dev/react-use-focus-trap
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`560d539`](https://github.com/dunky-dev/ui/commit/560d539dac5d2ed4b318b9ddad08f9717ddb8f00), [`6ed64a2`](https://github.com/dunky-dev/ui/commit/6ed64a213a42f2f03d07759afd84b456fd753218)]:
+  - @dunky.dev/dom-focus-trap@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes
