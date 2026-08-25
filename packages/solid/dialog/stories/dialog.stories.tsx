@@ -461,3 +461,67 @@ export const closeOnBack: StoryType = {
     </>
   ),
 }
+
+// A stack of guards: every open layer plants its own history entry, so Back
+// unwinds the stack one layer per press and Forward re-enters it one layer per
+// press. Uncontrolled on purpose — a controlled dialog's Back-close is
+// completed by the consumer, so its entry is consumed and Forward has nothing
+// to re-enter (the `nested` story above is the controlled shape).
+//
+// Two sequences worth walking, with the in-dialog buttons or the canvas ones
+// (the canvas is inert while any modal layer is open):
+//
+//  1. Both open -> Back closes the inner only -> Forward reopens it. The outer
+//     never moves.
+//  2. Back, Back closes both -> Forward reopens the outer -> Forward again
+//     reopens the inner. Closing the outer unmounted the inner along with it,
+//     so the one that comes back is a different machine; it recognizes the
+//     entry as its own ground by its place in the stack.
+const HistoryButtons = () => (
+  <div style={actions}>
+    <button onClick={() => window.history.back()}>Simulate browser Back</button>
+    <button onClick={() => window.history.forward()}>Simulate browser Forward</button>
+  </div>
+)
+
+export const nestedCloseOnBack: StoryType = {
+  render: () => (
+    <>
+      <Dialog defaultOpen closeOnBack>
+        <Dialog.Trigger>Open outer</Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Backdrop style={backdrop} />
+          <Dialog.Viewport style={viewport}>
+            <Dialog.Content style={closableContent}>
+              <CloseButton />
+              <Dialog.Title>Outer dialog</Dialog.Title>
+              <Dialog.Description>
+                Two guard entries while both layers are open. Back closes the topmost one first.
+              </Dialog.Description>
+              <Dialog closeOnBack>
+                <Dialog.Trigger>Open inner</Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Backdrop style={backdrop} />
+                  <Dialog.Viewport style={viewport}>
+                    <Dialog.Content style={closableContent}>
+                      <CloseButton />
+                      <Dialog.Title>Inner dialog</Dialog.Title>
+                      <Dialog.Description>
+                        Back closes this layer and leaves the outer alone; Forward brings it back,
+                        guarded again.
+                      </Dialog.Description>
+                      <HistoryButtons />
+                    </Dialog.Content>
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+              <HistoryButtons />
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>{' '}
+      <button onClick={() => window.history.back()}>Simulate browser Back</button>{' '}
+      <button onClick={() => window.history.forward()}>Simulate browser Forward</button>
+    </>
+  ),
+}

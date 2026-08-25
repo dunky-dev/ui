@@ -68,6 +68,7 @@ export const Dialog: Component<DialogProps> & Parts = props => {
         backNavigate: () => untrack(() => api.backNavigate()),
         forwardNavigate: () => untrack(() => api.forwardNavigate()),
         isOpen: () => machine.matches('open'),
+        depth,
       })
       guard.sync(open)
     },
@@ -235,6 +236,7 @@ export const Content: Component<DialogContentProps> = props => {
         modal: machine.context.modal,
         backdrop: () => backdropRef.current,
         initialFocus: untrack(() => resolveInitialFocus(props.initialFocus)),
+        dismiss: () => machine.send({ type: 'close' }),
       })
     },
   )

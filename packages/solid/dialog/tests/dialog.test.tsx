@@ -562,6 +562,96 @@ describe('Dialog', () => {
       await consume
     })
 
+    // The nested round-trip: closing the outer takes the inner's whole
+    // registration with it (unmounted with the content that held it), so the
+    // inner that comes back with the outer is a different machine. It reopens
+    // anyway — the entry it lost is still its own ground.
+    const NestedGuards = () => (
+      <Dialog defaultOpen closeOnBack>
+        <Dialog.Portal>
+          <Dialog.Viewport>
+            <Dialog.Content aria-label='outer'>
+              <Dialog closeOnBack>
+                <Dialog.Trigger>open inner</Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Viewport>
+                    <Dialog.Content aria-label='inner' />
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    )
+
+    const layers = (): string =>
+      `${screen.queryByLabelText('outer') ? 'O' : '-'}${screen.queryByLabelText('inner') ? 'I' : '-'}`
+
+    it('Back unwinds a nested stack one layer per press and Forward restores it the same way', async () => {
+      render(() => <NestedGuards />)
+      flush()
+      press(screen.getByText('open inner'))
+      expect(layers()).toBe('OI')
+
+      const traverse = async (go: () => void): Promise<void> => {
+        const pop = nextPop()
+        go()
+        await pop
+        flush()
+      }
+
+      await traverse(() => window.history.back())
+      expect(layers()).toBe('O-')
+      await traverse(() => window.history.back())
+      expect(layers()).toBe('--')
+
+      await traverse(() => window.history.forward())
+      expect(layers()).toBe('O-')
+      await traverse(() => window.history.forward())
+      expect(layers()).toBe('OI')
+
+      // Both layers are armed again; disposing frees their entries in one
+      // traversal — settle it here, not in the next test.
+      const consume = nextPop()
+      cleanup()
+      await consume
+    })
+
+    // Both layers guarded and closed in one commit — a "close all" affordance,
+    // or a route change that takes the whole stack with it.
+    const GuardedStack = (props: { open: boolean }) => (
+      <Dialog open={props.open} closeOnBack>
+        <Dialog.Portal>
+          <Dialog.Viewport>
+            <Dialog.Content aria-label='outer'>
+              <Dialog open={props.open} closeOnBack>
+                <Dialog.Portal>
+                  <Dialog.Viewport>
+                    <Dialog.Content aria-label='inner' />
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    )
+
+    it('closing a whole stack at once leaves no entry to swallow a later Back', async () => {
+      const before: unknown = window.history.state
+      const [open, setOpen] = createSignal(true)
+      render(() => <GuardedStack open={open()} />)
+      flush()
+      expect(window.history.state).not.toEqual(before)
+
+      const consume = nextPop() // one traversal for both entries
+      setOpen(false)
+      flush()
+      await consume
+      expect(window.history.state).toEqual(before)
+    })
+
     it('reopening through the trigger plants a fresh guard, truncating the spent entry', async () => {
       render(() => <DefaultDialog closeOnBack defaultOpen />)
       flush()
@@ -662,6 +752,34 @@ describe('Dialog', () => {
       expect(screen.queryByText('Outer')).not.toBeNull()
 
       pressEscape()
+      expect(screen.queryByText('Outer')).toBeNull()
+    })
+
+    it('a stack-scoped Escape on the topmost dialog unwinds every layer', () => {
+      render(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Viewport>
+              <Dialog.Content>
+                <Dialog.Title>Outer</Dialog.Title>
+                <Dialog defaultOpen escapeScope='stack'>
+                  <Dialog.Portal>
+                    <Dialog.Viewport>
+                      <Dialog.Content>
+                        <Dialog.Title>Inner</Dialog.Title>
+                      </Dialog.Content>
+                    </Dialog.Viewport>
+                  </Dialog.Portal>
+                </Dialog>
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      flush()
+
+      pressEscape()
+      expect(screen.queryByText('Inner')).toBeNull()
       expect(screen.queryByText('Outer')).toBeNull()
     })
 
