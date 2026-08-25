@@ -31,14 +31,17 @@ one.
   The shared instance is what makes one Escape close exactly one layer, even
   across different primitives.
 - Registering returns a disposer; an empty stack has no topmost.
+- A dismissal that reaches past its own layer gets the ones beneath in
+  unwinding order — topmost first — so closing a whole stack at once ends up
+  where closing it one layer at a time would have.
 
 ## API
 
-| Export                  | Description                                                  |
-| ----------------------- | ------------------------------------------------------------ |
-| `createLayerStack<T>()` | A fresh stack — one per host binding, not per primitive.     |
-| `OverlayLayer`          | What every layer carries: `id` and `depth` (1 = top-level).  |
-| `LayerStack<T>`         | `register(layer)` -> disposer, `topmost()`, `isTopmost(id)`. |
+| Export                  | Description                                                               |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `createLayerStack<T>()` | A fresh stack — one per host binding, not per primitive.                  |
+| `OverlayLayer`          | What every layer carries: `id` and `depth` (1 = top-level).               |
+| `LayerStack<T>`         | `register(layer)` -> disposer, `topmost()`, `isTopmost(id)`, `below(id)`. |
 
 ## Constraints
 

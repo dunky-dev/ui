@@ -22,6 +22,10 @@ export interface LayerStack<T extends OverlayLayer> {
   // The topmost layer, or undefined when the stack is empty.
   topmost: () => T | undefined
   isTopmost: (id: string) => boolean
+  // The layers stacked beneath `id`, topmost first — the unwinding order for a
+  // dismissal scoped to the whole stack rather than one layer. An id that
+  // isn't registered has nothing beneath it.
+  below: (id: string) => T[]
 }
 
 // One stack per running host: a browser page or a native app is one or the
@@ -58,6 +62,18 @@ export function createLayerStack<T extends OverlayLayer>(): LayerStack<T> {
     topmost,
     isTopmost(id) {
       return topmost()?.id === id
+    },
+    below(id) {
+      const self = layers.find(layer => layer.id === id)
+      if (self === undefined) return []
+      // Same ordering as `topmost`, applied to the whole stack: deeper first,
+      // open order breaking ties.
+      return layers
+        .filter(
+          layer =>
+            layer.depth < self.depth || (layer.depth === self.depth && layer.order < self.order),
+        )
+        .sort((left, right) => right.depth - left.depth || right.order - left.order)
     },
   }
 }
