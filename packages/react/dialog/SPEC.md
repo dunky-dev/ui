@@ -78,10 +78,11 @@ React-specific notes on top of the core contract:
   fires first; `preventDefault()` vetoes, per the core contract). Reopening
   through the trigger instead plants a fresh entry — the browser truncates
   the spent one, exactly like navigating after a Back. Two web-mechanics
-  caveats: a controlled dialog's Back-close is completed by the consumer
-  rather than by the press itself, so its entry is consumed and Forward has
-  nothing to re-enter; and the Forward watch lives in script, so it doesn't
-  survive a reload (the navigation util's SPEC covers why).
+  caveat: a controlled dialog's Back-close is completed by the consumer rather
+  than by the press itself, so its entry is consumed and Forward has nothing to
+  re-enter. A nested dialog unmounted along with the parent it was opened from
+  does come back, and so does one whose page reloaded in between — the entry
+  remembers the dialog's place in the stack, not the instance that planted it.
 - Everything ships headless, per the core contract's
   [Internals](../../core/dialog/SPEC.md#internals).
 

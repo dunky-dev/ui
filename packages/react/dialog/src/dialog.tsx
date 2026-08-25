@@ -65,9 +65,10 @@ export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, 
       backNavigate: () => apiRef.current.backNavigate(),
       forwardNavigate: () => apiRef.current.forwardNavigate(),
       isOpen: () => machine.matches('open'),
+      depth,
     })
     guardRef.current.sync(api.open)
-  }, [api.open, machine])
+  }, [api.open, machine, depth])
 
   useEffect(
     () => () => {
@@ -214,6 +215,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
       modal: machine.context.modal,
       backdrop: () => backdropRef.current,
       initialFocus: initialFocusRef.current?.current,
+      dismiss: () => machine.send({ type: 'close' }),
     })
   }, [api.open, machine, depth, backdropRef])
 
