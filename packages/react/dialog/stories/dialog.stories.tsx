@@ -522,3 +522,88 @@ export const nestedCloseOnBack: StoryType = {
     </>
   ),
 }
+
+// Containment makes everything outside the topmost modal layer invisible to
+// assistive tech and unreachable by pointer, Tab, and find-in-page
+// (`aria-hidden` + `inert`) — but it keeps painting, so the story's `[inert]`
+// rule dims what containment hid to make the state visible. The panel is the
+// interesting half: it is non-modal (a select menu's habitat) and portalled
+// into the app branch, BESIDE page content. A branch holding a retained layer
+// is descended into rather than spared whole, so the article next to the
+// panel dims individually while the panel itself stays bright and reachable.
+const appBranch: CSSProperties = {
+  // The panel's absolute viewport pins to the branch.
+  position: 'relative',
+  marginTop: 16,
+  padding: 16,
+  border: '1px dashed #999',
+  borderRadius: 8,
+}
+const branchViewport: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  display: 'flex',
+  padding: 16,
+}
+const branchPanel: CSSProperties = {
+  margin: 'auto',
+  maxWidth: 320,
+  padding: 16,
+  background: 'white',
+  border: '1px solid #ccc',
+  borderRadius: 8,
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.24)',
+}
+
+const ContainedPage = () => {
+  const [branch, setBranch] = useState<HTMLElement | null>(null)
+  return (
+    <>
+      <style>{'[inert] { opacity: 0.35; }'}</style>
+      <article>
+        Page content at the canvas root — a body-level cousin of the dialog&apos;s portal.{' '}
+        <button>Unreachable while the dialog is open</button>
+      </article>
+      <div ref={setBranch} style={appBranch}>
+        <article>
+          The app branch: the panel portals in here, right beside this article.{' '}
+          <button>Unreachable too</button>
+        </article>
+      </div>
+      <Dialog defaultOpen>
+        <Dialog.Trigger>Open dialog</Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Backdrop style={backdrop} />
+          <Dialog.Viewport style={viewport}>
+            <Dialog.Content style={closableContent}>
+              <CloseButton />
+              <Dialog.Title>Containment</Dialog.Title>
+              <Dialog.Description>
+                Everything dimmed is aria-hidden and inert: Tab never reaches it, presses fall flat,
+                screen readers see only this window. Open the panel — it lands inside the app
+                branch, and the article beside it stays contained.
+              </Dialog.Description>
+              {branch && (
+                <Dialog modal={false}>
+                  <Dialog.Trigger>Open panel in the app branch</Dialog.Trigger>
+                  <Dialog.Portal container={branch}>
+                    <Dialog.Viewport style={branchViewport}>
+                      <Dialog.Content aria-label='Branch panel' style={branchPanel}>
+                        A non-modal layer above the dialog, held out of the containment while its
+                        neighbor article stays in it. Escape closes this layer first.
+                      </Dialog.Content>
+                    </Dialog.Viewport>
+                  </Dialog.Portal>
+                </Dialog>
+              )}
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    </>
+  )
+}
+
+export const containment: StoryType = {
+  render: () => <ContainedPage />,
+}

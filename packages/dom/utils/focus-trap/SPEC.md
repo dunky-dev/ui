@@ -36,11 +36,15 @@ identical containment.
 - With no focusables inside, Tab is a no-op; focus stays where it is.
 - `enabled` and `last` are re-evaluated on every press, so trapping follows
   runtime state — e.g. only the topmost layer of a stack traps.
-- A focusable is an element matching `FOCUSABLE_SELECTOR` whose `tabIndex`
-  is not negative and which is rendered: no `hidden` attribute, no
-  `display: none` on itself or an ancestor, no `visibility: hidden`.
-  Focusing a non-rendered element is a no-op, so keeping one in the cycle
-  would stall the trap on it.
+- The cycle only holds what a browser would actually focus: an element
+  matching `FOCUSABLE_SELECTOR` whose `tabIndex` is not negative, which is
+  rendered, and which nothing bars — not disabled through an ancestor
+  `fieldset[disabled]` (controls in its first `legend` stay enabled, as they
+  do natively) and not in an `[inert]` element or subtree. The rendered and
+  barred questions are the shared predicates from
+  [`@dunky.dev/dom-element`](../element/SPEC.md). Focusing such an element
+  is a refused no-op and the Tab is already `preventDefault()`-ed, so
+  keeping one in the cycle would dead-end the trap on it.
 - A same-name radio group is one tab stop — the checked radio, else the
   group's first — per the APG radio group pattern; groups are scoped by
   name and form owner, matching the browser's own grouping.
@@ -64,8 +68,8 @@ identical containment.
 
 ## Internals
 
-| Position                                                                 | Why                                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Focus is stepped manually on every press, not only at the edges          | The `last` re-ordering makes the logical cycle diverge from DOM order, so native tabbing can't be trusted mid-cycle.                                                                                                                                                                                   |
-| Document-level, capture-phase keydown listener                           | A container listener misses presses while focus is still outside; capture delivery survives a `stopPropagation` in the subtree.                                                                                                                                                                        |
-| Rendered-ness via a computed-style walk, not `Element.checkVisibility()` | The API is recent (Chrome/Edge 105+, Firefox 106+, Safari 17.4+) and the trap resolves focusables after the Tab keydown's `preventDefault()`, so on any browser without it the throw would leave Tab dead entirely; the walk is spec-defined behavior everywhere (and needs no test-environment shim). |
+| Position                                                              | Why                                                                                                                                                                                                   |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focus is stepped manually on every press, not only at the edges       | The `last` re-ordering makes the logical cycle diverge from DOM order, so native tabbing can't be trusted mid-cycle.                                                                                  |
+| Document-level, capture-phase keydown listener                        | A container listener misses presses while focus is still outside; capture delivery survives a `stopPropagation` in the subtree.                                                                       |
+| Rendered-ness is asked of `@dunky.dev/dom-element`, not answered here | The overlay's initial-focus resolution guards against the same silent `focus()` no-op, and two packages answering separately would drift. The predicate's own trade-offs live in that package's SPEC. |

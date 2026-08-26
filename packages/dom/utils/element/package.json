@@ -1,12 +1,12 @@
 {
-  "name": "@dunky.dev/dom-overlay",
-  "version": "0.2.0",
-  "description": "Framework-free DOM behavior for overlay substrates: the shared layer stack with assistive-tech containment, the exit window, and initial focus.",
+  "name": "@dunky.dev/dom-element",
+  "version": "0.0.0",
+  "description": "Framework-free element predicates — the DOM questions every primitive asks.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dunky-dev/ui.git",
-    "directory": "packages/dom/utils/overlay"
+    "directory": "packages/dom/utils/element"
   },
   "files": [
     "dist",
@@ -34,9 +34,5 @@
   },
   "scripts": {
     "build": "tsdown"
-  },
-  "dependencies": {
-    "@dunky.dev/dom-element": "workspace:*",
-    "@dunky.dev/overlay": "workspace:*"
   }
 }

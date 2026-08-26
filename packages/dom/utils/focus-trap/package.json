@@ -34,5 +34,8 @@
   },
   "scripts": {
     "build": "tsdown"
+  },
+  "dependencies": {
+    "@dunky.dev/dom-element": "workspace:*"
   }
 }

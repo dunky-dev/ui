@@ -253,21 +253,63 @@ describe('layer stack global anchoring', () => {
 })
 
 describe('getInitialFocus', () => {
-  it('resolves the first form field that can take focus', () => {
+  // Mounted, not detached: a candidate has to be rendered to be picked, and a
+  // detached element renders nowhere.
+  const mountContent = (html: string): HTMLElement => {
     const content = document.createElement('div')
-    content.innerHTML =
+    content.innerHTML = html
+    document.body.append(content)
+    return content
+  }
+
+  it('resolves the first form field that can take focus', () => {
+    const content = mountContent(
       '<button type="button">action</button>' +
-      '<input disabled />' +
-      '<input type="hidden" />' +
-      '<select id="field"></select>'
+        '<input disabled />' +
+        '<input type="hidden" />' +
+        '<select id="field"></select>',
+    )
 
     expect(getInitialFocus(content).id).toBe('field')
   })
 
   it('falls back to the content itself without form fields', () => {
-    const content = document.createElement('div')
-    content.innerHTML = '<button type="button">action</button>'
+    const content = mountContent('<button type="button">action</button>')
 
     expect(getInitialFocus(content)).toBe(content)
+  })
+
+  it('skips a field that does not render for one that does', () => {
+    // A field in a collapsed section satisfies the selector but cannot take
+    // focus, and it fails silently — so taking it would spend the candidate
+    // and drop focus to the overlay window with nothing reporting the miss.
+    const content = mountContent(
+      '<div style="display: none"><input id="collapsed" /></div><input id="field" />',
+    )
+
+    expect(getInitialFocus(content).id).toBe('field')
+  })
+
+  it('skips a field that cannot take focus — fieldset-disabled or inert', () => {
+    // The selector gates on own attributes only, so a field disabled through
+    // an ancestor fieldset (or barred by inert) satisfies it, yet a browser
+    // refuses to focus it — the same silent miss as an unrendered field.
+    const content = mountContent(
+      '<fieldset disabled><input id="barred" /></fieldset>' +
+        '<div inert><input id="inerted" /></div>' +
+        '<input id="field" />',
+    )
+
+    expect(getInitialFocus(content).id).toBe('field')
+  })
+
+  it('hands over to the fields when the designated element does not render', () => {
+    // The contract conditions the designated element on being able to take
+    // focus, so an unrendered one must not consume the chain down to the
+    // window.
+    const content = mountContent('<input id="designated" hidden /><input id="field" />')
+    const designated = document.getElementById('designated') as HTMLElement
+
+    expect(getInitialFocus(content, designated).id).toBe('field')
   })
 })

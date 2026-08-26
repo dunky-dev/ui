@@ -55,9 +55,10 @@ architecture:
   imports only the state-machine runtime, the agnostic bindings vocabulary
   (`@dunky.dev/state-machine` + `@dunky.dev/state-machine-bindings`), and the
   machine utils under `core/utils`. A machine util imports only the runtime;
-  a DOM util imports nothing from this repo; a DOM component imports its core
-  counterpart and the DOM utils, never a framework; a substrate hook imports
-  only the DOM util it wraps.
+  a DOM util imports nothing from this repo except a smaller DOM util (a
+  predicate two utils must agree on, never a peer that imports it back); a DOM
+  component imports its core counterpart and the DOM utils, never a framework;
+  a substrate hook imports only the DOM util it wraps.
 - **DOM behavior is written once too.** Logic that is DOM-specific but not
   framework-specific — a document listener, an ordered focus/stack sequence —
   belongs in `dom/components/<name>`, not copied across substrates. A DOM

@@ -58,7 +58,19 @@ against each other.
 
 The strict rule is only that focus moves into the overlay: an overlay that
 collects input starts at its first form field (input, select, textarea); any
-other content keeps focus on the overlay window itself.
+other content keeps focus on the overlay window itself. A caller may
+designate an element ahead of both.
+
+Every candidate must be one a browser would actually focus — rendered, and
+not barred by an ancestor `fieldset[disabled]` or `[inert]`, which the
+selector's own-attribute checks can't see. A field inside a collapsed
+section or a disabled fieldset satisfies the selector, yet `focus()` on it
+does nothing and reports nothing, so accepting it would spend the candidate
+and drop focus to the overlay window — the fallback firing on a miss it
+can't see. Each step of the chain is therefore filtered, not just the last
+one; the predicates are [`@dunky.dev/dom-element`](../element/SPEC.md)'s
+`isRendered` and `isFocusable`, shared with the focus trap so the two can't
+disagree on what counts.
 
 ### The exit window
 
@@ -79,15 +91,15 @@ again — but keeps painting until its exit visual finishes:
 
 ## API
 
-| Export                                           | Description                                                                                    |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `registerLayer(layer)`                           | Joins the shared stack and syncs containment; returns the disposer that restores it.           |
-| `Layer`                                          | `OverlayLayer` + `element`, `modal`, an optional `backdrop` getter, and an optional `dismiss`. |
-| `isTopmostLayer(id)`                             | Whether the layer owns Escape and the focus trap right now.                                    |
-| `layersBelow(id)`                                | The layers stacked beneath, topmost first — the unwinding order for a stack-scoped dismissal.  |
-| `getInitialFocus(content)`                       | The element to focus on open: first form field, else the overlay window itself.                |
-| `hideExitingLayer(content, boundary, backdrop?)` | Inerts the still-painting layer for the exit window; returns the undo.                         |
-| `watchExitAnimation(element, onComplete)`        | Reports the exit visual's end once; returns the cancel.                                        |
+| Export                                           | Description                                                                                                                       |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `registerLayer(layer)`                           | Joins the shared stack and syncs containment; returns the disposer that restores it.                                              |
+| `Layer`                                          | `OverlayLayer` + `element`, `modal`, an optional `backdrop` getter, and an optional `dismiss`.                                    |
+| `isTopmostLayer(id)`                             | Whether the layer owns Escape and the focus trap right now.                                                                       |
+| `layersBelow(id)`                                | The layers stacked beneath, topmost first — the unwinding order for a stack-scoped dismissal.                                     |
+| `getInitialFocus(content, designated?)`          | The element to focus on open: `designated`, else first form field, else the overlay window — each step filtered for renderedness. |
+| `hideExitingLayer(content, boundary, backdrop?)` | Inerts the still-painting layer for the exit window; returns the undo.                                                            |
+| `watchExitAnimation(element, onComplete)`        | Reports the exit visual's end once; returns the cancel.                                                                           |
 
 ## Constraints
 

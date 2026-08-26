@@ -37,9 +37,14 @@ export function openDialogLayer(content: HTMLElement, options: OpenDialogLayerOp
   // preventScroll everywhere: the scroll lock already froze the surface, so
   // moving focus must not scroll it — otherwise opening jumps the (top-of-
   // container) dialog into view and closing jumps back to the trigger.
-  const target = options.initialFocus ?? getInitialFocus(content)
+  // The whole chain — designated, then first form field, then the window —
+  // resolves in one call so each step is filtered for renderedness; a `??`
+  // here would spend the designated element on a candidate that can't take
+  // focus and skip the field step entirely.
+  const target = getInitialFocus(content, options.initialFocus)
   target.focus({ preventScroll: true })
-  // A target that can't take focus (disabled, hidden) falls back to the panel.
+  // A target that can't take focus (disabled, no tabindex) falls back to the
+  // panel.
   if (document.activeElement !== target) {
     content.focus({ preventScroll: true })
     // Focus still outside the layer breaks the APG modal pattern — a window
