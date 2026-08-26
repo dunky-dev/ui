@@ -96,6 +96,15 @@ describe('registerLayer containment', () => {
     expect(asserted.hasAttribute('inert')).toBe(false)
   })
 
+  it('hides nothing for a layer at the body — there is no outside', () => {
+    const outside = document.createElement('main')
+    document.body.append(outside)
+
+    register({ id: 'a', depth: 1, element: document.body, modal: true })
+    expect(outside.hasAttribute('inert')).toBe(false)
+    expect(document.body.hasAttribute('inert')).toBe(false)
+  })
+
   it('hides nothing for a non-modal layer', () => {
     const outside = document.createElement('main')
     document.body.append(outside)
@@ -189,6 +198,28 @@ describe('containment under a non-modal layer', () => {
 
     unregisterMenu()
     expect(hiddenFrom(outside)).toBe(true)
+  })
+
+  it('hides page content sitting beside a layer portalled into an app branch', () => {
+    // `container` on every overlay's Portal part is public API, so a layer can
+    // land on an app branch rather than the body. Skipping that whole branch to
+    // spare the layer would leave the page content beside it reachable.
+    const app = document.createElement('div')
+    const pageContent = document.createElement('article')
+    const menuPortal = document.createElement('div')
+    const menu = document.createElement('div')
+    menuPortal.append(menu)
+    app.append(pageContent, menuPortal)
+    document.body.append(app)
+    const dialog = mountLayer()
+
+    register({ id: 'dialog', depth: 1, element: dialog.content, modal: true })
+    register({ id: 'menu', depth: 2, element: menu, modal: false })
+
+    expect(hiddenFrom(pageContent)).toBe(true)
+    expect(app.hasAttribute('inert')).toBe(false)
+    expect(menuPortal.hasAttribute('inert')).toBe(false)
+    expect(menu.hasAttribute('inert')).toBe(false)
   })
 
   it('follows the upper modal layer when a non-modal layer sits above both', () => {

@@ -23,11 +23,18 @@ against each other.
   it has one — its backdrop. Topmost follows the core stack's rule.
 - Containment follows the **topmost modal layer**, not the topmost layer.
   Everything outside that layer's subtree is hidden from assistive tech and
-  taken out of pointer and keyboard reach (`aria-hidden` + `inert` on the
-  siblings of its ancestor path). Two kinds of element are held out of it:
-  the layer's own backdrop — rendered outside the content's subtree yet part
-  of the layer — so an outside press can still dismiss, and every layer
-  stacked above it.
+  taken out of pointer and keyboard reach (`aria-hidden` + `inert`). Two
+  kinds of element are held out of it — together the _retained roots_: the
+  layer's own backdrop — rendered outside the content's subtree yet part of
+  the layer — so an outside press can still dismiss, and every layer stacked
+  above it.
+- Hiding descends from the body rather than walking up from the layer, and a
+  branch that holds a retained root is descended into rather than spared
+  whole. Portalling is the consumer's choice — every overlay exposes
+  `container` on its Portal part — so a layer can land on an app branch that
+  holds page content beside it; sparing the branch would leave that content
+  reachable. A layer at or above the body is a no-op: nothing sits outside
+  it.
 - A non-modal layer above a modal one does not release the modal layer's
   containment. The ordinary layers — a select menu, a combobox list, a
   tooltip, a context menu — are non-modal, and living inside a dialog is
@@ -98,6 +105,6 @@ again — but keeps painting until its exit visual finishes:
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The store anchors on a realm-global keyed by `Symbol.for`, resolved lazily | A monorepo or micro-frontend can load duplicate copies of this module; separate stores drift apart (the duplicate-singleton bug class of radix-ui/primitives#2815). Lazy keeps `sideEffects: false` honest. |
 | Containment re-runs from scratch on every stack change                     | Undo-then-rehide is idempotent and order-free; incremental patching would have to reason about interleaved opens and closes.                                                                                |
-| Excluded elements match by containment, not identity                       | A layer above is reached through its own portal wrapper, and it is the wrapper that turns up as the sibling on the walk; an identity check would inert the layer with it.                                   |
+| Hiding descends from the body instead of walking up from the layer         | A branch can hold page content beside a retained root, and `container` on the Portal parts lets a layer land on one; skipping the branch to spare the layer would leave the content beside it reachable.    |
 | Containment sync guards on `element.isConnected`                           | At teardown the content may already be detached; hiding against a dead node would leak the undo.                                                                                                            |
 | Completion is the element's own end event, first one wins                  | A transition ends once per property and descendants bubble theirs; the exit belongs to the element carrying `data-state`, styled to finish as one piece.                                                    |
