@@ -5,8 +5,10 @@ import { Dialog } from '@dunky.dev/native-dialog'
 
 // The story set mirrors packages/react/dialog — same names, same scenarios —
 // minus the ones whose premise doesn't exist on this host: `scoped` (no
-// container portals; a Modal owns the whole screen) and `loginForm` (its
-// point is the web focus trap; here the host manages focus).
+// container portals; a Modal owns the whole screen), `loginForm` (its point is
+// the web focus trap; here the host manages focus), and `containment`
+// (aria-hidden + inert containment is a DOM mechanism; the host Modal hides
+// the page whole, so there is no branch to descend into).
 const meta: Meta<typeof Dialog> = {
   title: 'Primitives/Dialog',
   component: Dialog,
