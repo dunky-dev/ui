@@ -7,54 +7,66 @@
 
 # UI
 
-**The components (powered by [Dunky's state-machine](https://github.com/dunky-dev/state-machine))**
+**Dunky's components — behavior written once, rendered anywhere.**
 
-Dunky splits a UI component into two things: _behavior_ and _render_. The
-state-machine repo is the engine — it models behavior as a plain, framework-free
-state machine. **This repo is the other half: the UI.** It's where the components
-live, and everything needed to render them — each primitive's behavior, the DOM
-utilities they share, and the thin per-substrate bindings that turn a machine into
-something you can put on screen.
-
-Every primitive is modeled once as a framework-free
-machine (its **core**) and delivered through a thin binding per host environment.
+This repo is where the components live, and everything needed to render them.
+Each primitive is built in layers: its behavior is modeled once as a
+framework-free state machine (the **core**), DOM-specific logic is shared once
+across every DOM host (the **DOM half**), and a thin **substrate** binding per
+host environment puts it on screen. Add a substrate and every primitive shows
+up there with the same behavior and the same a11y.
 
 ```
-              @dunky.dev/state-machine         the engine + bindings
-                         |
-                         v
-         +-------------------------------+
-         |         core primitive        |      packages/core/<name>
-         |     states . events . a11y    |      pure behavior — no DOM, no framework
-         +---------------+---------------+
-                         |
-                         |  connect() -> logical bindings
-                         |  (onPress, role, labelledBy, data-state, ...)
-                         |
-          +--------------+--------------+
-          v              v              v
-    +-----------+  +-----------+  +-----------+
-    | substrate |  | substrate |  | substrate |  packages/<substrate>/<name>
-    |  (react)  |  |  (solid)  |  |  (native) |  render + host wiring
-    +-----------+  +-----------+  +-----------+
-         same behavior, same a11y — only the render differs
+                +---------------------------+
+                |       core/<name>         |    the behavior
+                |  states . events . a11y   |    framework-free, no DOM
+                +-------------+-------------+
+                              |
+               connect() -> logical bindings
+               (onPress, role, data-state, ...)
+                              |
+             +----------------+----------------+
+             |                                 |
+             v                                 |
+ +------------------------+                    |
+ | dom/components/<name>  |   the DOM half     |
+ |  document listeners,   |   shared by every  |
+ |  focus/stack sequence  |   DOM host         |
+ +-----+------------+-----+                    |
+       |            ^                          |
+       |            |  dom/utils/*             |
+       |            |  focus-trap, overlay,    |
+       |            |  scroll-lock, ...        |
+       v                                       v
+ +-----------+  +-----------+           +-----------+
+ |   react   |  |   solid   |           |  native   |
+ +-----------+  +-----------+           +-----------+
+             render + host lifecycle only
 ```
+
+The engine that runs the core machines lives in its own repo:
+[dunky-dev/state-machine](https://github.com/dunky-dev/state-machine). Here it
+is just a dependency — this repo defines *what* each primitive does and how it
+renders, not how machines execute.
 
 ## Layout
 
 `packages/` is a grid: one directory per layer, one package per primitive.
 
-- **`core/`** — the behavior. One package per primitive: a framework-free state
-  machine built on `@dunky.dev/state-machine`. No DOM, no framework. Published
-  as `@dunky.dev/<name>`.
-- **`dom/`** — framework-free DOM utilities shared across primitives and
-  substrates (focus trap, scroll lock, the bindings translation). Published as
+- **`core/`** — the behavior. One package per primitive: a framework-free
+  state machine. No DOM, no framework. Published as `@dunky.dev/<name>`.
+- **`dom/utils/`** — framework-free DOM utilities shared across primitives
+  and substrates (focus trap, scroll lock, overlay stacking). Published as
   `@dunky.dev/dom-<name>`.
-- **`<substrate>/`** — the render. A thin binding per host that wires the machine
-  to real elements. Published as `@dunky.dev/<substrate>-<name>` (e.g.
-  `@dunky.dev/react-dialog`).
+- **`dom/components/`** — the framework-free DOM half of one primitive:
+  logic that is DOM-specific but not framework-specific (document listeners,
+  ordered focus sequences), written once and shared by every DOM host.
+  Published as `@dunky.dev/dom-<name>`.
+- **`<substrate>/`** — the render. A thin binding per host (`react/`,
+  `solid/`, `native/`) that wires the machine to real elements. Published as
+  `@dunky.dev/<substrate>-<name>` (e.g. `@dunky.dev/react-dialog`).
 
-The dependency direction is one-way: `substrate -> core -> engine`. A binding
+The dependency direction is one-way: `substrate -> dom -> core`. A binding
 adds no behavior of its own — if a decision is needed, it moves into the core
 machine so every substrate inherits it. The deep reference is
 [ARCHITECTURE.md](./ARCHITECTURE.md).
