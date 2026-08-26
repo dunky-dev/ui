@@ -290,6 +290,19 @@ describe('getInitialFocus', () => {
     expect(getInitialFocus(content).id).toBe('field')
   })
 
+  it('skips a field that cannot take focus — fieldset-disabled or inert', () => {
+    // The selector gates on own attributes only, so a field disabled through
+    // an ancestor fieldset (or barred by inert) satisfies it, yet a browser
+    // refuses to focus it — the same silent miss as an unrendered field.
+    const content = mountContent(
+      '<fieldset disabled><input id="barred" /></fieldset>' +
+        '<div inert><input id="inerted" /></div>' +
+        '<input id="field" />',
+    )
+
+    expect(getInitialFocus(content).id).toBe('field')
+  })
+
   it('hands over to the fields when the designated element does not render', () => {
     // The contract conditions the designated element on being able to take
     // focus, so an unrendered one must not consume the chain down to the

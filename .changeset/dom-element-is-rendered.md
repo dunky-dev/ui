@@ -27,7 +27,14 @@ ancestors are walked — `visibility: hidden | collapse`, and being detached.
 Not checked: `opacity: 0` and `content-visibility`, which do render, and
 rendering is what decides focusability.
 
-It's a package of its own because two utils have to agree on the answer:
-`@dunky.dev/dom-focus-trap` filters its Tab cycle with it and
+`isFocusable(element)` is the sibling facet: whether anything bars the element
+from taking focus. Disabling and inertness also arrive from ancestors — a
+control inside a `fieldset[disabled]` subtree (with the native exception for
+its first `legend`) or anything inside `[inert]` refuses `focus()` — which a
+selector's own-attribute checks (`:not([disabled])`) can't see. The facets are
+deliberately narrow and compose; the tab order stays the caller's question.
+
+It's a package of its own because two utils have to agree on the answers:
+`@dunky.dev/dom-focus-trap` filters its Tab cycle with them and
 `@dunky.dev/dom-overlay` filters its initial-focus candidates, both guarding
 against the same silent `focus()` no-op.

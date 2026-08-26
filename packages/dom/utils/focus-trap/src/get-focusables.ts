@@ -1,4 +1,4 @@
-import { isRendered } from '@dunky.dev/dom-element'
+import { isFocusable, isRendered } from '@dunky.dev/dom-element'
 
 export const FOCUSABLE_SELECTOR: string = [
   'a[href]',
@@ -27,9 +27,11 @@ export function getFocusables(container: HTMLElement): HTMLElement[] {
   const eligible: HTMLElement[] = []
   for (let i = 0; i < candidates.length; i++) {
     const element = candidates[i]!
-    // Focusing a non-rendered element is a no-op, so keeping one in the cycle
-    // would stall the trap on it.
-    if (element.tabIndex >= 0 && isRendered(element)) {
+    // Three facets, all required: can take focus at all, in the tab order,
+    // and rendered. A barred or non-rendered element refuses focus silently,
+    // and the Tab is already preventDefault()-ed — keeping one in the cycle
+    // would dead-end the trap on it.
+    if (isFocusable(element) && element.tabIndex >= 0 && isRendered(element)) {
       eligible.push(element)
     }
   }

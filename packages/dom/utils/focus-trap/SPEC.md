@@ -36,10 +36,15 @@ identical containment.
 - With no focusables inside, Tab is a no-op; focus stays where it is.
 - `enabled` and `last` are re-evaluated on every press, so trapping follows
   runtime state — e.g. only the topmost layer of a stack traps.
-- A focusable is an element matching `FOCUSABLE_SELECTOR` whose `tabIndex`
-  is not negative and which is rendered — the shared predicate from
-  [`@dunky.dev/dom-element`](../element/SPEC.md). Focusing a non-rendered
-  element is a no-op, so keeping one in the cycle would stall the trap on it.
+- The cycle only holds what a browser would actually focus: an element
+  matching `FOCUSABLE_SELECTOR` whose `tabIndex` is not negative, which is
+  rendered, and which nothing bars — not disabled through an ancestor
+  `fieldset[disabled]` (controls in its first `legend` stay enabled, as they
+  do natively) and not in an `[inert]` element or subtree. The rendered and
+  barred questions are the shared predicates from
+  [`@dunky.dev/dom-element`](../element/SPEC.md). Focusing such an element
+  is a refused no-op and the Tab is already `preventDefault()`-ed, so
+  keeping one in the cycle would dead-end the trap on it.
 - A same-name radio group is one tab stop — the checked radio, else the
   group's first — per the APG radio group pattern; groups are scoped by
   name and form owner, matching the browser's own grouping.

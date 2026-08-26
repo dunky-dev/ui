@@ -61,13 +61,16 @@ collects input starts at its first form field (input, select, textarea); any
 other content keeps focus on the overlay window itself. A caller may
 designate an element ahead of both.
 
-Every candidate must be **rendered**, not merely present. A field inside a
-collapsed section satisfies the selector, yet `focus()` on it does nothing
-and reports nothing, so accepting it would spend the candidate and drop focus
-to the overlay window — the fallback firing on a miss it can't see. Each step
-of the chain is therefore filtered, not just the last one; the predicate is
-[`@dunky.dev/dom-element`](../element/SPEC.md)'s `isRendered`, shared with the
-focus trap so the two can't disagree on what counts.
+Every candidate must be one a browser would actually focus — rendered, and
+not barred by an ancestor `fieldset[disabled]` or `[inert]`, which the
+selector's own-attribute checks can't see. A field inside a collapsed
+section or a disabled fieldset satisfies the selector, yet `focus()` on it
+does nothing and reports nothing, so accepting it would spend the candidate
+and drop focus to the overlay window — the fallback firing on a miss it
+can't see. Each step of the chain is therefore filtered, not just the last
+one; the predicates are [`@dunky.dev/dom-element`](../element/SPEC.md)'s
+`isRendered` and `isFocusable`, shared with the focus trap so the two can't
+disagree on what counts.
 
 ### The exit window
 

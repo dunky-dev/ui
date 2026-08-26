@@ -1,4 +1,4 @@
-import { isRendered } from '@dunky.dev/dom-element'
+import { isFocusable, isRendered } from '@dunky.dev/dom-element'
 
 // The strict rule is only that focus moves into the overlay: an overlay that
 // collects input starts at its first form field; any other content keeps
@@ -8,22 +8,24 @@ const FORM_FIELD_SELECTOR =
 
 /**
  * Resolves where focus lands: the consumer's designated element, then the
- * first form field, then the overlay window. Every candidate has to be
- * *rendered*, not merely present — a field inside a collapsed section
- * satisfies the selector, and `focus()` on it does nothing without saying so,
- * which spends the candidate and drops focus to the window. Filtering each
- * step keeps every fallback a real one.
+ * first form field, then the overlay window. Every candidate has to be one a
+ * browser would actually focus — rendered, and not barred by an ancestor
+ * `fieldset[disabled]` or `[inert]`, which the selector's own-attribute
+ * checks can't see. A candidate that fails these still satisfies the
+ * selector, and `focus()` on it does nothing without saying so, which spends
+ * the candidate and drops focus to the window. Filtering each step keeps
+ * every fallback a real one.
  */
 export function getInitialFocus(
   content: HTMLElement,
   designated?: HTMLElement | null,
 ): HTMLElement {
-  if (designated != null && isRendered(designated)) return designated
+  if (designated != null && isFocusable(designated) && isRendered(designated)) return designated
 
   const fields = content.querySelectorAll<HTMLElement>(FORM_FIELD_SELECTOR)
   for (let i = 0; i < fields.length; i++) {
     const field = fields[i]!
-    if (isRendered(field)) return field
+    if (isFocusable(field) && isRendered(field)) return field
   }
 
   return content
