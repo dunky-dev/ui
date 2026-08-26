@@ -96,6 +96,15 @@ describe('registerLayer containment', () => {
     expect(asserted.hasAttribute('inert')).toBe(false)
   })
 
+  it('hides nothing for a layer at the body — there is no outside', () => {
+    const outside = document.createElement('main')
+    document.body.append(outside)
+
+    register({ id: 'a', depth: 1, element: document.body, modal: true })
+    expect(outside.hasAttribute('inert')).toBe(false)
+    expect(document.body.hasAttribute('inert')).toBe(false)
+  })
+
   it('hides nothing for a non-modal layer', () => {
     const outside = document.createElement('main')
     document.body.append(outside)
@@ -191,6 +200,28 @@ describe('containment under a non-modal layer', () => {
     expect(hiddenFrom(outside)).toBe(true)
   })
 
+  it('hides page content sitting beside a layer portalled into an app branch', () => {
+    // `container` on every overlay's Portal part is public API, so a layer can
+    // land on an app branch rather than the body. Skipping that whole branch to
+    // spare the layer would leave the page content beside it reachable.
+    const app = document.createElement('div')
+    const pageContent = document.createElement('article')
+    const menuPortal = document.createElement('div')
+    const menu = document.createElement('div')
+    menuPortal.append(menu)
+    app.append(pageContent, menuPortal)
+    document.body.append(app)
+    const dialog = mountLayer()
+
+    register({ id: 'dialog', depth: 1, element: dialog.content, modal: true })
+    register({ id: 'menu', depth: 2, element: menu, modal: false })
+
+    expect(hiddenFrom(pageContent)).toBe(true)
+    expect(app.hasAttribute('inert')).toBe(false)
+    expect(menuPortal.hasAttribute('inert')).toBe(false)
+    expect(menu.hasAttribute('inert')).toBe(false)
+  })
+
   it('follows the upper modal layer when a non-modal layer sits above both', () => {
     const outer = mountLayer()
     const inner = mountLayer()
@@ -222,21 +253,63 @@ describe('layer stack global anchoring', () => {
 })
 
 describe('getInitialFocus', () => {
-  it('resolves the first form field that can take focus', () => {
+  // Mounted, not detached: a candidate has to be rendered to be picked, and a
+  // detached element renders nowhere.
+  const mountContent = (html: string): HTMLElement => {
     const content = document.createElement('div')
-    content.innerHTML =
+    content.innerHTML = html
+    document.body.append(content)
+    return content
+  }
+
+  it('resolves the first form field that can take focus', () => {
+    const content = mountContent(
       '<button type="button">action</button>' +
-      '<input disabled />' +
-      '<input type="hidden" />' +
-      '<select id="field"></select>'
+        '<input disabled />' +
+        '<input type="hidden" />' +
+        '<select id="field"></select>',
+    )
 
     expect(getInitialFocus(content).id).toBe('field')
   })
 
   it('falls back to the content itself without form fields', () => {
-    const content = document.createElement('div')
-    content.innerHTML = '<button type="button">action</button>'
+    const content = mountContent('<button type="button">action</button>')
 
     expect(getInitialFocus(content)).toBe(content)
+  })
+
+  it('skips a field that does not render for one that does', () => {
+    // A field in a collapsed section satisfies the selector but cannot take
+    // focus, and it fails silently — so taking it would spend the candidate
+    // and drop focus to the overlay window with nothing reporting the miss.
+    const content = mountContent(
+      '<div style="display: none"><input id="collapsed" /></div><input id="field" />',
+    )
+
+    expect(getInitialFocus(content).id).toBe('field')
+  })
+
+  it('skips a field that cannot take focus — fieldset-disabled or inert', () => {
+    // The selector gates on own attributes only, so a field disabled through
+    // an ancestor fieldset (or barred by inert) satisfies it, yet a browser
+    // refuses to focus it — the same silent miss as an unrendered field.
+    const content = mountContent(
+      '<fieldset disabled><input id="barred" /></fieldset>' +
+        '<div inert><input id="inerted" /></div>' +
+        '<input id="field" />',
+    )
+
+    expect(getInitialFocus(content).id).toBe('field')
+  })
+
+  it('hands over to the fields when the designated element does not render', () => {
+    // The contract conditions the designated element on being able to take
+    // focus, so an unrendered one must not consume the chain down to the
+    // window.
+    const content = mountContent('<input id="designated" hidden /><input id="field" />')
+    const designated = document.getElementById('designated') as HTMLElement
+
+    expect(getInitialFocus(content, designated).id).toBe('field')
   })
 })

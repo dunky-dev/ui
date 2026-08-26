@@ -23,11 +23,18 @@ against each other.
   it has one — its backdrop. Topmost follows the core stack's rule.
 - Containment follows the **topmost modal layer**, not the topmost layer.
   Everything outside that layer's subtree is hidden from assistive tech and
-  taken out of pointer and keyboard reach (`aria-hidden` + `inert` on the
-  siblings of its ancestor path). Two kinds of element are held out of it:
-  the layer's own backdrop — rendered outside the content's subtree yet part
-  of the layer — so an outside press can still dismiss, and every layer
-  stacked above it.
+  taken out of pointer and keyboard reach (`aria-hidden` + `inert`). Two
+  kinds of element are held out of it — together the _retained roots_: the
+  layer's own backdrop — rendered outside the content's subtree yet part of
+  the layer — so an outside press can still dismiss, and every layer stacked
+  above it.
+- Hiding descends from the body rather than walking up from the layer, and a
+  branch that holds a retained root is descended into rather than spared
+  whole. Portalling is the consumer's choice — every overlay exposes
+  `container` on its Portal part — so a layer can land on an app branch that
+  holds page content beside it; sparing the branch would leave that content
+  reachable. A layer at or above the body is a no-op: nothing sits outside
+  it.
 - A non-modal layer above a modal one does not release the modal layer's
   containment. The ordinary layers — a select menu, a combobox list, a
   tooltip, a context menu — are non-modal, and living inside a dialog is
@@ -51,7 +58,19 @@ against each other.
 
 The strict rule is only that focus moves into the overlay: an overlay that
 collects input starts at its first form field (input, select, textarea); any
-other content keeps focus on the overlay window itself.
+other content keeps focus on the overlay window itself. A caller may
+designate an element ahead of both.
+
+Every candidate must be one a browser would actually focus — rendered, and
+not barred by an ancestor `fieldset[disabled]` or `[inert]`, which the
+selector's own-attribute checks can't see. A field inside a collapsed
+section or a disabled fieldset satisfies the selector, yet `focus()` on it
+does nothing and reports nothing, so accepting it would spend the candidate
+and drop focus to the overlay window — the fallback firing on a miss it
+can't see. Each step of the chain is therefore filtered, not just the last
+one; the predicates are [`@dunky.dev/dom-element`](../element/SPEC.md)'s
+`isRendered` and `isFocusable`, shared with the focus trap so the two can't
+disagree on what counts.
 
 ### The exit window
 
@@ -72,15 +91,15 @@ again — but keeps painting until its exit visual finishes:
 
 ## API
 
-| Export                                           | Description                                                                                    |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `registerLayer(layer)`                           | Joins the shared stack and syncs containment; returns the disposer that restores it.           |
-| `Layer`                                          | `OverlayLayer` + `element`, `modal`, an optional `backdrop` getter, and an optional `dismiss`. |
-| `isTopmostLayer(id)`                             | Whether the layer owns Escape and the focus trap right now.                                    |
-| `layersBelow(id)`                                | The layers stacked beneath, topmost first — the unwinding order for a stack-scoped dismissal.  |
-| `getInitialFocus(content)`                       | The element to focus on open: first form field, else the overlay window itself.                |
-| `hideExitingLayer(content, boundary, backdrop?)` | Inerts the still-painting layer for the exit window; returns the undo.                         |
-| `watchExitAnimation(element, onComplete)`        | Reports the exit visual's end once; returns the cancel.                                        |
+| Export                                           | Description                                                                                                                       |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `registerLayer(layer)`                           | Joins the shared stack and syncs containment; returns the disposer that restores it.                                              |
+| `Layer`                                          | `OverlayLayer` + `element`, `modal`, an optional `backdrop` getter, and an optional `dismiss`.                                    |
+| `isTopmostLayer(id)`                             | Whether the layer owns Escape and the focus trap right now.                                                                       |
+| `layersBelow(id)`                                | The layers stacked beneath, topmost first — the unwinding order for a stack-scoped dismissal.                                     |
+| `getInitialFocus(content, designated?)`          | The element to focus on open: `designated`, else first form field, else the overlay window — each step filtered for renderedness. |
+| `hideExitingLayer(content, boundary, backdrop?)` | Inerts the still-painting layer for the exit window; returns the undo.                                                            |
+| `watchExitAnimation(element, onComplete)`        | Reports the exit visual's end once; returns the cancel.                                                                           |
 
 ## Constraints
 
@@ -98,6 +117,6 @@ again — but keeps painting until its exit visual finishes:
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The store anchors on a realm-global keyed by `Symbol.for`, resolved lazily | A monorepo or micro-frontend can load duplicate copies of this module; separate stores drift apart (the duplicate-singleton bug class of radix-ui/primitives#2815). Lazy keeps `sideEffects: false` honest. |
 | Containment re-runs from scratch on every stack change                     | Undo-then-rehide is idempotent and order-free; incremental patching would have to reason about interleaved opens and closes.                                                                                |
-| Excluded elements match by containment, not identity                       | A layer above is reached through its own portal wrapper, and it is the wrapper that turns up as the sibling on the walk; an identity check would inert the layer with it.                                   |
+| Hiding descends from the body instead of walking up from the layer         | A branch can hold page content beside a retained root, and `container` on the Portal parts lets a layer land on one; skipping the branch to spare the layer would leave the content beside it reachable.    |
 | Containment sync guards on `element.isConnected`                           | At teardown the content may already be detached; hiding against a dead node would leak the undo.                                                                                                            |
 | Completion is the element's own end event, first one wins                  | A transition ends once per property and descendants bubble theirs; the exit belongs to the element carrying `data-state`, styled to finish as one piece.                                                    |

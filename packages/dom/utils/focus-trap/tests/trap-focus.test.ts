@@ -123,6 +123,40 @@ describe('trapFocus', () => {
     expect(document.activeElement?.id).toBe('last')
   })
 
+  it('excludes controls disabled by an ancestor fieldset, except in its first legend', () => {
+    // The selector only sees an element's own attributes; a control inside a
+    // disabled fieldset matches it, but a browser refuses to focus it — and
+    // the trap has already preventDefault()-ed, so the cycle would dead-end.
+    const container = mount(
+      '<button type="button" id="first">first</button>' +
+        '<fieldset disabled>' +
+        '<legend><input id="legend-input" /></legend>' +
+        '<input id="fieldset-input" />' +
+        '</fieldset>' +
+        '<button type="button" id="last">last</button>',
+    )
+    document.getElementById('first')?.focus()
+
+    // Controls in a disabled fieldset's first legend stay enabled natively.
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('legend-input')
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('last')
+  })
+
+  it('excludes inert elements and inert subtrees from the cycle', () => {
+    const container = mount(
+      '<button type="button" id="first">first</button>' +
+        '<button type="button" inert>inert</button>' +
+        '<div inert><button type="button">wrapped</button></div>' +
+        '<button type="button" id="last">last</button>',
+    )
+    document.getElementById('first')?.focus()
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('last')
+  })
+
   it('includes iframes and a details summary in the cycle', () => {
     const container = mount(
       '<button type="button" id="first">first</button>' +

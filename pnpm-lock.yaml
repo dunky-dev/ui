@@ -87,12 +87,21 @@ importers:
         specifier: ^0.3.3
         version: 0.3.3
 
-  packages/dom/utils/focus-trap: {}
+  packages/dom/utils/element: {}
+
+  packages/dom/utils/focus-trap:
+    dependencies:
+      '@dunky.dev/dom-element':
+        specifier: workspace:*
+        version: link:../element
 
   packages/dom/utils/navigation: {}
 
   packages/dom/utils/overlay:
     dependencies:
+      '@dunky.dev/dom-element':
+        specifier: workspace:*
+        version: link:../element
       '@dunky.dev/overlay':
         specifier: workspace:*
         version: link:../../../core/utils/overlay

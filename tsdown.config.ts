@@ -14,6 +14,7 @@ export default defineConfig({
     'packages/core/utils/controllable',
     'packages/core/utils/overlay',
     'packages/dom/components/dialog',
+    'packages/dom/utils/element',
     'packages/dom/utils/focus-trap',
     'packages/dom/utils/overlay',
     'packages/dom/utils/navigation',
