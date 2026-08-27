@@ -1,6 +1,6 @@
 {
   "name": "@dunky.dev/dom-element",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Framework-free element predicates — the DOM questions every primitive asks.",
   "license": "MIT",
   "repository": {
