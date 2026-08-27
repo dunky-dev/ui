@@ -133,7 +133,10 @@ describe('openDialogLayer', () => {
   // never calls it still leaves the stack clean. Closing twice is a no-op.
   const open = (
     html: string,
-    extra: Partial<typeof options> & { initialFocus?: HTMLElement | null } = {},
+    extra: Partial<typeof options> & {
+      initialFocus?: HTMLElement | null
+      restoreFocus?: () => HTMLElement | null
+    } = {},
   ): { content: HTMLElement; close: () => void } => {
     const content = document.createElement('div')
     content.tabIndex = -1
@@ -209,6 +212,51 @@ describe('openDialogLayer', () => {
     open('').close()
 
     expect(document.activeElement).toBe(trigger)
+  })
+
+  it('prefers the element that held focus over the designated restore target', () => {
+    const trigger = document.createElement('button')
+    const designated = document.createElement('button')
+    document.body.append(trigger, designated)
+    trigger.focus()
+
+    open('', { restoreFocus: () => designated }).close()
+
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('falls back to the restore target when focus sat on the body before opening', () => {
+    // A pointer press can leave focus on the body — nothing meaningful to
+    // restore to.
+    const designated = document.createElement('button')
+    document.body.append(designated)
+    ;(document.activeElement as HTMLElement | null)?.blur()
+
+    open('', { restoreFocus: () => designated }).close()
+
+    expect(document.activeElement).toBe(designated)
+  })
+
+  it('falls back to the restore target when the previous holder left the document', () => {
+    const trigger = document.createElement('button')
+    const designated = document.createElement('button')
+    document.body.append(trigger, designated)
+    trigger.focus()
+
+    const { close } = open('', { restoreFocus: () => designated })
+    trigger.remove()
+    close()
+
+    expect(document.activeElement).toBe(designated)
+  })
+
+  it('leaves focus where it is when nothing meaningful preceded and no target is designated', () => {
+    ;(document.activeElement as HTMLElement | null)?.blur()
+
+    const { content, close } = open('')
+    close()
+
+    expect(document.activeElement).toBe(content)
   })
 
   it('releases the layer beneath before focus returns to it', () => {

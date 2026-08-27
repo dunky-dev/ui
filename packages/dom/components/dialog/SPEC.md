@@ -73,6 +73,12 @@ The disposer releases the stack **before** restoring focus. Both orders are
 load-bearing: the stack must exist before focus moves in, and the layers
 beneath must be un-inerted before focus can land on one of them.
 
+The restore prefers what step 1 remembered — but only when that element can
+meaningfully take focus back. Focus that sat on the body (a pointer press
+can leave it there) or on an element since removed from the document
+restores to the consumer's `restoreFocus` target instead, typically the
+layer's trigger; with neither, focus stays where it is.
+
 Every focus move passes `preventScroll` — the scroll lock has already frozen
 the surface, so scrolling it would jump the view on open and again on close.
 

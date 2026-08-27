@@ -329,6 +329,31 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(trigger)
     })
 
+    it('falls back to restoreFocus when nothing meaningful held focus before opening', () => {
+      let fallback: HTMLButtonElement | undefined
+      render(() => (
+        <>
+          <button type='button' ref={element => (fallback = element)}>
+            Fallback
+          </button>
+          <Dialog>
+            <Dialog.Trigger>Trigger</Dialog.Trigger>
+            <Dialog.Portal>
+              <Dialog.Content aria-label='Settings' restoreFocus={() => fallback}>
+                <Dialog.Close>Close</Dialog.Close>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog>
+        </>
+      ))
+      // A click without a focus move leaves the body focused — nothing
+      // meaningful for the close to restore to.
+      openDialog()
+
+      press(screen.getByText('Close'))
+      expect(document.activeElement).toBe(fallback)
+    })
+
     // jsdom does no layout, so the scroll jump can't be reproduced — assert the
     // mechanism that prevents it: focus never scrolls the locked surface.
     it('moves focus without scrolling the locked surface', () => {

@@ -12,6 +12,11 @@ export interface OpenDialogLayerOptions {
   /** Closes this dialog when a layer above unwinds the whole stack; see
    * `Layer.dismiss` in dom-overlay. */
   dismiss?: () => void
+  /** Resolves the fallback restore target for the close: used when nothing
+   * meaningful was focused before opening — the body (a pointer press can
+   * leave focus there), or an element since removed from the document.
+   * Typically the layer's trigger. */
+  restoreFocus?: () => HTMLElement | null
 }
 
 /**
@@ -60,6 +65,14 @@ export function openDialogLayer(content: HTMLElement, options: OpenDialogLayerOp
 
   return () => {
     unregister()
-    if (previous instanceof HTMLElement) previous.focus({ preventScroll: true })
+    // The element focused before opening wins; when it can't meaningfully
+    // take focus back — the body, or gone from the document — the restore
+    // falls back to the consumer-designated target (normally the trigger).
+    const meaningful =
+      previous instanceof HTMLElement &&
+      previous !== previous.ownerDocument.body &&
+      previous.isConnected
+    const restoreTarget = meaningful ? previous : (options.restoreFocus?.() ?? null)
+    if (restoreTarget?.isConnected === true) restoreTarget.focus({ preventScroll: true })
   }
 }
