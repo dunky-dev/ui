@@ -7,7 +7,5 @@ export {
   type BackNavigationGuardOptions,
 } from './back-navigation'
 export { acceptsBackdropPress, acceptsViewportPress } from './press'
-export { trackPressOrigin, type PressOriginTracker } from './press-origin'
-export { watchOutsidePress, type WatchOutsidePressOptions } from './watch-outside-press'
 export { viewportPointerEvents, contentPointerEvents } from './viewport-style'
 export { dialogTrapOptions } from './focus-trap'

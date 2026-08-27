@@ -14,6 +14,8 @@ import { useFocusTrap } from '@dunky.dev/solid-use-focus-trap'
 import { useScrollLock } from '@dunky.dev/solid-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
+import { watchOutsidePress } from '@dunky.dev/dom-overlay'
+import { trackPressOrigin } from '@dunky.dev/dom-press-origin'
 import {
   acceptsBackdropPress,
   acceptsViewportPress,
@@ -22,9 +24,7 @@ import {
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
-  trackPressOrigin,
   viewportPointerEvents,
-  watchOutsidePress,
   type BackNavigationGuard,
 } from '@dunky.dev/dom-dialog'
 import { mergeProps, normalize } from '@dunky.dev/solid-state-machine'
@@ -234,7 +234,7 @@ export const Viewport: Component<DialogViewportProps> = props => {
       const content = contentRef.current
       if (content === null) return
       return watchOutsidePress(machine.context.id, {
-        content,
+        element: content,
         trigger: triggerRef.current,
         startedInside: () => pressOriginRef.current?.() ?? false,
         onOutsidePress: event =>

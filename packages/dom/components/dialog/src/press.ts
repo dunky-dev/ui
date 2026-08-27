@@ -11,7 +11,7 @@ interface PressTarget {
  * Whether a backdrop press is this dialog's outside interaction. Only the
  * topmost dialog of a stack answers one — a nested stack dismisses one layer
  * at a time, the same rule Escape follows. `startedInside` (see
- * `trackPressOrigin`) refuses a press whose gesture began inside the
+ * `trackPressOrigin` in `@dunky.dev/dom-press-origin`) refuses a press whose gesture began inside the
  * window: a text-selection drag that starts inside and releases on the
  * backdrop must not read as an outside press.
  */

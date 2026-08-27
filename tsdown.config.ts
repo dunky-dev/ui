@@ -18,6 +18,7 @@ export default defineConfig({
     'packages/dom/utils/focus-trap',
     'packages/dom/utils/overlay',
     'packages/dom/utils/navigation',
+    'packages/dom/utils/press-origin',
     'packages/dom/utils/scroll-lock',
     'packages/native/dialog',
     'packages/react/dialog',

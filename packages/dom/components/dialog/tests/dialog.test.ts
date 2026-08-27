@@ -18,8 +18,6 @@ import {
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
-  trackPressOrigin,
-  watchOutsidePress,
 } from '@dunky.dev/dom-dialog'
 
 type DialogService = Machine<DialogStateName, DialogContext, DialogMachineEvent>
@@ -417,126 +415,6 @@ describe('outside-press gating', () => {
     expect(acceptsViewportPress('dlg', { target: viewport, currentTarget: viewport }, true)).toBe(
       false,
     )
-  })
-})
-
-describe('trackPressOrigin', () => {
-  const dispatchPointerDown = (target: Element): void => {
-    target.dispatchEvent(new Event('pointerdown', { bubbles: true }))
-  }
-
-  it('reports whether the most recent press began inside the tracked element', () => {
-    const content = document.createElement('div')
-    const inner = document.createElement('button')
-    content.append(inner)
-    const outer = document.createElement('button')
-    document.body.append(content, outer)
-
-    const tracker = trackPressOrigin(content)
-    expect(tracker.startedInside()).toBe(false)
-
-    dispatchPointerDown(inner)
-    expect(tracker.startedInside()).toBe(true)
-
-    dispatchPointerDown(outer)
-    expect(tracker.startedInside()).toBe(false)
-
-    tracker.dispose()
-  })
-
-  it('stops updating once disposed', () => {
-    const content = document.createElement('div')
-    const inner = document.createElement('button')
-    content.append(inner)
-    document.body.append(content)
-
-    const tracker = trackPressOrigin(content)
-    tracker.dispose()
-    dispatchPointerDown(inner)
-
-    expect(tracker.startedInside()).toBe(false)
-  })
-})
-
-describe('watchOutsidePress', () => {
-  const click = (target: Element): void => {
-    target.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  }
-
-  const setup = (
-    startedInside: () => boolean = () => false,
-  ): {
-    content: HTMLElement
-    trigger: HTMLElement
-    outside: HTMLElement
-    onOutsidePress: () => void
-  } => {
-    const content = mountLayer('dlg', 1)
-    const trigger = document.createElement('button')
-    const outside = document.createElement('button')
-    document.body.append(trigger, outside)
-    const onOutsidePress = vi.fn()
-    registered.push(watchOutsidePress('dlg', { content, trigger, startedInside, onOutsidePress }))
-    return { content, trigger, outside, onOutsidePress }
-  }
-
-  it('fires for a press outside the window and the trigger', () => {
-    const { outside, onOutsidePress } = setup()
-
-    click(outside)
-
-    expect(onOutsidePress).toHaveBeenCalledTimes(1)
-  })
-
-  it('ignores a press inside the window', () => {
-    const { content, onOutsidePress } = setup()
-
-    click(content)
-
-    expect(onOutsidePress).not.toHaveBeenCalled()
-  })
-
-  it('ignores a press on the trigger — its own press stays a plain toggle', () => {
-    const { trigger, onOutsidePress } = setup()
-
-    click(trigger)
-
-    expect(onOutsidePress).not.toHaveBeenCalled()
-  })
-
-  it('ignores a press once this dialog is no longer topmost', () => {
-    const { outside, onOutsidePress } = setup()
-    mountLayer('above', 2)
-
-    click(outside)
-
-    expect(onOutsidePress).not.toHaveBeenCalled()
-  })
-
-  it('ignores a press whose gesture started inside the window', () => {
-    const { outside, onOutsidePress } = setup(() => true)
-
-    click(outside)
-
-    expect(onOutsidePress).not.toHaveBeenCalled()
-  })
-
-  it('stops watching once disposed', () => {
-    const content = mountLayer('dlg', 1)
-    const outside = document.createElement('button')
-    document.body.append(outside)
-    const onOutsidePress = vi.fn()
-
-    const dispose = watchOutsidePress('dlg', {
-      content,
-      trigger: null,
-      startedInside: () => false,
-      onOutsidePress,
-    })
-    dispose()
-    click(outside)
-
-    expect(onOutsidePress).not.toHaveBeenCalled()
   })
 })
 

@@ -106,6 +106,8 @@ importers:
         specifier: workspace:*
         version: link:../../../core/utils/overlay
 
+  packages/dom/utils/press-origin: {}
+
   packages/dom/utils/scroll-lock: {}
 
   packages/native:
@@ -220,6 +222,12 @@ importers:
       '@dunky.dev/dom-dialog':
         specifier: workspace:*
         version: link:../../dom/components/dialog
+      '@dunky.dev/dom-overlay':
+        specifier: workspace:*
+        version: link:../../dom/utils/overlay
+      '@dunky.dev/dom-press-origin':
+        specifier: workspace:*
+        version: link:../../dom/utils/press-origin
       '@dunky.dev/react-state-machine':
         specifier: ^0.3.4
         version: 0.3.4(react@19.2.7)
@@ -322,6 +330,12 @@ importers:
       '@dunky.dev/dom-dialog':
         specifier: workspace:*
         version: link:../../dom/components/dialog
+      '@dunky.dev/dom-overlay':
+        specifier: workspace:*
+        version: link:../../dom/utils/overlay
+      '@dunky.dev/dom-press-origin':
+        specifier: workspace:*
+        version: link:../../dom/utils/press-origin
       '@dunky.dev/solid-state-machine':
         specifier: ^0.3.0
         version: 0.3.0(solid-js@2.0.0-rc.1)
