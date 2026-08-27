@@ -6,7 +6,6 @@ import {
   useRef,
   type ComponentPropsWithoutRef,
   type ForwardRefExoticComponent,
-  type MouseEvent,
   type ReactNode,
   type RefAttributes,
   type RefObject,
@@ -17,9 +16,9 @@ import { useScrollLock } from '@dunky.dev/react-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
 import {
-  acceptsBackdropPress,
-  acceptsViewportPress,
   dialogTrapOptions,
+  gateBackdropPress,
+  gateViewportPress,
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
@@ -140,16 +139,10 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
 >((props, forwardedRef) => {
   const { api, machine, backdropRef } = useDialogContext()
   useImperativeHandle(forwardedRef, () => backdropRef.current as HTMLDivElement)
-  const { onClick, ...bindings } = normalize(api.parts.backdrop) as {
-    onClick?: (event: MouseEvent<HTMLDivElement>) => void
-  } & Record<string, unknown>
-
-  const merged = mergeProps<DialogBackdropProps>(props, {
-    ...bindings,
-    onClick: (event: MouseEvent<HTMLDivElement>) => {
-      if (acceptsBackdropPress(machine.context.id)) onClick?.(event)
-    },
-  })
+  const merged = mergeProps<DialogBackdropProps>(
+    props,
+    gateBackdropPress(machine.context.id, normalize(api.parts.backdrop)),
+  )
 
   // Only a modal dialog dims the page — non-modal coexists with it.
   if (!machine.context.modal) return null
@@ -168,16 +161,10 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
   DialogViewportProps
 >((props, forwardedRef) => {
   const { api, machine } = useDialogContext()
-  const { onClick, ...bindings } = normalize(api.parts.viewport) as {
-    onClick?: (event: MouseEvent<HTMLDivElement>) => void
-  } & Record<string, unknown>
-
-  const merged = mergeProps<DialogViewportProps>(props, {
-    ...bindings,
-    onClick: (event: MouseEvent<HTMLDivElement>) => {
-      if (acceptsViewportPress(machine.context.id, event)) onClick?.(event)
-    },
-  })
+  const merged = mergeProps<DialogViewportProps>(
+    props,
+    gateViewportPress(machine.context.id, normalize(api.parts.viewport)),
+  )
 
   return <div {...merged} ref={forwardedRef} />
 })

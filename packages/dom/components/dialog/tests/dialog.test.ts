@@ -11,10 +11,10 @@ import type {
 } from '@dunky.dev/dialog'
 import { registerLayer } from '@dunky.dev/dom-overlay'
 import {
-  acceptsBackdropPress,
-  acceptsViewportPress,
   dialogTrapOptions,
   domDialogEffects,
+  gateBackdropPress,
+  gateViewportPress,
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
@@ -403,21 +403,36 @@ describe('guardBackNavigation', () => {
 })
 
 describe('outside-press gating', () => {
-  it('lets only the topmost dialog answer a backdrop press', () => {
+  type GatedPress = {
+    onClick: (event: { target: Element | null; currentTarget: Element | null }) => void
+  }
+
+  it('lets only the topmost dialog answer a backdrop press, passing the other bindings through', () => {
     mountLayer('dlg', 1)
-    expect(acceptsBackdropPress('dlg')).toBe(true)
+    const onClick = vi.fn()
+    const gated = gateBackdropPress('dlg', { onClick, 'data-state': 'open' }) as GatedPress
+    expect(gated).toMatchObject({ 'data-state': 'open' })
+
+    gated.onClick({ target: null, currentTarget: null })
+    expect(onClick).toHaveBeenCalledTimes(1)
 
     mountLayer('above', 2)
-    expect(acceptsBackdropPress('dlg')).toBe(false)
+    gated.onClick({ target: null, currentTarget: null })
+    expect(onClick).toHaveBeenCalledTimes(1)
   })
 
   it('ignores a viewport press that bubbled up from the content', () => {
     mountLayer('dlg', 1)
+    const onClick = vi.fn()
+    const gated = gateViewportPress('dlg', { onClick }) as GatedPress
     const viewport = document.createElement('div')
     const content = document.createElement('div')
 
-    expect(acceptsViewportPress('dlg', { target: viewport, currentTarget: viewport })).toBe(true)
-    expect(acceptsViewportPress('dlg', { target: content, currentTarget: viewport })).toBe(false)
+    gated.onClick({ target: viewport, currentTarget: viewport })
+    expect(onClick).toHaveBeenCalledTimes(1)
+
+    gated.onClick({ target: content, currentTarget: viewport })
+    expect(onClick).toHaveBeenCalledTimes(1)
   })
 })
 
