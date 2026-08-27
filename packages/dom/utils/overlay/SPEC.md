@@ -72,6 +72,25 @@ one; the predicates are [`@dunky.dev/dom-element`](../element/SPEC.md)'s
 `isRendered` and `isFocusable`, shared with the focus trap so the two can't
 disagree on what counts.
 
+### Outside presses without a surface
+
+A layer's own elements usually detect an outside press — a backdrop click, a
+press on the viewport gutter. A layer that coexists with the page has
+neither: no backdrop renders, and its viewport lets presses fall through
+(`pointer-events: none`) precisely so the page stays interactive — which
+also means the viewport never receives the press it would have detected.
+`watchOutsidePress` is the substitute: a document-level listener, because
+the document is the only vantage point that sees both the layer (portaled
+out of the page's own subtree) and the page.
+
+It refuses four ways: only the topmost layer of the stack answers; a press
+inside the layer's element is never outside; the trigger that opened the
+layer is excepted, so its own press stays a plain toggle rather than a
+close-and-immediately-reopen; and a press whose gesture _began_ inside the
+element is refused via the caller-supplied `startedInside` (see
+[`@dunky.dev/dom-press-origin`](../press-origin/SPEC.md)) — a
+text-selection drag ending outside is not an outside press.
+
 ### The exit window
 
 A closing overlay has already left the stack — the page beneath is live
@@ -94,6 +113,7 @@ again — but keeps painting until its exit visual finishes:
 | Export                                           | Description                                                                                                                       |
 | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | `registerLayer(layer)`                           | Joins the shared stack and syncs containment; returns the disposer that restores it.                                              |
+| `watchOutsidePress(id, options)`                 | Document-level outside-press watch for a layer whose own surfaces can't detect one. Returns the undo.                             |
 | `Layer`                                          | `OverlayLayer` + `element`, `modal`, an optional `backdrop` getter, and an optional `dismiss`.                                    |
 | `isTopmostLayer(id)`                             | Whether the layer owns Escape and the focus trap right now.                                                                       |
 | `layersBelow(id)`                                | The layers stacked beneath, topmost first — the unwinding order for a stack-scoped dismissal.                                     |

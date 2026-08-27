@@ -41,6 +41,9 @@ const pressEscape = (): void => {
 
 // Auto-cleanup needs vitest globals; this repo runs with globals: false.
 afterEach(cleanup)
+// Spies on globals (console.warn) accumulate across tests otherwise —
+// vi.spyOn on an already-spied method returns the same spy, history intact.
+afterEach(() => vi.restoreAllMocks())
 
 describe('Dialog', () => {
   describe('open / close', () => {
@@ -149,6 +152,102 @@ describe('Dialog', () => {
     it('renders no backdrop when modal=false', () => {
       render(() => <DefaultDialog defaultOpen modal={false} />)
       expect(screen.queryByTestId('backdrop')).toBeNull()
+    })
+
+    // A text-selection drag starting inside the content and releasing on the
+    // viewport/backdrop collapses the click's target to whichever it lands
+    // on — indistinguishable from a genuine outside press by target alone.
+    it('does not close on a drag that starts inside the content and releases on the viewport', () => {
+      render(() => <DefaultDialog defaultOpen />)
+      fireEvent.pointerDown(screen.getByText('Action'))
+      press(screen.getByTestId('viewport'))
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('does not close on a drag that starts inside the content and releases on the backdrop', () => {
+      render(() => <DefaultDialog defaultOpen />)
+      fireEvent.pointerDown(screen.getByText('Action'))
+      press(screen.getByTestId('backdrop'))
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('still closes on a press that starts and ends on the viewport — not a drag', () => {
+      render(() => <DefaultDialog defaultOpen />)
+      fireEvent.pointerDown(screen.getByTestId('viewport'))
+      press(screen.getByTestId('viewport'))
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
+  describe('non-modal outside interaction', () => {
+    const NonModalDialog = () => (
+      <>
+        <button type='button'>Page button</button>
+        <Dialog defaultOpen modal={false}>
+          <Dialog.Trigger>Trigger</Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Viewport data-testid='viewport'>
+              <Dialog.Content aria-label='Settings'>
+                <button type='button'>Action</button>
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>
+      </>
+    )
+
+    // jsdom does no hit-testing, so the blocked-page-click bug itself can't
+    // be reproduced — assert the mechanism that prevents it: the empty
+    // viewport area is transparent to pointer events, and the window stays
+    // reachable regardless.
+    it('lets pointer events fall through the empty viewport area', () => {
+      render(() => <NonModalDialog />)
+      expect(screen.getByTestId('viewport').style.pointerEvents).toBe('none')
+      expect(screen.getByRole('dialog').style.pointerEvents).toBe('auto')
+    })
+
+    it('keeps the viewport itself pressable when modal — it is the outside-press surface there', () => {
+      render(() => <DefaultDialog defaultOpen />)
+      expect(screen.getByTestId('viewport').style.pointerEvents).toBe('')
+    })
+
+    // With the viewport transparent to pointer events, it never receives a
+    // press on the empty area to detect as outside — a document-level watch
+    // is the substitute.
+    it('dismisses on a press elsewhere in the document', () => {
+      render(() => <NonModalDialog />)
+      press(screen.getByText('Page button'))
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('does not dismiss on a press inside the content', () => {
+      render(() => <NonModalDialog />)
+      press(screen.getByText('Action'))
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('does not double-fire on the trigger’s own press — it stays a plain toggle', () => {
+      const onOpenChange = vi.fn()
+      render(() => (
+        <Dialog defaultOpen modal={false} onOpenChange={onOpenChange}>
+          <Dialog.Trigger>Trigger</Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Viewport>
+              <Dialog.Content aria-label='Settings' />
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      press(screen.getByText('Trigger'))
+      expect(onOpenChange).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('does not dismiss on a drag that starts inside the content and releases in the document', () => {
+      render(() => <NonModalDialog />)
+      fireEvent.pointerDown(screen.getByText('Action'))
+      press(screen.getByText('Page button'))
+      expect(screen.queryByRole('dialog')).not.toBeNull()
     })
   })
 
@@ -303,6 +402,28 @@ describe('Dialog', () => {
       const dialog = screen.getByRole('dialog', { name: 'Settings' })
       expect(dialog.hasAttribute('aria-labelledby')).toBe(false)
       expect(dialog.hasAttribute('aria-describedby')).toBe(false)
+    })
+
+    it('warns when the dialog resolves no accessible name', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      render(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Content>content</Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      flush()
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('no accessible name'))
+    })
+
+    it('does not warn when a Title is rendered', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      render(() => <DefaultDialog defaultOpen />)
+      flush()
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('no accessible name'))
     })
 
     it('renders role=alertdialog when requested', () => {

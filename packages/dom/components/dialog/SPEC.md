@@ -69,6 +69,17 @@ typically because it lacks `tabindex="-1"` — focus is stranded outside the
 layer, against the modal dialog pattern. That miss is loud: a `console.warn`
 names the fix instead of failing silently.
 
+The window's accessible name gets the same loud treatment: neither a
+rendered Title (`aria-labelledby`) nor an explicit `aria-label` on the
+window warns, rather than shipping a dialog assistive tech can't name.
+Reading the window's own attributes — not the machine's Title-registered
+flag — is deliberate: a consumer's label can arrive through a prop spread
+rather than a typed prop, and the DOM is where it lands either way. The
+check defers a macrotask so a rendered Title's registration commits first
+(it arrives through the substrate's own re-render, not this call's turn),
+and the close cancels it — a dialog gone before the check fires must not
+warn about a window that no longer exists.
+
 The disposer releases the stack **before** restoring focus. Both orders are
 load-bearing: the stack must exist before focus moves in, and the layers
 beneath must be un-inerted before focus can land on one of them.
@@ -119,6 +130,29 @@ dialog's to answer:
   press must have started on the viewport itself, and then the same topmost
   rule applies.
 
+Both also refuse a press whose gesture began inside the window. A
+`click`'s own target can't answer that once the browser has collapsed it: a
+mousedown inside the window and a mouseup outside it fires `click` on their
+common ancestor — the backdrop or the viewport, not where the press
+actually started — so a text-selection drag that starts inside and releases
+outside would otherwise read as a genuine outside press and lose whatever
+the user was selecting. The origin comes from
+[`@dunky.dev/dom-press-origin`](../../utils/press-origin/SPEC.md)'s
+`trackPressOrigin`, which captures it at `pointerdown`, before that
+collapse, the only point it's still recoverable — a substrate tracks the
+window and feeds `startedInside` into both predicates.
+
+A non-modal dialog has no Backdrop, and its Viewport lets a press on the
+empty area fall through to the page rather than swallow it —
+`viewportPointerEvents` is `none` there, `contentPointerEvents` on the
+window stays `auto` regardless. That fall-through means Viewport never
+receives those presses to detect them, so the substrate arms
+[`@dunky.dev/dom-overlay`](../../utils/overlay/SPEC.md)'s
+`watchOutsidePress` instead — the document-level outside-press watch for
+layers whose own surfaces can't see one. It carries the same refusals as
+the click-based path (topmost-only, the window excepted, the trigger
+excepted, the started-inside guard); the dialog only supplies its pieces.
+
 ### Focus trap
 
 `dialogTrapOptions` is the trap configuration the substrate hands to its
@@ -127,15 +161,17 @@ part is the cycle's last stop wherever it renders.
 
 ## API
 
-| Export                                | Description                                                                 |
-| ------------------------------------- | --------------------------------------------------------------------------- |
-| `domDialogEffects`                    | Core effects + the document Escape listener, as `DialogEffect` tuples.      |
-| `openDialogLayer(content, options)`   | The open sequence; returns the close sequence.                              |
-| `startExitWindow(content, options)`   | Hides and watches the still-painting layer; returns the undo.               |
-| `guardBackNavigation(options)`        | The history guard: report the open state as it changes, release at the end. |
-| `acceptsBackdropPress(id)`            | Whether a backdrop press is this dialog's outside interaction.              |
-| `acceptsViewportPress(id, event)`     | Same for the viewport, ignoring presses that bubbled from the content.      |
-| `dialogTrapOptions(machine, closeId)` | `TrapFocusOptions` for the dialog window.                                   |
+| Export                                           | Description                                                                         |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `domDialogEffects`                               | Core effects + the document Escape listener, as `DialogEffect` tuples.              |
+| `openDialogLayer(content, options)`              | The open sequence; returns the close sequence.                                      |
+| `startExitWindow(content, options)`              | Hides and watches the still-painting layer; returns the undo.                       |
+| `guardBackNavigation(options)`                   | The history guard: report the open state as it changes, release at the end.         |
+| `acceptsBackdropPress(id, startedInside)`        | Whether a backdrop press is this dialog's outside interaction.                      |
+| `acceptsViewportPress(id, event, startedInside)` | Same for the viewport, ignoring presses that bubbled from the content.              |
+| `viewportPointerEvents(modal)`                   | The Viewport's `pointer-events` value: `undefined` while modal, `'none'` otherwise. |
+| `contentPointerEvents`                           | The window's `pointer-events` value — always `'auto'`.                              |
+| `dialogTrapOptions(machine, closeId)`            | `TrapFocusOptions` for the dialog window.                                           |
 
 ## Constraints
 

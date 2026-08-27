@@ -7,4 +7,5 @@ export {
   type BackNavigationGuardOptions,
 } from './back-navigation'
 export { acceptsBackdropPress, acceptsViewportPress } from './press'
+export { viewportPointerEvents, contentPointerEvents } from './viewport-style'
 export { dialogTrapOptions } from './focus-trap'

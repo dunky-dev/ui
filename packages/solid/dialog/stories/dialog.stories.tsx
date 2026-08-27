@@ -594,7 +594,8 @@ const ContainedPage = () => {
                   <Dialog.Viewport style={branchViewport}>
                     <Dialog.Content aria-label='Branch panel' style={branchPanel}>
                       A non-modal layer above the dialog, held out of the containment while its
-                      neighbor article stays in it. Escape closes this layer first.
+                      neighbor article stays in it. Escape — or a press outside it — closes this
+                      layer first.
                     </Dialog.Content>
                   </Dialog.Viewport>
                 </Dialog.Portal>

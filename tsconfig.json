@@ -24,6 +24,7 @@
       "@dunky.dev/dom-overlay": ["./packages/dom/utils/overlay/src"],
       "@dunky.dev/dom-focus-trap": ["./packages/dom/utils/focus-trap/src"],
       "@dunky.dev/dom-element": ["./packages/dom/utils/element/src"],
+      "@dunky.dev/dom-press-origin": ["./packages/dom/utils/press-origin/src"],
       "@dunky.dev/browser-navigation": ["./packages/dom/utils/navigation/src"],
       "@dunky.dev/dom-scroll-lock": ["./packages/dom/utils/scroll-lock/src"],
       "@dunky.dev/react-use-focus-trap": ["./packages/react/hooks/use-focus-trap/src"],
