@@ -152,6 +152,7 @@ The dialog window; renders a `<div>` with the `dialog` role.
 | Prop           | Type                             | Default           | Description                                 |
 | -------------- | -------------------------------- | ----------------- | ------------------------------------------- |
 | `initialFocus` | `RefObject<HTMLElement \| null>` | the dialog window | The element to focus when the dialog opens. |
+| `restoreFocus` | `RefObject<HTMLElement \| null>` | —                 | Focused on close when nothing meaningful held focus before opening (the body, or an element since removed). Typically the trigger. |
 | `...props`     | `ComponentProps<'div'>`          | —                 | Forwarded to the rendered `<div>`.          |
 
 ### `Dialog.Title`

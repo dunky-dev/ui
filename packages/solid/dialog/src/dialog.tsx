@@ -211,14 +211,20 @@ export interface DialogContentProps extends ComponentProps<'div'> {
   /** The element to focus when the dialog opens — an element, or an accessor
    * resolved at open time. @default the dialog window */
   initialFocus?: HTMLElement | (() => HTMLElement | null | undefined)
+  /** Focused on close when nothing meaningful held focus before opening — it
+   * sat on the body (a pointer press leaves it there) or on an element since
+   * removed. An element, or an accessor resolved at close time. Typically the
+   * dialog's trigger. */
+  restoreFocus?: HTMLElement | (() => HTMLElement | null | undefined)
 }
 
-const resolveInitialFocus = (value: DialogContentProps['initialFocus']): HTMLElement | null =>
-  (typeof value === 'function' ? value() : value) ?? null
+const resolveFocusTarget = (
+  value: HTMLElement | (() => HTMLElement | null | undefined) | undefined,
+): HTMLElement | null => (typeof value === 'function' ? value() : value) ?? null
 
 export const Content: Component<DialogContentProps> = props => {
   const { api, machine, depth, container, backdropRef } = useDialogContext()
-  const rest = omit(props, 'ref', 'initialFocus', 'children')
+  const rest = omit(props, 'ref', 'initialFocus', 'restoreFocus', 'children')
   let contentEl: HTMLDivElement | undefined
 
   // The `open` state is the edge, not mount/unmount: an animated dialog stays
@@ -235,7 +241,8 @@ export const Content: Component<DialogContentProps> = props => {
         depth,
         modal: machine.context.modal,
         backdrop: () => backdropRef.current,
-        initialFocus: untrack(() => resolveInitialFocus(props.initialFocus)),
+        initialFocus: untrack(() => resolveFocusTarget(props.initialFocus)),
+        restoreFocus: () => untrack(() => resolveFocusTarget(props.restoreFocus)),
         dismiss: () => machine.send({ type: 'close' }),
       })
     },

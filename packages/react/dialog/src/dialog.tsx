@@ -190,17 +190,23 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
 export interface DialogContentProps extends ComponentPropsWithoutRef<'div'> {
   /** The element to focus when the dialog opens. @default the dialog window */
   initialFocus?: RefObject<HTMLElement | null>
+  /** Focused on close when nothing meaningful held focus before opening — it
+   * sat on the body (a pointer press leaves it there) or on an element since
+   * removed. Typically the dialog's trigger. */
+  restoreFocus?: RefObject<HTMLElement | null>
 }
 
 export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwardRef<
   HTMLDivElement,
   DialogContentProps
->(({ initialFocus, ...props }, forwardedRef) => {
+>(({ initialFocus, restoreFocus, ...props }, forwardedRef) => {
   const { api, machine, depth, container, backdropRef } = useDialogContext()
   const contentRef = useRef<HTMLDivElement>(null)
   useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDivElement)
   const initialFocusRef = useRef(initialFocus)
   initialFocusRef.current = initialFocus
+  const restoreFocusRef = useRef(restoreFocus)
+  restoreFocusRef.current = restoreFocus
 
   // The machine's `open` state is the edge, not mount/unmount — an animated
   // dialog stays mounted through `closing`. The sequence and its inverse are
@@ -215,6 +221,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
       modal: machine.context.modal,
       backdrop: () => backdropRef.current,
       initialFocus: initialFocusRef.current?.current,
+      restoreFocus: () => restoreFocusRef.current?.current ?? null,
       dismiss: () => machine.send({ type: 'close' }),
     })
   }, [api.open, machine, depth, backdropRef])

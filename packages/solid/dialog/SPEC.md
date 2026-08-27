@@ -59,7 +59,8 @@ Solid-specific notes on top of the core contract:
   break.
 - **`Content`'s `initialFocus`** accepts an element or an accessor resolved at
   open time — the Solid idiom for a ref variable that fills during render:
-  pass `initialFocus={() => cancelButton}`.
+  pass `initialFocus={() => cancelButton}`. `restoreFocus` takes the same
+  shape, resolved at close time.
 - **`Backdrop`** renders nothing when the dialog is non-modal (`modal={false}`),
   per the core parts contract.
 - **Exit animation** (`animated`): style the exit on the parts'
@@ -157,6 +158,7 @@ The dialog window; renders a `<div>` with the `dialog` role.
 | Prop           | Type                                                      | Default           | Description                                                         |
 | -------------- | --------------------------------------------------------- | ----------------- | ------------------------------------------------------------------- |
 | `initialFocus` | `HTMLElement \| (() => HTMLElement \| null \| undefined)` | the dialog window | The element to focus when the dialog opens — resolved at open time. |
+| `restoreFocus` | `HTMLElement \| (() => HTMLElement \| null \| undefined)` | —                 | Focused on close when nothing meaningful held focus before opening (the body, or an element since removed) — resolved at close time. Typically the trigger. |
 | `...props`     | `ComponentProps<'div'>`                                   | —                 | Forwarded to the rendered `<div>`.                                  |
 
 ### `Dialog.Title`
