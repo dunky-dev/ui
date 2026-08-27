@@ -19,10 +19,14 @@ import type { DialogOptions } from '@dunky.dev/dialog'
 import {
   acceptsBackdropPress,
   acceptsViewportPress,
+  contentPointerEvents,
   dialogTrapOptions,
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
+  trackPressOrigin,
+  viewportPointerEvents,
+  watchOutsidePress,
   type BackNavigationGuard,
 } from '@dunky.dev/dom-dialog'
 import { mergeProps, normalize } from '@dunky.dev/react-state-machine'
@@ -46,6 +50,9 @@ export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, 
   const depth = (useContext(DialogContext)?.depth ?? 0) + 1
   const { api, machine } = useDialog(options)
   const backdropRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const pressOriginRef = useRef<(() => boolean) | null>(null)
 
   // Read through a ref so the history guard's lifecycle follows the open
   // state alone: re-arming on every render (fresh callback identities) would
@@ -79,7 +86,18 @@ export const Dialog: ((props: DialogProps) => ReactNode) & Parts = ({ children, 
   )
 
   return (
-    <DialogContext.Provider value={{ api, machine, depth, container: null, backdropRef }}>
+    <DialogContext.Provider
+      value={{
+        api,
+        machine,
+        depth,
+        container: null,
+        backdropRef,
+        contentRef,
+        triggerRef,
+        pressOriginRef,
+      }}
+    >
       {children}
     </DialogContext.Provider>
   )
@@ -95,12 +113,13 @@ export const Trigger: PartComponent<DialogTriggerProps, HTMLButtonElement> = for
   HTMLButtonElement,
   DialogTriggerProps
 >((props, forwardedRef) => {
-  const { api } = useDialogContext()
+  const { api, triggerRef } = useDialogContext()
+  useImperativeHandle(forwardedRef, () => triggerRef.current as HTMLButtonElement)
   const merged = mergeProps<DialogTriggerProps>(
     { type: 'button', ...props },
     normalize(api.parts.trigger),
   )
-  return <button {...merged} ref={forwardedRef} />
+  return <button {...merged} ref={triggerRef} />
 })
 
 // =============================================================================
@@ -138,7 +157,7 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
   HTMLDivElement,
   DialogBackdropProps
 >((props, forwardedRef) => {
-  const { api, machine, backdropRef } = useDialogContext()
+  const { api, machine, backdropRef, pressOriginRef } = useDialogContext()
   useImperativeHandle(forwardedRef, () => backdropRef.current as HTMLDivElement)
   const { onClick, ...bindings } = normalize(api.parts.backdrop) as {
     onClick?: (event: MouseEvent<HTMLDivElement>) => void
@@ -147,7 +166,8 @@ export const Backdrop: PartComponent<DialogBackdropProps, HTMLDivElement> = forw
   const merged = mergeProps<DialogBackdropProps>(props, {
     ...bindings,
     onClick: (event: MouseEvent<HTMLDivElement>) => {
-      if (acceptsBackdropPress(machine.context.id)) onClick?.(event)
+      if (acceptsBackdropPress(machine.context.id, pressOriginRef.current?.() ?? false))
+        onClick?.(event)
     },
   })
 
@@ -167,19 +187,44 @@ export const Viewport: PartComponent<DialogViewportProps, HTMLDivElement> = forw
   HTMLDivElement,
   DialogViewportProps
 >((props, forwardedRef) => {
-  const { api, machine } = useDialogContext()
+  const { api, machine, contentRef, triggerRef, pressOriginRef } = useDialogContext()
   const { onClick, ...bindings } = normalize(api.parts.viewport) as {
     onClick?: (event: MouseEvent<HTMLDivElement>) => void
   } & Record<string, unknown>
+  // Read through a ref: the watcher effect below fires from a document
+  // listener, not this render's own onClick prop, so it needs the latest
+  // handler without re-subscribing on every render.
+  const onClickRef = useRef(onClick)
+  onClickRef.current = onClick
 
   const merged = mergeProps<DialogViewportProps>(props, {
     ...bindings,
     onClick: (event: MouseEvent<HTMLDivElement>) => {
-      if (acceptsViewportPress(machine.context.id, event)) onClick?.(event)
+      if (acceptsViewportPress(machine.context.id, event, pressOriginRef.current?.() ?? false))
+        onClickRef.current?.(event)
     },
   })
 
-  return <div {...merged} ref={forwardedRef} />
+  // Non-modal: the Viewport's own pointer-events are off (see the style
+  // below), so it never receives a press on the empty area to detect as
+  // outside — the document is the only vantage point left.
+  useEffect(() => {
+    if (!api.open || machine.context.modal) return
+    const content = contentRef.current
+    if (content === null) return
+    return watchOutsidePress(machine.context.id, {
+      content,
+      trigger: triggerRef.current,
+      startedInside: () => pressOriginRef.current?.() ?? false,
+      onOutsidePress: event => onClickRef.current?.(event as unknown as MouseEvent<HTMLDivElement>),
+    })
+  }, [api.open, machine, contentRef, triggerRef, pressOriginRef])
+
+  // Non-modal: the page coexists with the dialog, so the empty area around
+  // the window must let presses fall through rather than swallow them.
+  const style = { pointerEvents: viewportPointerEvents(machine.context.modal), ...props.style }
+
+  return <div {...merged} style={style} ref={forwardedRef} />
 })
 
 // =============================================================================
@@ -196,8 +241,8 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
   HTMLDivElement,
   DialogContentProps
 >(({ initialFocus, ...props }, forwardedRef) => {
-  const { api, machine, depth, container, backdropRef } = useDialogContext()
-  const contentRef = useRef<HTMLDivElement>(null)
+  const { api, machine, depth, container, backdropRef, contentRef, pressOriginRef } =
+    useDialogContext()
   useImperativeHandle(forwardedRef, () => contentRef.current as HTMLDivElement)
   const initialFocusRef = useRef(initialFocus)
   initialFocusRef.current = initialFocus
@@ -209,7 +254,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
     const content = contentRef.current
     if (!api.open || content === null) return
 
-    return openDialogLayer(content, {
+    const releaseLayer = openDialogLayer(content, {
       id: machine.context.id,
       depth,
       modal: machine.context.modal,
@@ -217,7 +262,18 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
       initialFocus: initialFocusRef.current?.current,
       dismiss: () => machine.send({ type: 'close' }),
     })
-  }, [api.open, machine, depth, backdropRef])
+    // A click's own target can't tell a text-selection drag from a genuine
+    // outside press once the browser has collapsed it — see
+    // `trackPressOrigin`. Shared via context: Backdrop and Viewport are
+    // separate parts, and both need the answer.
+    const pressOrigin = trackPressOrigin(content)
+    pressOriginRef.current = pressOrigin.startedInside
+    return () => {
+      pressOriginRef.current = null
+      pressOrigin.dispose()
+      releaseLayer()
+    }
+  }, [api.open, machine, depth, backdropRef, contentRef, pressOriginRef])
 
   // Content rendered while not open only happens in `closing`.
   useEffect(() => {
@@ -229,7 +285,7 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
       backdrop: backdropRef.current,
       onComplete: () => machine.send({ type: 'exit.complete' }),
     })
-  }, [api.open, machine, container, backdropRef])
+  }, [api.open, machine, container, backdropRef, contentRef])
 
   // The lock spans the whole mount — through `closing` too: releasing it
   // mid-exit would bring the scrollbar back and reflow the page under the
@@ -248,8 +304,11 @@ export const Content: PartComponent<DialogContentProps, HTMLDivElement> = forwar
   // and the native element only pays off via showModal(), which this contract
   // deliberately doesn't use.
   const merged = mergeProps<DialogContentProps>(props, normalize(api.parts.content))
+  // Always interactive, even where a non-modal Viewport disables pointer
+  // events to let presses fall through around it.
+  const style = { pointerEvents: contentPointerEvents, ...props.style }
 
-  return <div {...merged} ref={contentRef} />
+  return <div {...merged} style={style} ref={contentRef} />
 })
 
 // =============================================================================

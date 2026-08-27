@@ -58,7 +58,26 @@ export function openDialogLayer(content: HTMLElement, options: OpenDialogLayerOp
     }
   }
 
+  // The window's own attributes are the reliable read: a consumer's label may
+  // arrive through a prop spread rather than a typed prop, and the DOM is
+  // where it lands either way. Deferred a macrotask: a rendered Title
+  // registers presence through its own effect, and the canonical nesting
+  // (Title inside Content) settles before this call's own effect runs — but
+  // nothing requires that arrangement, so a Title rendered as a later
+  // sibling still gets a chance to register first. Cleared on close: a
+  // dialog that closes before the check fires must not warn about a window
+  // that no longer exists.
+  const nameCheck = setTimeout(() => {
+    if (!content.hasAttribute('aria-label') && !content.hasAttribute('aria-labelledby')) {
+      console.warn(
+        '[openDialogLayer] the dialog has no accessible name: render a <Dialog.Title>, ' +
+          'or pass aria-label / aria-labelledby to Content.',
+      )
+    }
+  })
+
   return () => {
+    clearTimeout(nameCheck)
     unregister()
     if (previous instanceof HTMLElement) previous.focus({ preventScroll: true })
   }

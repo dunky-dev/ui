@@ -50,7 +50,15 @@ Using the dialog is a walkthrough of intent, not a prop list:
 - Pressing the **backdrop** — or the **viewport** area around the dialog window —
   counts as an "outside interaction"; whether that dismisses follows the
   dialog's dismissal settings, whichever layer was pressed. Presses inside the
-  content never count as outside.
+  content never count as outside — including a press that starts inside and
+  releases outside (a text-selection drag): where a press ends doesn't decide,
+  where it began does. The trigger's own press is never an outside interaction
+  either; it stays a plain toggle.
+- A **non-modal** dialog (`modal={false}`) coexists with the page: no backdrop,
+  no focus trap, no scroll lock, and the page around it stays fully
+  interactive — a press on the empty area around the window reaches whatever
+  the page has there. That press still counts as the dialog's outside
+  interaction (the trigger excepted), following the same dismissal settings.
 - The **content** is the dialog window, labelled and described by the Title and
   Description parts when they are rendered.
 - **Title / Description** name and describe the dialog. The dialog's ARIA name

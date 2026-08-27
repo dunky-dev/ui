@@ -15,6 +15,18 @@ export interface DialogContextValue {
   // sibling parts: Content's stack entry excepts its own backdrop from the
   // containment so it stays pressable while its dialog is topmost.
   backdropRef: RefObject<HTMLDivElement | null>
+  // The rendered Content element, shared so Viewport's non-modal outside-
+  // press watcher (a document-level listener, since a `pointer-events: none`
+  // Viewport never receives those presses itself) knows what "inside" means.
+  contentRef: RefObject<HTMLDivElement | null>
+  // The rendered Trigger element, shared for the same watcher: its own press
+  // stays a plain toggle — counting it as outside would close and
+  // immediately reopen.
+  triggerRef: RefObject<HTMLButtonElement | null>
+  // Whether the most recent press began inside Content — see
+  // `trackPressOrigin`. Read by Backdrop and Viewport to refuse a
+  // text-selection drag that starts inside and releases outside.
+  pressOriginRef: RefObject<(() => boolean) | null>
 }
 
 export const DialogContext: Context<DialogContextValue | undefined> = createContext<

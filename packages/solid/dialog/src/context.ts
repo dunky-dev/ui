@@ -13,6 +13,17 @@ export interface DialogContextValue {
   // the containment. A plain box, not a signal: the layer walk reads it in the
   // same settle that mounts the backdrop, before a signal write would commit.
   backdropRef: { current: HTMLDivElement | null }
+  // The rendered Content, shared so Viewport's non-modal outside-press
+  // watcher (a document-level listener, since a `pointer-events: none`
+  // Viewport never receives those presses itself) knows what "inside" means.
+  contentRef: { current: HTMLDivElement | null }
+  // The rendered Trigger, shared for the same watcher: its own press stays a
+  // plain toggle — counting it as outside would close and immediately reopen.
+  triggerRef: { current: HTMLButtonElement | null }
+  // Whether the most recent press began inside Content — see
+  // `trackPressOrigin`. Read by Backdrop and Viewport to refuse a
+  // text-selection drag that starts inside and releases outside.
+  pressOriginRef: { current: (() => boolean) | null }
 }
 
 // A `null` default: a default-less context throws on the root's optional

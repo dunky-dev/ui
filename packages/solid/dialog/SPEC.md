@@ -107,7 +107,7 @@ The root: owns open/close state, renders no DOM. Accepts the core
 | `role`                   | `'dialog' \| 'alertdialog'` | `'dialog'`                                | The ARIA pattern.                                                                                                                             |
 | `closeOnEscape`          | `boolean`                   | `true`                                    | Whether Escape closes the dialog.                                                                                                             |
 | `escapeScope`            | `'layer' \| 'stack'`        | `'layer'`                                 | How far an allowed Escape reaches: this dialog, or its whole stack.                                                                           |
-| `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether pressing the backdrop/viewport closes the dialog.                                                                                     |
+| `closeOnInteractOutside` | `boolean`                   | `true` — `false` for `role="alertdialog"` | Whether a press outside the dialog window closes it.                                                                                          |
 | `animated`               | `boolean`                   | `false`                                   | Keeps the dialog mounted through `data-state="closing"` while its exit animation plays.                                                       |
 | `closeOnBack`            | `boolean`                   | `false`                                   | The browser's Back closes the open dialog instead of navigating (a guard entry in the session history), and Forward reopens what Back closed. |
 | `onBackNavigation`       | `(event?) => void`          | —                                         | Fired before a back-navigation dismissal; `preventDefault()` vetoes.                                                                          |
@@ -144,7 +144,11 @@ The layer behind the dialog window; renders nothing when `modal={false}`.
 
 ### `Dialog.Viewport`
 
-The positioning + scroll layer around the dialog window.
+The positioning + scroll layer around the dialog window. While non-modal it
+renders with `pointer-events: none` (the consumer's own `style` wins), so a
+press on the empty area falls through to the page instead of being
+swallowed; outside presses are then observed at the document level. While
+modal it stays the outside-press surface itself.
 
 | Prop       | Type                    | Default | Description                        |
 | ---------- | ----------------------- | ------- | ---------------------------------- |
@@ -152,7 +156,9 @@ The positioning + scroll layer around the dialog window.
 
 ### `Dialog.Content`
 
-The dialog window; renders a `<div>` with the `dialog` role.
+The dialog window; renders a `<div>` with the `dialog` role and
+`pointer-events: auto` (the consumer's own `style` wins), so it stays
+interactive where a non-modal Viewport lets presses fall through around it.
 
 | Prop           | Type                                                      | Default           | Description                                                         |
 | -------------- | --------------------------------------------------------- | ----------------- | ------------------------------------------------------------------- |

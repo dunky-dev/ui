@@ -17,10 +17,14 @@ import type { DialogOptions } from '@dunky.dev/dialog'
 import {
   acceptsBackdropPress,
   acceptsViewportPress,
+  contentPointerEvents,
   dialogTrapOptions,
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
+  trackPressOrigin,
+  viewportPointerEvents,
+  watchOutsidePress,
   type BackNavigationGuard,
 } from '@dunky.dev/dom-dialog'
 import { mergeProps, normalize } from '@dunky.dev/solid-state-machine'
@@ -53,6 +57,9 @@ export const Dialog: Component<DialogProps> & Parts = props => {
   const depth = (useContext(DialogContext)?.depth ?? 0) + 1
   const { api, machine } = useDialog(options)
   const backdropRef: { current: HTMLDivElement | null } = { current: null }
+  const contentRef: { current: HTMLDivElement | null } = { current: null }
+  const triggerRef: { current: HTMLButtonElement | null } = { current: null }
+  const pressOriginRef: { current: (() => boolean) | null } = { current: null }
 
   // The guard lives on the root — it concerns the dialog's openness, not any
   // rendered part. It spans more than the open state, so it can't be this
@@ -80,7 +87,18 @@ export const Dialog: Component<DialogProps> & Parts = props => {
   })
 
   return (
-    <DialogContext value={{ api, machine, depth, container: () => null, backdropRef }}>
+    <DialogContext
+      value={{
+        api,
+        machine,
+        depth,
+        container: () => null,
+        backdropRef,
+        contentRef,
+        triggerRef,
+        pressOriginRef,
+      }}
+    >
       {props.children}
     </DialogContext>
   )
@@ -93,11 +111,16 @@ export const Dialog: Component<DialogProps> & Parts = props => {
 export interface DialogTriggerProps extends ComponentProps<'button'> {}
 
 export const Trigger: Component<DialogTriggerProps> = props => {
-  const { api } = useDialogContext()
-  const rest = omit(props, 'children')
+  const { api, triggerRef } = useDialogContext()
+  const rest = omit(props, 'ref', 'children')
+  onSettled(() => () => (triggerRef.current = null))
   return (
     <button
       {...mergeProps<DialogTriggerProps>({ type: 'button', ...rest }, normalize(api.parts.trigger))}
+      ref={element => {
+        triggerRef.current = element
+        applyConsumerRef(props.ref, element)
+      }}
     >
       {props.children}
     </button>
@@ -145,7 +168,7 @@ export const Portal: Component<DialogPortalProps> = props => {
 export interface DialogBackdropProps extends ComponentProps<'div'> {}
 
 export const Backdrop: Component<DialogBackdropProps> = props => {
-  const { api, machine, backdropRef } = useDialogContext()
+  const { api, machine, backdropRef, pressOriginRef } = useDialogContext()
   const rest = omit(props, 'ref', 'children')
   onSettled(() => () => (backdropRef.current = null))
 
@@ -156,7 +179,8 @@ export const Backdrop: Component<DialogBackdropProps> = props => {
     return {
       ...attrs,
       onClick: (event: MouseEvent) => {
-        if (acceptsBackdropPress(machine.context.id)) onClick?.(event)
+        if (acceptsBackdropPress(machine.context.id, pressOriginRef.current?.() ?? false))
+          onClick?.(event)
       },
     }
   }
@@ -184,8 +208,8 @@ export const Backdrop: Component<DialogBackdropProps> = props => {
 export interface DialogViewportProps extends ComponentProps<'div'> {}
 
 export const Viewport: Component<DialogViewportProps> = props => {
-  const { api, machine } = useDialogContext()
-  const rest = omit(props, 'children')
+  const { api, machine, contentRef, triggerRef, pressOriginRef } = useDialogContext()
+  const rest = omit(props, 'style', 'children')
 
   const bindings = (): Record<string, unknown> => {
     const { onClick, ...attrs } = normalize(api.parts.viewport) as {
@@ -194,12 +218,47 @@ export const Viewport: Component<DialogViewportProps> = props => {
     return {
       ...attrs,
       onClick: (event: MouseEvent) => {
-        if (acceptsViewportPress(machine.context.id, event)) onClick?.(event)
+        if (acceptsViewportPress(machine.context.id, event, pressOriginRef.current?.() ?? false))
+          onClick?.(event)
       },
     }
   }
 
-  return <div {...mergeProps<DialogViewportProps>(rest, bindings())}>{props.children}</div>
+  // Non-modal: the Viewport's own pointer-events are off (see the style
+  // below), so it never receives a press on the empty area to detect as
+  // outside — the document is the only vantage point left.
+  createEffect(
+    () => api.open,
+    open => {
+      if (!open || machine.context.modal) return
+      const content = contentRef.current
+      if (content === null) return
+      return watchOutsidePress(machine.context.id, {
+        content,
+        trigger: triggerRef.current,
+        startedInside: () => pressOriginRef.current?.() ?? false,
+        onOutsidePress: event =>
+          untrack(() => {
+            const { onClick } = normalize(api.parts.viewport) as {
+              onClick?: (event: MouseEvent) => void
+            }
+            onClick?.(event)
+          }),
+      })
+    },
+  )
+
+  return (
+    <div
+      {...mergeProps<DialogViewportProps>(rest, bindings())}
+      // Non-modal: the page coexists with the dialog, so the empty area
+      // around the window must let presses fall through rather than swallow
+      // them.
+      style={withPointerEvents(props.style, viewportPointerEvents(machine.context.modal))}
+    >
+      {props.children}
+    </div>
+  )
 }
 
 // =============================================================================
@@ -216,10 +275,23 @@ export interface DialogContentProps extends ComponentProps<'div'> {
 const resolveInitialFocus = (value: DialogContentProps['initialFocus']): HTMLElement | null =>
   (typeof value === 'function' ? value() : value) ?? null
 
+// The consumer's own style wins over the pointer-events default; a string
+// style keeps the default as the earlier (overridable) declaration.
+const withPointerEvents = (
+  style: ComponentProps<'div'>['style'],
+  value: 'none' | 'auto' | undefined,
+): ComponentProps<'div'>['style'] => {
+  if (value === undefined) return style
+  if (typeof style === 'string') return `pointer-events:${value};${style}`
+  if (typeof style === 'object' && style !== null) return { 'pointer-events': value, ...style }
+  return { 'pointer-events': value }
+}
+
 export const Content: Component<DialogContentProps> = props => {
-  const { api, machine, depth, container, backdropRef } = useDialogContext()
-  const rest = omit(props, 'ref', 'initialFocus', 'children')
-  let contentEl: HTMLDivElement | undefined
+  const { api, machine, depth, container, backdropRef, contentRef, pressOriginRef } =
+    useDialogContext()
+  const rest = omit(props, 'ref', 'initialFocus', 'style', 'children')
+  onSettled(() => () => (contentRef.current = null))
 
   // The `open` state is the edge, not mount/unmount: an animated dialog stays
   // mounted through `closing`. The sequence and its inverse are the DOM
@@ -227,10 +299,10 @@ export const Content: Component<DialogContentProps> = props => {
   createEffect(
     () => api.open,
     open => {
-      const content = contentEl
-      if (!open || content === undefined) return
+      const content = contentRef.current
+      if (!open || content === null) return
 
-      return openDialogLayer(content, {
+      const releaseLayer = openDialogLayer(content, {
         id: machine.context.id,
         depth,
         modal: machine.context.modal,
@@ -238,6 +310,17 @@ export const Content: Component<DialogContentProps> = props => {
         initialFocus: untrack(() => resolveInitialFocus(props.initialFocus)),
         dismiss: () => machine.send({ type: 'close' }),
       })
+      // A click's own target can't tell a text-selection drag from a genuine
+      // outside press once the browser has collapsed it — see
+      // `trackPressOrigin`. Shared via context: Backdrop and Viewport are
+      // separate parts, and both need the answer.
+      const pressOrigin = trackPressOrigin(content)
+      pressOriginRef.current = pressOrigin.startedInside
+      return () => {
+        pressOriginRef.current = null
+        pressOrigin.dispose()
+        releaseLayer()
+      }
     },
   )
 
@@ -245,8 +328,8 @@ export const Content: Component<DialogContentProps> = props => {
   createEffect(
     () => api.open,
     open => {
-      const content = contentEl
-      if (open || content === undefined) return
+      const content = contentRef.current
+      if (open || content === null) return
 
       return untrack(() =>
         startExitWindow(content, {
@@ -268,7 +351,7 @@ export const Content: Component<DialogContentProps> = props => {
   )
 
   useFocusTrap(
-    () => contentEl ?? null,
+    () => contentRef.current,
     dialogTrapOptions(machine, () => api.ids.close),
   )
 
@@ -278,8 +361,11 @@ export const Content: Component<DialogContentProps> = props => {
   return (
     <div
       {...mergeProps<DialogContentProps>(rest, normalize(api.parts.content))}
+      // Always interactive, even where a non-modal Viewport disables pointer
+      // events to let presses fall through around it.
+      style={withPointerEvents(props.style, contentPointerEvents)}
       ref={element => {
-        contentEl = element
+        contentRef.current = element
         applyConsumerRef(props.ref, element)
       }}
     >

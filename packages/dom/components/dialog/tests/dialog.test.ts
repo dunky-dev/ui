@@ -18,6 +18,8 @@ import {
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
+  trackPressOrigin,
+  watchOutsidePress,
 } from '@dunky.dev/dom-dialog'
 
 type DialogService = Machine<DialogStateName, DialogContext, DialogMachineEvent>
@@ -48,6 +50,7 @@ const registered: (() => void)[] = []
 const mountLayer = (id: string, depth: number, html = '', dismiss?: () => void): HTMLElement => {
   const content = document.createElement('div')
   content.tabIndex = -1
+  content.setAttribute('aria-label', 'Layer')
   content.innerHTML = html
   document.body.append(content)
   registered.push(
@@ -137,6 +140,7 @@ describe('openDialogLayer', () => {
   ): { content: HTMLElement; close: () => void } => {
     const content = document.createElement('div')
     content.tabIndex = -1
+    content.setAttribute('aria-label', 'Dialog')
     content.innerHTML = html
     document.body.append(content)
 
@@ -154,6 +158,7 @@ describe('openDialogLayer', () => {
   it('moves focus to the first form field, without scrolling the locked surface', () => {
     const content = document.createElement('div')
     content.tabIndex = -1
+    content.setAttribute('aria-label', 'Dialog')
     content.innerHTML = '<input id="field" />'
     document.body.append(content)
     const field = document.getElementById('field') as HTMLInputElement
@@ -168,6 +173,7 @@ describe('openDialogLayer', () => {
   it('honors an explicit initialFocus over the overlay default', () => {
     const content = document.createElement('div')
     content.tabIndex = -1
+    content.setAttribute('aria-label', 'Dialog')
     content.innerHTML = '<input id="field" /><button id="pick">pick</button>'
     document.body.append(content)
     const pick = content.querySelector('#pick') as HTMLButtonElement
@@ -180,6 +186,7 @@ describe('openDialogLayer', () => {
   it('falls back to the dialog window when the target refuses focus', () => {
     const content = document.createElement('div')
     content.tabIndex = -1
+    content.setAttribute('aria-label', 'Dialog')
     content.innerHTML = '<input id="field" disabled />'
     document.body.append(content)
     const field = content.querySelector('#field') as HTMLInputElement
@@ -199,6 +206,32 @@ describe('openDialogLayer', () => {
 
     expect(document.activeElement).not.toBe(content)
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('tabindex="-1"'))
+  })
+
+  it('warns when the dialog has neither a Title nor an accessible label', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const content = document.createElement('div')
+    content.tabIndex = -1
+    document.body.append(content)
+
+    registered.push(openDialogLayer(content, options))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('no accessible name'))
+  })
+
+  it('does not warn when the window carries aria-labelledby', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const content = document.createElement('div')
+    content.tabIndex = -1
+    content.setAttribute('aria-labelledby', 'dlg-title')
+    content.innerHTML = '<h2 id="dlg-title">Title</h2>'
+    document.body.append(content)
+
+    registered.push(openDialogLayer(content, options))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('no accessible name'))
   })
 
   it('restores focus to whatever held it before the dialog opened', () => {
@@ -357,10 +390,10 @@ describe('guardBackNavigation', () => {
 describe('outside-press gating', () => {
   it('lets only the topmost dialog answer a backdrop press', () => {
     mountLayer('dlg', 1)
-    expect(acceptsBackdropPress('dlg')).toBe(true)
+    expect(acceptsBackdropPress('dlg', false)).toBe(true)
 
     mountLayer('above', 2)
-    expect(acceptsBackdropPress('dlg')).toBe(false)
+    expect(acceptsBackdropPress('dlg', false)).toBe(false)
   })
 
   it('ignores a viewport press that bubbled up from the content', () => {
@@ -368,8 +401,142 @@ describe('outside-press gating', () => {
     const viewport = document.createElement('div')
     const content = document.createElement('div')
 
-    expect(acceptsViewportPress('dlg', { target: viewport, currentTarget: viewport })).toBe(true)
-    expect(acceptsViewportPress('dlg', { target: content, currentTarget: viewport })).toBe(false)
+    expect(acceptsViewportPress('dlg', { target: viewport, currentTarget: viewport }, false)).toBe(
+      true,
+    )
+    expect(acceptsViewportPress('dlg', { target: content, currentTarget: viewport }, false)).toBe(
+      false,
+    )
+  })
+
+  it('refuses a backdrop or viewport press whose gesture started inside the window', () => {
+    mountLayer('dlg', 1)
+    const viewport = document.createElement('div')
+
+    expect(acceptsBackdropPress('dlg', true)).toBe(false)
+    expect(acceptsViewportPress('dlg', { target: viewport, currentTarget: viewport }, true)).toBe(
+      false,
+    )
+  })
+})
+
+describe('trackPressOrigin', () => {
+  const dispatchPointerDown = (target: Element): void => {
+    target.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+  }
+
+  it('reports whether the most recent press began inside the tracked element', () => {
+    const content = document.createElement('div')
+    const inner = document.createElement('button')
+    content.append(inner)
+    const outer = document.createElement('button')
+    document.body.append(content, outer)
+
+    const tracker = trackPressOrigin(content)
+    expect(tracker.startedInside()).toBe(false)
+
+    dispatchPointerDown(inner)
+    expect(tracker.startedInside()).toBe(true)
+
+    dispatchPointerDown(outer)
+    expect(tracker.startedInside()).toBe(false)
+
+    tracker.dispose()
+  })
+
+  it('stops updating once disposed', () => {
+    const content = document.createElement('div')
+    const inner = document.createElement('button')
+    content.append(inner)
+    document.body.append(content)
+
+    const tracker = trackPressOrigin(content)
+    tracker.dispose()
+    dispatchPointerDown(inner)
+
+    expect(tracker.startedInside()).toBe(false)
+  })
+})
+
+describe('watchOutsidePress', () => {
+  const click = (target: Element): void => {
+    target.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  }
+
+  const setup = (
+    startedInside: () => boolean = () => false,
+  ): {
+    content: HTMLElement
+    trigger: HTMLElement
+    outside: HTMLElement
+    onOutsidePress: () => void
+  } => {
+    const content = mountLayer('dlg', 1)
+    const trigger = document.createElement('button')
+    const outside = document.createElement('button')
+    document.body.append(trigger, outside)
+    const onOutsidePress = vi.fn()
+    registered.push(watchOutsidePress('dlg', { content, trigger, startedInside, onOutsidePress }))
+    return { content, trigger, outside, onOutsidePress }
+  }
+
+  it('fires for a press outside the window and the trigger', () => {
+    const { outside, onOutsidePress } = setup()
+
+    click(outside)
+
+    expect(onOutsidePress).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a press inside the window', () => {
+    const { content, onOutsidePress } = setup()
+
+    click(content)
+
+    expect(onOutsidePress).not.toHaveBeenCalled()
+  })
+
+  it('ignores a press on the trigger — its own press stays a plain toggle', () => {
+    const { trigger, onOutsidePress } = setup()
+
+    click(trigger)
+
+    expect(onOutsidePress).not.toHaveBeenCalled()
+  })
+
+  it('ignores a press once this dialog is no longer topmost', () => {
+    const { outside, onOutsidePress } = setup()
+    mountLayer('above', 2)
+
+    click(outside)
+
+    expect(onOutsidePress).not.toHaveBeenCalled()
+  })
+
+  it('ignores a press whose gesture started inside the window', () => {
+    const { outside, onOutsidePress } = setup(() => true)
+
+    click(outside)
+
+    expect(onOutsidePress).not.toHaveBeenCalled()
+  })
+
+  it('stops watching once disposed', () => {
+    const content = mountLayer('dlg', 1)
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    const onOutsidePress = vi.fn()
+
+    const dispose = watchOutsidePress('dlg', {
+      content,
+      trigger: null,
+      startedInside: () => false,
+      onOutsidePress,
+    })
+    dispose()
+    click(outside)
+
+    expect(onOutsidePress).not.toHaveBeenCalled()
   })
 })
 
