@@ -74,7 +74,7 @@ function currentClaim(): string | undefined {
 // Offers a spent entry to the layer that has taken the planter's place. Only a
 // sole candidate may answer: two layers claiming the same ground can't be told
 // apart, and reopening the wrong one is worse than reopening none.
-function offerToClaimant(): void {
+function resolveClaim(): void {
   const id = currentGuardId()
   if (id !== undefined && abandoned.has(id)) return
   const claim = currentClaim()
@@ -169,7 +169,7 @@ function onPopState(): void {
         }
       }
     } else {
-      offerToClaimant()
+      resolveClaim()
     }
     detachWhenIdle()
     return
