@@ -88,6 +88,84 @@ URL, so it isn't shareable. A layer that must survive reload in its own right
 (or be linkable) keeps its open-state in the URL and derives itself from it —
 Back then closes for free and needs no interceptor.
 
+## Scenarios
+
+Compact traces of the behavior above, in the module's own vocabulary.
+`arm` registers a guard; `release` is a close this module didn't cause —
+external, imperative, or similar — reaching it as the release call;
+`release(keepClaim)` is a teardown. `watch` registers a spent-entry
+watcher. `Back` and `Forward` are user traversals; `=>` is the observable
+outcome.
+
+### One layer
+
+- `arm -> Back` => the layer closes; the page stays.
+- `arm -> release` => the entry is consumed; the next Back leaves the page.
+- `arm -> Back -> Forward` => the layer reopens, re-armed on the entry in
+  place.
+- `arm -> Back -> Forward (reopen declined)` => stays closed, stays parked;
+  a later Forward offers again.
+- `arm -> Back (onBack declines)` => re-armed; the next Back reaches the
+  same layer again.
+- `arm -> Back (onBack throws)` => counts as a decline: re-armed, and the
+  error propagates.
+
+### Release and consumption
+
+- `arm -> release -> arm (same turn)` => the re-registration adopts the
+  entry in place; zero traversals.
+- `arm (onForward) -> Back -> release` => the Forward watch ends; the spent
+  entry stays in the forward stack, not the module's to spend.
+- `arm -> Back -> Forward (declined) -> release` => the declined reopen
+  left the entry current, so it is consumed.
+- `arm A -> arm B -> release both (any order)` => both entries consumed,
+  one traversal at a time; the next Back leaves the page.
+- `arm A -> arm B -> release A` => A's entry is buried under B: left
+  alone. The Back that closes B surfaces it, and it is consumed alongside.
+- `arm -> Back -> release` => the Back already unwound the guard; the
+  release is a no-op.
+
+### Forward, claims, reload
+
+- `arm (claim) -> Back -> release(keepClaim) -> watch -> Forward` => the
+  sole watcher reopens; the new registration adopts the entry.
+- `arm (claim) -> Back -> release -> Forward` => nothing. The close was
+  deliberate (abandoned), and the dead entry absorbs one Forward press —
+  an entry can't be deleted, only left to soak the traversal.
+- Two watchers, one claim, `Forward` => neither answers: they can't be
+  told apart, and reopening the wrong layer is worse than reopening none.
+- `arm (claim) -> Back -> reload -> watch -> Forward` => reopens. The
+  abandoned memory did not survive the reload: surrendered and lost ground
+  now look the same.
+- `arm -> reload -> Back` => spends on nothing — the entry outlived the
+  open-state; a Forward back onto it offers the claim.
+- `Forward` onto marked ground with no owner and no watcher => nothing —
+  residue never unwinds anything.
+- `arm A -> Back -> arm B` => B's plant truncates the forward stack: A's
+  spent entry and its watch are gone. A veto's re-plant does the same — a
+  decline costs every parked watch above.
+
+### Stacked layers
+
+- `arm A -> arm B -> Back -> Back` => closes B, then A — one per press.
+- `arm A -> arm B -> release B -> Back` => closes A; B's entry was
+  consumed in between.
+- `arm A -> arm B -> arm C -> Back -> release B -> Forward -> Forward` =>
+  the Back closes C; the first Forward soaks into B's abandoned entry; the
+  second asks C, which reopens only if it still can without B.
+- `history.go(-2)` across A and B => unwinds topmost first; a decline
+  midway re-arms and stops the unwind there.
+- `history.go(+2)` across two spent entries => offers each crossed layer
+  its reopen, lowest first.
+
+### Timing edges
+
+- A registration adopts an entry while a self-caused pop is in flight =>
+  the swallow accounting re-plants the live guard (self-heal).
+- Parent and child arm in one commit (child lifecycle runs first) => the
+  child arms beneath the parent: the first Back closes the outer layer. A
+  layer armed after its parent unwinds inside-out as expected.
+
 ## API
 
 | Export                                      | Description                                                                                                                                                                                                                                                                                                                                                      |
