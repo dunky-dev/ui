@@ -155,11 +155,11 @@ The positioning + scroll layer around the dialog window.
 
 The dialog window; renders a `<div>` with the `dialog` role.
 
-| Prop           | Type                                                      | Default           | Description                                                         |
-| -------------- | --------------------------------------------------------- | ----------------- | ------------------------------------------------------------------- |
-| `initialFocus` | `HTMLElement \| (() => HTMLElement \| null \| undefined)` | the dialog window | The element to focus when the dialog opens — resolved at open time. |
+| Prop           | Type                                                      | Default           | Description                                                                                                                                                 |
+| -------------- | --------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `initialFocus` | `HTMLElement \| (() => HTMLElement \| null \| undefined)` | the dialog window | The element to focus when the dialog opens — resolved at open time.                                                                                         |
 | `restoreFocus` | `HTMLElement \| (() => HTMLElement \| null \| undefined)` | —                 | Focused on close when nothing meaningful held focus before opening (the body, or an element since removed) — resolved at close time. Typically the trigger. |
-| `...props`     | `ComponentProps<'div'>`                                   | —                 | Forwarded to the rendered `<div>`.                                  |
+| `...props`     | `ComponentProps<'div'>`                                   | —                 | Forwarded to the rendered `<div>`.                                                                                                                          |
 
 ### `Dialog.Title`
 

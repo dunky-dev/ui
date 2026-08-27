@@ -1,5 +1,86 @@
 # @dunky.dev/dom-overlay
 
+## 0.2.1
+
+### Patch Changes
+
+- [#50](https://github.com/dunky-dev/ui/pull/50) [`bbb04da`](https://github.com/dunky-dev/ui/commit/bbb04da6397f5e9a1641cbea9e2eb0c082c2965c) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Focus candidates barred by an ancestor are excluded: controls disabled through
+  `fieldset[disabled]` and anything inside `[inert]`.
+
+  `FOCUSABLE_SELECTOR` and the form-field selector gate on an element's own
+  attributes (`input:not([disabled])`), but both bars also arrive from
+  ancestors, so a barred control satisfied the selector while a browser refuses
+  to focus it — silently.
+
+  In the focus trap that was a hard dead end: the Tab keydown is already
+  `preventDefault()`-ed when focus is stepped by hand, so every press recomputed
+  the same refused target and focus never moved again. The cycle now only holds
+  what a browser would actually focus, keeping the native exception that
+  controls in a disabled fieldset's first `legend` stay enabled.
+
+  In the initial-focus chain it was the quieter failure mode: the barred field
+  won the draw, `focus()` no-opped, and focus fell to the overlay window even
+  when a viable field came later. Every candidate — designated element and form
+  fields alike — is now also filtered for these bars.
+
+  Both use the new `isFocusable` from `@dunky.dev/dom-element`, beside the
+  `isRendered` filter they already shared.
+
+- [#50](https://github.com/dunky-dev/ui/pull/50) [`bfbe863`](https://github.com/dunky-dev/ui/commit/bfbe86307b07bfc8d55207c70cfdc328693e5814) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Initial focus now skips a candidate that didn't render.
+
+  `getInitialFocus` filtered `[disabled]` and `[type="hidden"]` but never asked
+  whether the element actually rendered. A field inside a collapsed section
+  satisfied the selector and won the draw; `focus()` on it did nothing — and said
+  nothing — so focus fell back to the dialog window, with the fallback's warning
+  unable to fire, because from its point of view the fallback had succeeded. The
+  overlay opened on its window instead of the field: degraded, not broken, and
+  silent.
+
+  A designated `initialFocus` that hadn't rendered was worse. It went straight to
+  the window and skipped the form-field step entirely, contradicting the
+  documented "when one is set **and can take focus**". So `getInitialFocus` now
+  takes the designated element as a second argument and resolves the whole chain
+  in one call, filtering every step rather than just the last:
+
+  ```ts
+  // designated -> first form field -> the overlay window itself
+  getInitialFocus(content, designatedElement).focus({ preventScroll: true })
+  ```
+
+  Callers that were writing `initialFocus ?? getInitialFocus(content)` should
+  pass the designated element in instead — the `??` is what spent it on a
+  candidate that couldn't take focus. `@dunky.dev/dom-dialog` does this for every
+  DOM substrate already, so a dialog's `initialFocus` inherits the fix without a
+  change on the consumer's side.
+
+  The predicate is `isRendered` from `@dunky.dev/dom-element`, shared with the
+  focus trap so the two can't disagree on what counts as rendered.
+
+- [#49](https://github.com/dunky-dev/ui/pull/49) [`772a7df`](https://github.com/dunky-dev/ui/commit/772a7dfe18a58d070c1872b48ef8e6acec180723) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Page content beside a layer portalled into an app branch is now hidden by a
+  modal layer's containment.
+
+  Containment holds a few elements out of the hiding — the topmost modal layer,
+  its backdrop, and the layers stacked above it — and it matched them by
+  ancestry, so a branch that _contained_ one was skipped whole. Where a layer
+  sits is the consumer's choice: `container` on the Portal part lets it land
+  anywhere, and when that branch also held page content, the entire branch went
+  unhidden — the page reachable by pointer, keyboard, and screen reader for as
+  long as the layer was open.
+
+  ```tsx
+  // The menu lands inside the app branch, beside the page content.
+  <Dialog.Portal container={appElement}>
+  ```
+
+  Hiding now descends from the body instead of walking up from the layer. A
+  branch that holds one of those retained elements is descended into rather than
+  spared, so the content beside it is hidden individually while the layer itself
+  stays reachable. A layer at or above the body is a no-op — nothing sits
+  outside it.
+
+- Updated dependencies [[`6c249f9`](https://github.com/dunky-dev/ui/commit/6c249f96dd6e3f821d4b71bae250f1d94e40298c)]:
+  - @dunky.dev/dom-element@0.1.0
+
 ## 0.2.0
 
 ### Minor Changes

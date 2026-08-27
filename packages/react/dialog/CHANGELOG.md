@@ -1,5 +1,37 @@
 # @dunky.dev/react-dialog
 
+## 0.5.0
+
+### Minor Changes
+
+- [#53](https://github.com/dunky-dev/ui/pull/53) [`2cc4a1b`](https://github.com/dunky-dev/ui/commit/2cc4a1b00966526497da15b4123060a2b2c104f0) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `Dialog.Content` gains `restoreFocus` — the close-side counterpart to
+  `initialFocus`. Closing still returns focus to whatever held it before the
+  dialog opened; `restoreFocus` names where it goes when that holder can't
+  meaningfully take focus back: focus sat on the body (a pointer press can
+  leave it there), or on an element removed from the document since.
+  Typically the dialog's trigger.
+
+  ```tsx
+  // React — a ref, read at close time
+  <Dialog.Content restoreFocus={triggerRef}>…</Dialog.Content>
+
+  // Solid — an element or accessor, resolved at close time
+  <Dialog.Content restoreFocus={() => trigger}>…</Dialog.Content>
+  ```
+
+  Before, those two cases silently dropped focus: restoring to the body goes
+  nowhere, and focusing a disconnected element is a no-op, leaving focus
+  stranded on the closing layer. The element focused before opening still
+  always wins when it is meaningful — the fallback never overrides it. At the
+  DOM layer, `openDialogLayer` takes `restoreFocus?: () => HTMLElement | null`,
+  resolved at close.
+
+### Patch Changes
+
+- Updated dependencies [[`2cc4a1b`](https://github.com/dunky-dev/ui/commit/2cc4a1b00966526497da15b4123060a2b2c104f0), [`bbb04da`](https://github.com/dunky-dev/ui/commit/bbb04da6397f5e9a1641cbea9e2eb0c082c2965c), [`bfbe863`](https://github.com/dunky-dev/ui/commit/bfbe86307b07bfc8d55207c70cfdc328693e5814)]:
+  - @dunky.dev/dom-dialog@0.3.0
+  - @dunky.dev/react-use-focus-trap@0.1.3
+
 ## 0.4.0
 
 ### Minor Changes
