@@ -140,14 +140,15 @@ verified across all scopes. If something's off, loop back to SPEC; if not, ship 
 
 ### Principles
 
-Every change is held to these three, in this order — simplest thing that
-works, written once, built only when needed:
+Every change is held to these four, in this order — simplest thing that
+works, written once, built only when needed, behaving as promised:
 
-| Principle | Meaning                                                                                                                                                      |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **KISS**  | Keep it simple. Prefer the plain solution over the clever one; complexity must earn its keep with a need the simple version can't meet.                      |
-| **DRY**   | Don't repeat yourself. A rule two places must agree on is written once and shared — duplication is where the copies drift apart.                             |
-| **YAGNI** | You aren't gonna need it. Build for the requirement in front of you, not the one imagined; speculative machinery is deleted-on-sight, not kept just in case. |
+| Principle | Meaning                                                                                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **KISS**  | Keep it simple. Prefer the plain solution over the clever one; complexity must earn its keep with a need the simple version can't meet.                         |
+| **DRY**   | Don't repeat yourself. A rule two places must agree on is written once and shared — duplication is where the copies drift apart.                                |
+| **YAGNI** | You aren't gonna need it. Build for the requirement in front of you, not the one imagined; speculative machinery is deleted-on-sight, not kept just in case.    |
+| **POLA**  | Principle of least astonishment. A thing does what its name and shape promise — no hidden side effects, no behavior a reader wouldn't guess from the call site. |
 
 ### Naming
 
