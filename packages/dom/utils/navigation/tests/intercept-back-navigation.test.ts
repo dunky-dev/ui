@@ -321,3 +321,20 @@ describe('interceptBackNavigation', () => {
     await releaseAndSettle(releaseLower)
   })
 })
+
+describe('registry global anchoring', () => {
+  it('anchors its registry on the realm global so duplicate module copies share it', async () => {
+    // A second bundled copy of this module resolves the same registry through
+    // this well-known global symbol; forked registries sharing the one real
+    // session history would answer pops from the wrong copy.
+    const release = interceptBackNavigation(() => true)
+
+    const store = (globalThis as unknown as Record<symbol, { guards: unknown[] } | undefined>)[
+      Symbol.for('@dunky.dev/browser-navigation#navigation-store')
+    ]
+    expect(store?.guards).toHaveLength(1)
+
+    await releaseAndSettle(release)
+    expect(store?.guards).toHaveLength(0)
+  })
+})

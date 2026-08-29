@@ -27,11 +27,6 @@ interface ClaimWatcher {
   reopen: () => boolean
 }
 
-const watchers: ClaimWatcher[] = []
-// Entries whose layer closed rather than being torn down: given up on purpose,
-// so no later layer may claim them — Forward must not undo a deliberate close.
-const abandoned = new Set<number>()
-
 export interface ReleaseOptions {
   /** The layer is being torn down, not closed — keep its entry claimable so
    * the layer that takes its place may reopen from it. @default false */
@@ -40,22 +35,67 @@ export interface ReleaseOptions {
 
 // One shared registry + one popstate listener: a Back pops exactly one entry,
 // so only the guard whose entry vanished answers — stacked layers unwind one
-// per press with no cross-layer bookkeeping.
-const guards: BackGuard[] = []
-// Guards whose entry a Back press popped, kept so the host's Forward can
-// reopen the layer. Parked entries always sit above every armed one.
-const parked: BackGuard[] = []
-let nextGuardId = 0
-// Pops this module caused itself — counted so they are never read as a user's
-// Back and unwind another layer.
-let swallow = 0
-// Entries whose guards released but whose consumption hasn't happened yet.
-// Sibling releases from one turn all land here; consumption then chains one
-// traversal at a time (each pop surfaces the next spent entry) instead of one
-// history.go(-n) jump, because entries below the current one are opaque — a
-// multi-step jump could cross navigation this module doesn't own.
-const pendingConsumption = new Set<number>()
-let consumptionScheduled = false
+// per press with no cross-layer bookkeeping. The registry is anchored on a
+// realm-global keyed by `Symbol.for` rather than module-level variables: a
+// monorepo or micro-frontend can load more than one copy of this module into
+// the same page, and forked registries sharing the one real session history
+// would answer pops from the wrong copy (the same duplicate-singleton class
+// of bug as Radix's focus-scope stack, radix-ui/primitives#2815). Resolved
+// lazily on first use so the module keeps its `sideEffects: false` contract.
+const STORE_KEY = Symbol.for('@dunky.dev/browser-navigation#navigation-store')
+
+interface NavigationStore {
+  guards: BackGuard[]
+  // Guards whose entry a Back press popped, kept so the host's Forward can
+  // reopen the layer. Parked entries always sit above every armed one.
+  parked: BackGuard[]
+  watchers: ClaimWatcher[]
+  // Entries whose layer closed rather than being torn down: given up on
+  // purpose, so no later layer may claim them — Forward must not undo a
+  // deliberate close.
+  abandoned: Set<number>
+  // Entries whose guards released but whose consumption hasn't happened yet.
+  // Sibling releases from one turn all land here; consumption then chains one
+  // traversal at a time (each pop surfaces the next spent entry) instead of
+  // one history.go(-n) jump, because entries below the current one are opaque
+  // — a multi-step jump could cross navigation this module doesn't own.
+  pendingConsumption: Set<number>
+  nextGuardId: number
+  // Pops this module caused itself — counted so they are never read as a
+  // user's Back and unwind another layer.
+  swallow: number
+  consumptionScheduled: boolean
+  // The attached popstate listener. Each module copy has its own listener
+  // function, so the browser's (type, listener) dedupe can't span copies —
+  // the store remembers the attached one instead. Any copy's listener
+  // behaves identically: all state lives here.
+  listener?: () => void
+}
+
+function getStore(): NavigationStore {
+  const scope = globalThis as unknown as Record<symbol, NavigationStore | undefined>
+  let store = scope[STORE_KEY]
+  if (store === undefined) {
+    store = {
+      guards: [],
+      parked: [],
+      watchers: [],
+      abandoned: new Set(),
+      pendingConsumption: new Set(),
+      nextGuardId: 0,
+      swallow: 0,
+      consumptionScheduled: false,
+    }
+    scope[STORE_KEY] = store
+  }
+  return store
+}
+
+function attachListener(store: NavigationStore): void {
+  if (store.listener !== undefined) return
+  store.listener = onPopState
+  window.addEventListener('popstate', onPopState)
+}
 
 function currentGuardId(): number | undefined {
   const state: unknown = history.state
@@ -74,13 +114,13 @@ function currentClaim(): string | undefined {
 // Offers a spent entry to the layer that has taken the planter's place. Only a
 // sole candidate may answer: two layers claiming the same ground can't be told
 // apart, and reopening the wrong one is worse than reopening none.
-function resolveClaim(): void {
+function resolveClaim(store: NavigationStore): void {
   const id = currentGuardId()
-  if (id !== undefined && abandoned.has(id)) return
+  if (id !== undefined && store.abandoned.has(id)) return
   const claim = currentClaim()
   if (claim === undefined) return
   let candidate: ClaimWatcher | undefined
-  for (const watcher of watchers) {
+  for (const watcher of store.watchers) {
     if (watcher.claim !== claim) continue
     if (candidate !== undefined) return
     candidate = watcher
@@ -88,31 +128,31 @@ function resolveClaim(): void {
   candidate?.reopen()
 }
 
-function isArmed(id: number): boolean {
-  for (const guard of guards) if (guard.id === id) return true
+function isArmed(store: NavigationStore, id: number): boolean {
+  for (const guard of store.guards) if (guard.id === id) return true
   return false
 }
 
-function parkedIndex(id: number): number {
-  for (let index = 0; index < parked.length; index++) {
-    if ((parked[index] as BackGuard).id === id) return index
+function parkedIndex(store: NavigationStore, id: number): number {
+  for (let index = 0; index < store.parked.length; index++) {
+    if ((store.parked[index] as BackGuard).id === id) return index
   }
   return -1
 }
 
 // Every planted entry truncates the forward stack, taking every parked entry
 // with it — the guards watching them have nothing left to hear.
-function plantEntry(guard: BackGuard): void {
-  parked.length = 0
+function plantEntry(store: NavigationStore, guard: BackGuard): void {
+  store.parked.length = 0
   history.pushState({ [STATE_KEY]: guard.id, [CLAIM_KEY]: guard.claim }, '')
 }
 
 // Consume the current entry if its guard released: one history.back() whose
 // pop re-enters onPopState and continues the chain from there.
-function consumeCurrentIfPending(): void {
+function consumeCurrentIfPending(store: NavigationStore): void {
   const current = currentGuardId()
-  if (current !== undefined && pendingConsumption.delete(current)) {
-    swallow++
+  if (current !== undefined && store.pendingConsumption.delete(current)) {
+    store.swallow++
     history.back()
   }
 }
@@ -121,32 +161,36 @@ function consumeCurrentIfPending(): void {
 // in-flight self-caused pops, and a scheduled consumption pass all still need
 // it. Entries still pending at that point are buried under navigation this
 // module doesn't own — unreachable for good.
-function detachWhenIdle(): void {
+function detachWhenIdle(store: NavigationStore): void {
   if (
-    guards.length === 0 &&
-    parked.length === 0 &&
-    watchers.length === 0 &&
-    swallow === 0 &&
-    !consumptionScheduled
+    store.guards.length === 0 &&
+    store.parked.length === 0 &&
+    store.watchers.length === 0 &&
+    store.swallow === 0 &&
+    !store.consumptionScheduled
   ) {
-    pendingConsumption.clear()
-    window.removeEventListener('popstate', onPopState)
+    store.pendingConsumption.clear()
+    if (store.listener !== undefined) {
+      window.removeEventListener('popstate', store.listener)
+      store.listener = undefined
+    }
   }
 }
 
 function onPopState(): void {
-  if (swallow > 0) {
-    swallow--
+  const store = getStore()
+  if (store.swallow > 0) {
+    store.swallow--
     // Self-heal: if our own pop consumed an entry a live guard still needs
     // (it adopted the entry while the traversal was in flight), re-arm it.
-    const top = guards[guards.length - 1]
+    const top = store.guards[store.guards.length - 1]
     if (top !== undefined && top.id !== currentGuardId()) {
-      plantEntry(top)
+      plantEntry(store, top)
     } else {
       // The pop may have surfaced the next spent sibling entry — continue.
-      consumeCurrentIfPending()
+      consumeCurrentIfPending(store)
     }
-    detachWhenIdle()
+    detachWhenIdle(store)
     return
   }
   const current = currentGuardId()
@@ -156,28 +200,28 @@ function onPopState(): void {
   // entry's claim to the layer that took the planter's place. An entry
   // pending consumption is the opposite of residue — a dead entry a user's
   // Back just surfaced — so it falls through to the unwind below.
-  if (current !== undefined && !isArmed(current) && !pendingConsumption.has(current)) {
-    const landed = parkedIndex(current)
+  if (current !== undefined && !isArmed(store, current) && !store.pendingConsumption.has(current)) {
+    const landed = parkedIndex(store, current)
     if (landed !== -1) {
-      for (let index = parked.length - 1; index >= landed; index--) {
-        const guard = parked[index] as BackGuard
+      for (let index = store.parked.length - 1; index >= landed; index--) {
+        const guard = store.parked[index] as BackGuard
         if (guard.onForward?.() === true) {
           // Reopened: re-arm on the entry in place — it is already current,
           // and planting another would truncate the rest of the way forward.
-          parked.splice(index, 1)
-          guards.push(guard)
+          store.parked.splice(index, 1)
+          store.guards.push(guard)
         }
       }
     } else {
-      resolveClaim()
+      resolveClaim(store)
     }
-    detachWhenIdle()
+    detachWhenIdle(store)
     return
   }
   // Unwind every guard the traversal jumped over, topmost first — a Back
   // press covers one; a multi-entry jump (history.go(-n)) covers several.
-  while (guards.length > 0) {
-    const top = guards[guards.length - 1] as BackGuard
+  while (store.guards.length > 0) {
+    const top = store.guards[store.guards.length - 1] as BackGuard
     if (top.id === current) break
     let closed = false
     try {
@@ -186,23 +230,23 @@ function onPopState(): void {
       // Declined — vetoed, a controlled layer that hasn't followed yet, or
       // onBack threw: re-arm the guard entry so the next Back reaches this
       // layer again, even as the error propagates.
-      if (!closed) plantEntry(top)
+      if (!closed) plantEntry(store, top)
     }
     if (!closed) break
     // By identity, not position: onBack may have released this guard
     // itself, and a positional pop would evict the guard beneath.
-    const index = guards.indexOf(top)
+    const index = store.guards.indexOf(top)
     if (index !== -1) {
-      guards.splice(index, 1)
+      store.guards.splice(index, 1)
       // Park for the way back — unless the guard released itself in onBack:
       // gone for good, nothing left to reopen.
-      if (top.onForward !== undefined) parked.push(top)
+      if (top.onForward !== undefined) store.parked.push(top)
     }
   }
   // The unwind may have landed on an entry whose guard already released (a
   // mid-stack release buried beneath a live layer) — consume it.
-  consumeCurrentIfPending()
-  detachWhenIdle()
+  consumeCurrentIfPending(store)
+  detachWhenIdle(store)
 }
 
 /**
@@ -223,62 +267,62 @@ export function interceptBackNavigation(
   onBack: () => boolean,
   options: BackNavigationOptions = {},
 ): (releaseOptions?: ReleaseOptions) => void {
+  const store = getStore()
   const guard: BackGuard = {
-    id: ++nextGuardId,
+    id: ++store.nextGuardId,
     claim: options.claim,
     onBack,
     onForward: options.onForward,
   }
-  // Identical (type, listener) pairs dedupe, so attaching is idempotent.
-  window.addEventListener('popstate', onPopState)
+  attachListener(store)
   const current = currentGuardId()
-  guards.push(guard)
-  if (current !== undefined && !isArmed(current)) {
+  store.guards.push(guard)
+  if (current !== undefined && !isArmed(store, current)) {
     // Adoption steals the entry from a parked watcher too, and withdraws it
     // from any pending consumption — the ground now belongs to this
     // registration, so no traversal may spend it.
-    const stale = parkedIndex(current)
-    if (stale !== -1) parked.splice(stale, 1)
-    pendingConsumption.delete(current)
+    const stale = parkedIndex(store, current)
+    if (stale !== -1) store.parked.splice(stale, 1)
+    store.pendingConsumption.delete(current)
     history.replaceState({ [STATE_KEY]: guard.id, [CLAIM_KEY]: guard.claim }, '')
   } else {
-    plantEntry(guard)
+    plantEntry(store, guard)
   }
 
   return (releaseOptions: ReleaseOptions = {}) => {
-    if (releaseOptions.keepClaim !== true) abandoned.add(guard.id)
+    if (releaseOptions.keepClaim !== true) store.abandoned.add(guard.id)
 
-    const rest = parked.indexOf(guard)
+    const rest = store.parked.indexOf(guard)
     if (rest !== -1) {
-      parked.splice(rest, 1)
+      store.parked.splice(rest, 1)
       // A parked guard's entry sits in the forward stack — not the chain's to
       // spend — unless a declined reopen left it current: consume that one,
       // or it swallows the next Back.
       if (currentGuardId() === guard.id) {
-        pendingConsumption.add(guard.id)
-        scheduleConsumption()
+        store.pendingConsumption.add(guard.id)
+        scheduleConsumption(store)
       } else {
-        detachWhenIdle()
+        detachWhenIdle(store)
       }
       return
     }
-    const index = guards.indexOf(guard)
+    const index = store.guards.indexOf(guard)
     if (index === -1) return // already unwound by the Back press itself
-    guards.splice(index, 1)
-    pendingConsumption.add(guard.id)
-    scheduleConsumption()
+    store.guards.splice(index, 1)
+    store.pendingConsumption.add(guard.id)
+    scheduleConsumption(store)
   }
 }
 
 // One deferred pass per turn, shared by every sibling release; it starts the
 // consumption chain, and each landing pop continues it.
-function scheduleConsumption(): void {
-  if (consumptionScheduled) return
-  consumptionScheduled = true
+function scheduleConsumption(store: NavigationStore): void {
+  if (store.consumptionScheduled) return
+  store.consumptionScheduled = true
   queueMicrotask(() => {
-    consumptionScheduled = false
-    consumeCurrentIfPending()
-    detachWhenIdle()
+    store.consumptionScheduled = false
+    consumeCurrentIfPending(store)
+    detachWhenIdle(store)
   })
 }
 
@@ -288,14 +332,14 @@ function scheduleConsumption(): void {
  * claim, neither answers.
  */
 export function watchSpentEntry(claim: string, reopen: () => boolean): () => void {
+  const store = getStore()
   const watcher: ClaimWatcher = { claim, reopen }
-  // Identical (type, listener) pairs dedupe, so attaching is idempotent.
-  window.addEventListener('popstate', onPopState)
-  watchers.push(watcher)
+  attachListener(store)
+  store.watchers.push(watcher)
   return () => {
-    const index = watchers.indexOf(watcher)
+    const index = store.watchers.indexOf(watcher)
     if (index === -1) return
-    watchers.splice(index, 1)
-    detachWhenIdle()
+    store.watchers.splice(index, 1)
+    detachWhenIdle(store)
   }
 }

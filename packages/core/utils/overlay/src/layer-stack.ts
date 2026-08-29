@@ -78,16 +78,11 @@ export function createLayerStack<T extends OverlayLayer>(): LayerStack<T> {
       return topmost()?.id === id
     },
     below(id) {
-      const self = layers.find(layer => layer.id === id)
-      if (self === undefined) return []
-      // Same ordering as `topmost`, applied to the whole stack: deeper first,
-      // open order breaking ties.
-      return layers
-        .filter(
-          layer =>
-            layer.depth < self.depth || (layer.depth === self.depth && layer.order < self.order),
-        )
-        .sort((left, right) => right.depth - left.depth || right.order - left.order)
+      // "Beneath" is the same ranking `ordered` already answers: everything
+      // after the layer in topmost-first order.
+      const ranked = ordered()
+      const at = ranked.findIndex(layer => layer.id === id)
+      return at === -1 ? [] : ranked.slice(at + 1)
     },
   }
 }
