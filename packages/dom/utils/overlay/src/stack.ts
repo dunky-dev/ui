@@ -102,3 +102,19 @@ export function isTopmostLayer(id: string): boolean {
 export function layersBelow(id: string): Layer[] {
   return getStore().stack.below(id)
 }
+
+export function getLayer(id: string): Layer | undefined {
+  for (const layer of getStore().stack.ordered()) {
+    if (layer.id === id) return layer
+  }
+  return undefined
+}
+
+// The registered layer whose window holds `node` — what tells a sibling in
+// the stack from a popup that never registered.
+export function layerContaining(node: Node): Layer | undefined {
+  for (const layer of getStore().stack.ordered()) {
+    if (layer.element.contains(node)) return layer
+  }
+  return undefined
+}

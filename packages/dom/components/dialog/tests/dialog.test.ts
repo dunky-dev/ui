@@ -124,6 +124,36 @@ describe('domDialogEffects — Escape', () => {
     pressEscape()
     expect(service.matches('open')).toBe(true)
   })
+
+  // A popup inside the dialog owns Escape while it holds focus — read from
+  // ARIA, so a popup that never registers in the stack counts too.
+  it('stands down while a popup inside the dialog holds focus', () => {
+    const service = build({ defaultOpen: true })
+    const content = mountLayer(
+      'dlg',
+      1,
+      '<ul role="listbox"><li id="option" role="option" tabindex="0">a</li></ul>',
+    )
+    ;(content.querySelector('#option') as HTMLElement).focus()
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+  })
+
+  it('stands down while a control with an expanded popup holds focus', () => {
+    const service = build({ defaultOpen: true })
+    const content = mountLayer(
+      'dlg',
+      1,
+      '<input id="combo" role="combobox" aria-haspopup="listbox" aria-expanded="true" />',
+    )
+    ;(content.querySelector('#combo') as HTMLElement).focus()
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+  })
 })
 
 describe('openDialogLayer', () => {
@@ -438,6 +468,21 @@ describe('dialogTrapOptions', () => {
     const { enabled } = dialogTrapOptions(service, () => 'dlg-close')
 
     expect(enabled?.()).toBe(false)
+  })
+
+  it('stands down while a popup inside the dialog holds focus', () => {
+    const service = build({ defaultOpen: true })
+    const content = mountLayer(
+      'dlg',
+      1,
+      '<ul role="listbox"><li id="option" role="option" tabindex="0">a</li></ul>',
+    )
+    const { enabled } = dialogTrapOptions(service, () => 'dlg-close')
+
+    ;(content.querySelector('#option') as HTMLElement).focus()
+    expect(enabled?.()).toBe(false)
+    content.focus()
+    expect(enabled?.()).toBe(true)
   })
 
   it('resolves Close as the cycle’s last stop, wherever it renders', () => {

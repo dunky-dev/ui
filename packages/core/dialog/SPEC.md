@@ -150,6 +150,12 @@ Per the [APG modal-dialog keyboard interaction](https://www.w3.org/WAI/ARIA/apg/
   always the cycle's last stop, wherever it renders — the dismissal
   affordance follows the content instead of interrupting it. Focus never tabs
   out of the dialog.
+- **Inner popups**: a popup opened inside the dialog that is not itself a
+  dialog — a select menu, a popover, a menu, a combobox list, from this
+  library or any other — owns the keyboard while it holds focus: Tab stays in
+  it and Escape closes it alone. The dialog's trap and Escape resume once
+  focus is back in the window. The dialog recognizes the popup by its ARIA
+  popup semantics, so no cooperation from the popup is needed.
 - **No focusables**: Tab is a no-op; focus stays on the dialog window.
 - **On close**: focus returns to the element focused before opening (normally
   the Trigger).
@@ -170,7 +176,8 @@ stack of dialogs only the topmost one exists until it closes.
 - **Escape**: lands only on the topmost dialog, subject to that dialog's own
   dismissal settings and veto. Its reach is that dialog's escape scope: one
   layer (the default — the stack unwinds one layer per press) or the whole
-  stack.
+  stack. An inner popup (select menu, popover, menu, combobox list) counts as
+  a layer of its own: one press closes it, the next reaches the dialog.
 - **Outside press**: pressing around the topmost dialog is an outside
   interaction for that dialog alone, following its own dismissal settings; the
   dialogs beneath are unaffected.

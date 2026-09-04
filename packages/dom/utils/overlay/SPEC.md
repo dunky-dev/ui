@@ -54,6 +54,30 @@ against each other.
 - The backdrop is resolved through a getter, not a snapshot: a re-hide (a
   layer above closing) sees the element current at that moment.
 
+### Popups the stack never sees
+
+A popup can hold focus inside a layer without registering — a listbox or menu
+from another library, a combobox's list. The stack still names the layer
+topmost, so the layer would keep answering Escape and trapping Tab under the
+popup. Two queries read the real owner from ARIA instead, and a layer consults
+them to stand down:
+
+- `foreignPopupHoldsFocus(id)` — focus sits in a popup that is neither the
+  layer's own window nor a registered layer: an element with a popup role
+  (`aria-haspopup`'s values — listbox, menu, tree, grid, dialog), wherever it
+  renders, or anything outside the window that is in no popup role at all —
+  the page is inert while a modal layer is open, so whatever holds focus out
+  there is a layer. Focus on the body doesn't count: the layer re-enters from
+  there. Registered layers never count as foreign — a layer beneath is inert,
+  and focus reported there re-enters the topmost layer's trap.
+- `expandedPopupControlHoldsFocus(id)` — focus sits on a control inside the
+  window whose popup is expanded (`aria-expanded="true"` with `aria-haspopup`),
+  the way a combobox keeps focus on its input while its list is open.
+  `aria-expanded` alone is a disclosure, which has no popup to close.
+
+No cooperation from the popup is required — any well-formed ARIA popup works.
+A popup that does register is simply topmost, and the stack answers as usual.
+
 ### Initial focus
 
 The strict rule is only that focus moves into the overlay: an overlay that
@@ -97,6 +121,8 @@ again — but keeps painting until its exit visual finishes:
 | `Layer`                                          | `OverlayLayer` + `element`, `modal`, an optional `backdrop` getter, and an optional `dismiss`.                                    |
 | `isTopmostLayer(id)`                             | Whether the layer owns Escape and the focus trap right now.                                                                       |
 | `layersBelow(id)`                                | The layers stacked beneath, topmost first — the unwinding order for a stack-scoped dismissal.                                     |
+| `foreignPopupHoldsFocus(id)`                     | Whether focus sits in a popup that is neither the layer's window nor a registered layer.                                          |
+| `expandedPopupControlHoldsFocus(id)`             | Whether focus sits on a control inside the layer's window whose popup is expanded.                                                |
 | `getInitialFocus(content, designated?)`          | The element to focus on open: `designated`, else first form field, else the overlay window — each step filtered for renderedness. |
 | `hideExitingLayer(content, boundary, backdrop?)` | Inerts the still-painting layer for the exit window; returns the undo.                                                            |
 | `watchExitAnimation(element, onComplete)`        | Reports the exit visual's end once; returns the cancel.                                                                           |
