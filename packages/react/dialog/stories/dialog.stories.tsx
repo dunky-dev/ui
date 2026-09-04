@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Dialog } from '@dunky.dev/react-dialog'
 
@@ -68,6 +68,24 @@ const input: CSSProperties = {
   border: '1px solid #ccc',
   borderRadius: 6,
   font: 'inherit',
+}
+const listbox: CSSProperties = {
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  minWidth: 220,
+  margin: '4px 0 0',
+  padding: 4,
+  listStyle: 'none',
+  background: 'white',
+  border: '1px solid #ccc',
+  borderRadius: 6,
+  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.16)',
+}
+const option: CSSProperties = {
+  padding: '6px 10px',
+  borderRadius: 4,
+  cursor: 'pointer',
 }
 // A scoped dialog opens inside a container instead of over the whole page: it
 // portals into that element, and its overlay layers switch from `fixed`
@@ -422,6 +440,97 @@ const NestedDialogs = () => {
 
 export const nested: StoryType = {
   render: () => <NestedDialogs />,
+}
+
+// A popup inside the dialog that never joins the layer stack — a third-party
+// listbox stands in. While it holds focus, Tab and Escape are its: the
+// dialog's trap and Escape stand down until focus is back in the window, so
+// one Escape closes the listbox and the next closes the dialog.
+const editors = ['Team members', 'Anyone with the link', 'Only me']
+const Listbox = () => {
+  const [open, setOpen] = useState(false)
+  const [value, setValue] = useState(editors[0])
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const close = () => {
+    setOpen(false)
+    buttonRef.current?.focus()
+  }
+  const pick = (editor: string) => {
+    setValue(editor)
+    close()
+  }
+  useEffect(() => {
+    if (open) listRef.current?.querySelector<HTMLElement>('[role="option"]')?.focus()
+  }, [open])
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        ref={buttonRef}
+        type='button'
+        aria-haspopup='listbox'
+        aria-expanded={open}
+        aria-controls='who-can-edit'
+        onClick={() => setOpen(!open)}
+      >
+        {value}
+      </button>
+      {open && (
+        <ul
+          id='who-can-edit'
+          ref={listRef}
+          role='listbox'
+          aria-label='Who can edit'
+          style={listbox}
+          onKeyDown={event => {
+            if (event.key === 'Escape') close()
+            if (event.key === 'Tab') setOpen(false)
+          }}
+        >
+          {editors.map(editor => (
+            <li
+              key={editor}
+              role='option'
+              tabIndex={0}
+              aria-selected={editor === value}
+              style={option}
+              onClick={() => pick(editor)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') pick(editor)
+              }}
+            >
+              {editor}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export const innerPopup: StoryType = {
+  render: () => (
+    <Dialog defaultOpen>
+      <Dialog.Trigger>Open dialog</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={backdrop} />
+        <Dialog.Viewport style={viewport}>
+          <Dialog.Content style={content}>
+            <CloseButton />
+            <Dialog.Title>Board settings</Dialog.Title>
+            <Dialog.Description>
+              Open the listbox, then press Tab and Escape: the popup answers first, the dialog only
+              once it is closed.
+            </Dialog.Description>
+            <Listbox />
+            <div style={actions}>
+              <button>Save</button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog>
+  ),
 }
 
 // closeOnBack turns the host's Back into a dismissal: while the dialog is open,

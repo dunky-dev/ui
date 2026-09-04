@@ -1,5 +1,10 @@
 import { dialogEffects, type DialogEffect } from '@dunky.dev/dialog'
-import { isTopmostLayer, layersBelow } from '@dunky.dev/dom-overlay'
+import {
+  expandedPopupControlHoldsFocus,
+  foreignPopupHoldsFocus,
+  isTopmostLayer,
+  layersBelow,
+} from '@dunky.dev/dom-overlay'
 
 // Escape is a document-level concern, not a part's — it must work wherever
 // focus is.
@@ -9,7 +14,12 @@ const trackEscape: DialogEffect = [
       if (event.key !== 'Escape' || !machine.matches('open')) return
       // Only the topmost dialog answers Escape — a nested stack closes one
       // layer at a time, unless this dialog's scope is the whole stack.
-      if (!isTopmostLayer(machine.context.id)) return
+      const { id } = machine.context
+      if (!isTopmostLayer(id)) return
+      // A popup inside the dialog that never joined the stack answers first
+      // while it holds focus — this listener runs in the capture phase, so
+      // it would otherwise close the dialog under the popup.
+      if (foreignPopupHoldsFocus(id) || expandedPopupControlHoldsFocus(id)) return
       props.onEscapeKeyDown?.(event)
       if (event.defaultPrevented) return
       // Read the stack before the send: closing this layer releases it, and

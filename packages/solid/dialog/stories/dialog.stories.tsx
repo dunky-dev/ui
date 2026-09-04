@@ -1,4 +1,4 @@
-import { createSignal, Repeat } from 'solid-js'
+import { createEffect, createSignal, For, Repeat, Show } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import type { Meta, StoryObj } from 'storybook-solidjs-vite'
 import { Dialog } from '@dunky.dev/solid-dialog'
@@ -100,6 +100,25 @@ const scopedViewport: JSX.CSSProperties = { ...viewport, position: 'absolute' }
 // (Cancel / Confirm / Delete) are the consumer's own, driving the dialog
 // through state — see the alertDialog story.
 const closableContent: JSX.CSSProperties = { ...content, position: 'relative' }
+
+const listbox: JSX.CSSProperties = {
+  position: 'absolute',
+  top: '100%',
+  left: '0',
+  'min-width': '220px',
+  margin: '4px 0 0',
+  padding: '4px',
+  'list-style': 'none',
+  background: 'white',
+  border: '1px solid #ccc',
+  'border-radius': '6px',
+  'box-shadow': '0 4px 16px rgba(0, 0, 0, 0.16)',
+}
+const option: JSX.CSSProperties = {
+  padding: '6px 10px',
+  'border-radius': '4px',
+  cursor: 'pointer',
+}
 
 const CloseButton = () => (
   <Dialog.Close aria-label='Close' style={closeIcon}>
@@ -425,6 +444,98 @@ const NestedDialogs = () => {
 
 export const nested: StoryType = {
   render: () => <NestedDialogs />,
+}
+
+// A popup inside the dialog that never joins the layer stack — a third-party
+// listbox stands in. While it holds focus, Tab and Escape are its: the
+// dialog's trap and Escape stand down until focus is back in the window, so
+// one Escape closes the listbox and the next closes the dialog.
+const editors = ['Team members', 'Anyone with the link', 'Only me']
+const Listbox = () => {
+  const [open, setOpen] = createSignal(false)
+  const [value, setValue] = createSignal(editors[0])
+  const [button, setButton] = createSignal<HTMLButtonElement>()
+  const [list, setList] = createSignal<HTMLUListElement>()
+  const close = () => {
+    setOpen(false)
+    button()?.focus()
+  }
+  const pick = (editor: string) => {
+    setValue(editor)
+    close()
+  }
+  createEffect(() => {
+    if (open()) list()?.querySelector<HTMLElement>('[role="option"]')?.focus()
+  })
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        ref={setButton}
+        type='button'
+        aria-haspopup='listbox'
+        aria-expanded={open() ? 'true' : 'false'}
+        aria-controls='who-can-edit'
+        onClick={() => setOpen(!open())}
+      >
+        {value()}
+      </button>
+      <Show when={open()}>
+        <ul
+          id='who-can-edit'
+          ref={setList}
+          role='listbox'
+          aria-label='Who can edit'
+          style={listbox}
+          onKeyDown={event => {
+            if (event.key === 'Escape') close()
+            if (event.key === 'Tab') setOpen(false)
+          }}
+        >
+          <For each={editors}>
+            {editor => (
+              <li
+                role='option'
+                tabindex={0}
+                aria-selected={editor === value() ? 'true' : 'false'}
+                style={option}
+                onClick={() => pick(editor)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' || event.key === ' ') pick(editor)
+                }}
+              >
+                {editor}
+              </li>
+            )}
+          </For>
+        </ul>
+      </Show>
+    </div>
+  )
+}
+
+export const innerPopup: StoryType = {
+  render: () => (
+    <Dialog defaultOpen>
+      <Dialog.Trigger>Open dialog</Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Backdrop style={backdrop} />
+        <Dialog.Viewport style={viewport}>
+          <Dialog.Content style={content}>
+            <CloseButton />
+            <Dialog.Title>Board settings</Dialog.Title>
+            <Dialog.Description>
+              Open the listbox, then press Tab and Escape: the popup answers first, the dialog only
+              once it is closed.
+            </Dialog.Description>
+            <Listbox />
+            <div style={actions}>
+              <button>Save</button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog>
+  ),
 }
 
 // closeOnBack turns the host's Back into a dismissal: while the dialog is open,
