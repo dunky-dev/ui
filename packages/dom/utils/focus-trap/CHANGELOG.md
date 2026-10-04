@@ -1,5 +1,50 @@
 # @dunky.dev/dom-focus-trap
 
+## 0.1.3
+
+### Patch Changes
+
+- [#50](https://github.com/dunky-dev/ui/pull/50) [`bbb04da`](https://github.com/dunky-dev/ui/commit/bbb04da6397f5e9a1641cbea9e2eb0c082c2965c) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Focus candidates barred by an ancestor are excluded: controls disabled through
+  `fieldset[disabled]` and anything inside `[inert]`.
+
+  `FOCUSABLE_SELECTOR` and the form-field selector gate on an element's own
+  attributes (`input:not([disabled])`), but both bars also arrive from
+  ancestors, so a barred control satisfied the selector while a browser refuses
+  to focus it — silently.
+
+  In the focus trap that was a hard dead end: the Tab keydown is already
+  `preventDefault()`-ed when focus is stepped by hand, so every press recomputed
+  the same refused target and focus never moved again. The cycle now only holds
+  what a browser would actually focus, keeping the native exception that
+  controls in a disabled fieldset's first `legend` stay enabled.
+
+  In the initial-focus chain it was the quieter failure mode: the barred field
+  won the draw, `focus()` no-opped, and focus fell to the overlay window even
+  when a viable field came later. Every candidate — designated element and form
+  fields alike — is now also filtered for these bars.
+
+  Both use the new `isFocusable` from `@dunky.dev/dom-element`, beside the
+  `isRendered` filter they already shared.
+
+- [#50](https://github.com/dunky-dev/ui/pull/50) [`bfbe863`](https://github.com/dunky-dev/ui/commit/bfbe86307b07bfc8d55207c70cfdc328693e5814) Thanks [@ivanbanov](https://github.com/ivanbanov)! - The Tab cycle's rendered check now comes from `@dunky.dev/dom-element` instead
+  of a private copy.
+
+  `@dunky.dev/dom-overlay` needs the same predicate to filter its initial-focus
+  candidates, and two packages answering the question separately would drift.
+  The check itself is unchanged in intent — a non-rendered element is a no-op to
+  focus, so keeping one in the cycle would stall the trap on it — but sharing it
+  tightens two cases:
+  - A **detached** element is now excluded. It can't take focus, and computed
+    style on one reports the property defaults rather than `none`, so the display
+    walk alone let it through.
+  - A `display: none` ancestor **above the container** now excludes the
+    focusables under it. The private copy stopped its walk at the container.
+    Nothing inside a hidden container can take focus either way, so this lands on
+    the trap's documented behavior for an empty cycle: Tab is a no-op.
+
+- Updated dependencies [[`6c249f9`](https://github.com/dunky-dev/ui/commit/6c249f96dd6e3f821d4b71bae250f1d94e40298c)]:
+  - @dunky.dev/dom-element@0.1.0
+
 ## 0.1.2
 
 ### Patch Changes
