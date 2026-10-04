@@ -7,7 +7,7 @@ import { getLayer, layerContaining } from './stack'
 // focus sits in, and the stack tells a registered layer from a popup that
 // never registered. No cooperation is required — any well-formed ARIA popup
 // works.
-const POPUP_SELECTOR =
+export const POPUP_SELECTOR =
   '[role="listbox"], [role="menu"], [role="tree"], [role="grid"], [role="dialog"], [role="alertdialog"]'
 
 /**

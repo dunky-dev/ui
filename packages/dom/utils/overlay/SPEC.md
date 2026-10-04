@@ -121,6 +121,7 @@ again — but keeps painting until its exit visual finishes:
 | `Layer`                                          | `OverlayLayer` + `element`, `modal`, an optional `backdrop` getter, and an optional `dismiss`.                                    |
 | `isTopmostLayer(id)`                             | Whether the layer owns Escape and the focus trap right now.                                                                       |
 | `layersBelow(id)`                                | The layers stacked beneath, topmost first — the unwinding order for a stack-scoped dismissal.                                     |
+| `POPUP_SELECTOR`                                 | The CSS selector naming the popup roles (`aria-haspopup`'s values) the queries read ownership from.                               |
 | `foreignPopupHoldsFocus(id)`                     | Whether focus sits in a popup that is neither the layer's window nor a registered layer.                                          |
 | `expandedPopupControlHoldsFocus(id)`             | Whether focus sits on a control inside the layer's window whose popup is expanded.                                                |
 | `getInitialFocus(content, designated?)`          | The element to focus on open: `designated`, else first form field, else the overlay window — each step filtered for renderedness. |

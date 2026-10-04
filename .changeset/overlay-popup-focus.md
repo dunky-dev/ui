@@ -14,6 +14,9 @@ layer's window nor a registered layer, or on a control inside the window whose
 popup is expanded (`aria-expanded` with `aria-haspopup`). No cooperation from
 the popup is required.
 
+`POPUP_SELECTOR` — the selector naming those popup roles — is exported too, so
+a consumer can match the same set the queries do.
+
 ```ts
 enabled: () => isTopmostLayer(id) && !foreignPopupHoldsFocus(id)
 ```
