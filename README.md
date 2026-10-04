@@ -46,7 +46,7 @@ up there with the same behavior and the same a11y.
 
 The engine that runs the core machines lives in its own repo:
 [dunky-dev/state-machine](https://github.com/dunky-dev/state-machine). Here it
-is just a dependency — this repo defines *what* each primitive does and how it
+is just a dependency — this repo defines _what_ each primitive does and how it
 renders, not how machines execute.
 
 ## Layout

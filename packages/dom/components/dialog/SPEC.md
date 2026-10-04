@@ -44,6 +44,14 @@ answer wherever focus is. Only the topmost layer answers, and it offers the
 consumer's `onEscapeKeyDown` a veto through `preventDefault` before it moves
 the machine.
 
+A popup inside the dialog that never joined the stack — a listbox or menu from
+another library, a control whose popup is expanded — answers before the dialog
+while it holds focus: the listener stands down until focus is back in the
+window, so one press closes the popup and the next reaches the dialog. The
+stack cannot name such a layer, so the answer is read from ARIA through the
+overlay util's focus queries (`foreignPopupHoldsFocus`,
+`expandedPopupControlHoldsFocus`).
+
 How far an allowed Escape reaches is that dialog's `escapeScope`: itself, so a
 nested stack unwinds one dialog per press, or the whole stack at once. Either
 way the dialog that received the press is the only one that gates or vetoes
@@ -129,7 +137,10 @@ dialog's to answer:
 
 `dialogTrapOptions` is the trap configuration the substrate hands to its
 `trapFocus` wrapper: a modal dialog traps while it is topmost, and the Close
-part is the cycle's last stop wherever it renders.
+part is the cycle's last stop wherever it renders. The trap stands down while
+an unregistered popup inside the dialog holds focus — Tab is the popup's for
+as long as it does. A control whose popup is expanded keeps the trap: focus is
+still in the window, and Tab is how such a popup is left.
 
 ## API
 
