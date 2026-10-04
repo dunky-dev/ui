@@ -15,9 +15,9 @@ import { useScrollLock } from '@dunky.dev/solid-use-scroll-lock'
 import type { DialogOptions } from '@dunky.dev/dialog'
 
 import {
-  acceptsBackdropPress,
-  acceptsViewportPress,
   dialogTrapOptions,
+  gateBackdropPress,
+  gateViewportPress,
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
@@ -149,23 +149,14 @@ export const Backdrop: Component<DialogBackdropProps> = props => {
   const rest = omit(props, 'ref', 'children')
   onSettled(() => () => (backdropRef.current = null))
 
-  const bindings = (): Record<string, unknown> => {
-    const { onClick, ...attrs } = normalize(api.parts.backdrop) as {
-      onClick?: (event: MouseEvent) => void
-    } & Record<string, unknown>
-    return {
-      ...attrs,
-      onClick: (event: MouseEvent) => {
-        if (acceptsBackdropPress(machine.context.id)) onClick?.(event)
-      },
-    }
-  }
-
   return (
     // Only a modal dialog dims the page — non-modal coexists with it.
     <Show when={machine.context.modal}>
       <div
-        {...mergeProps<DialogBackdropProps>(rest, bindings())}
+        {...mergeProps<DialogBackdropProps>(
+          rest,
+          gateBackdropPress(machine.context.id, normalize(api.parts.backdrop)),
+        )}
         ref={element => {
           backdropRef.current = element
           applyConsumerRef(props.ref, element)
@@ -187,19 +178,16 @@ export const Viewport: Component<DialogViewportProps> = props => {
   const { api, machine } = useDialogContext()
   const rest = omit(props, 'children')
 
-  const bindings = (): Record<string, unknown> => {
-    const { onClick, ...attrs } = normalize(api.parts.viewport) as {
-      onClick?: (event: MouseEvent) => void
-    } & Record<string, unknown>
-    return {
-      ...attrs,
-      onClick: (event: MouseEvent) => {
-        if (acceptsViewportPress(machine.context.id, event)) onClick?.(event)
-      },
-    }
-  }
-
-  return <div {...mergeProps<DialogViewportProps>(rest, bindings())}>{props.children}</div>
+  return (
+    <div
+      {...mergeProps<DialogViewportProps>(
+        rest,
+        gateViewportPress(machine.context.id, normalize(api.parts.viewport)),
+      )}
+    >
+      {props.children}
+    </div>
+  )
 }
 
 // =============================================================================

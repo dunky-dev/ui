@@ -1,3 +1,5 @@
+import { createHideTracker } from './hide-tracker'
+
 // Never hide these: they carry no rendered content, or must stay announced.
 const HIDE_SKIP = /^(SCRIPT|STYLE|LINK|TEMPLATE)$/
 
@@ -47,7 +49,7 @@ export function hideOutside(target: HTMLElement, exclude?: readonly Element[]): 
     return false
   }
 
-  const hidden: Array<[Element, string | null]> = []
+  const tracker = createHideTracker()
 
   function hideOutsideOf(parent: Element): void {
     for (const child of Array.from(parent.children)) {
@@ -59,31 +61,14 @@ export function hideOutside(target: HTMLElement, exclude?: readonly Element[]): 
         hideOutsideOf(child)
         continue
       }
-      // Skip content-less tags and anything the author already hides — an
-      // existing `inert` or a truthy `aria-hidden` is theirs.
-      // `aria-hidden="false"` asserts visible, the opposite of author-hidden,
-      // so it doesn't count and the undo restores the authored value.
-      const ariaHidden = child.getAttribute('aria-hidden')
-      if (
-        HIDE_SKIP.test(child.tagName) ||
-        (ariaHidden !== null && ariaHidden !== 'false') ||
-        child.hasAttribute('inert')
-      ) {
-        continue
-      }
-      child.setAttribute('aria-hidden', 'true')
-      child.setAttribute('inert', '')
-      hidden.push([child, ariaHidden])
+      // Content-less tags never need hiding; author-hidden elements are the
+      // tracker's own skip.
+      if (HIDE_SKIP.test(child.tagName)) continue
+      tracker.hide(child)
     }
   }
 
   hideOutsideOf(document.body)
 
-  return () => {
-    for (const [element, previousAriaHidden] of hidden) {
-      if (previousAriaHidden === null) element.removeAttribute('aria-hidden')
-      else element.setAttribute('aria-hidden', previousAriaHidden)
-      element.removeAttribute('inert')
-    }
-  }
+  return tracker.undo
 }
