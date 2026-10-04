@@ -29,12 +29,17 @@ const build = (options: DialogOptions = {}): DialogService => {
 }
 
 // The Escape listener is the last effect in the list; the ones before it are
-// the core's, covered by the core's own tests.
+// the core's, covered by the core's own tests. Every armed listener is
+// disposed after the test: the listener is document-level, so one left over
+// — a vetoing one above all — would answer the next test's Escape too.
+const armed: (() => void)[] = []
 const armEscape = (service: DialogService, props: DialogOptions = {}): (() => void) => {
   const [effect] = domDialogEffects[
     domDialogEffects.length - 1
   ] as (typeof domDialogEffects)[number]
-  return effect(service, props) ?? ((): void => {})
+  const dispose = effect(service, props) ?? ((): void => {})
+  armed.push(dispose)
+  return dispose
 }
 
 const pressEscape = (): boolean =>
@@ -57,6 +62,7 @@ const mountLayer = (id: string, depth: number, html = '', dismiss?: () => void):
 }
 
 afterEach(() => {
+  while (armed.length > 0) (armed.pop() as () => void)()
   while (registered.length > 0) (registered.pop() as () => void)()
   document.body.innerHTML = ''
   vi.restoreAllMocks()
@@ -123,6 +129,55 @@ describe('domDialogEffects — Escape', () => {
 
     pressEscape()
     expect(service.matches('open')).toBe(true)
+  })
+
+  // A popup inside the dialog owns Escape while it holds focus — read from
+  // ARIA, so a popup that never registers in the stack counts too.
+  it('stands down while a popup inside the dialog holds focus', () => {
+    const service = build({ defaultOpen: true })
+    const content = mountLayer(
+      'dlg',
+      1,
+      '<ul role="listbox"><li id="option" role="option" tabindex="0">a</li></ul>',
+    )
+    ;(content.querySelector('#option') as HTMLElement).focus()
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+  })
+
+  it('stands down while a control with an expanded popup holds focus', () => {
+    const service = build({ defaultOpen: true })
+    const content = mountLayer(
+      'dlg',
+      1,
+      '<input id="combo" role="combobox" aria-haspopup="listbox" aria-expanded="true" />',
+    )
+    ;(content.querySelector('#combo') as HTMLElement).focus()
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+  })
+
+  // Escape answers wherever focus is. A non-modal dialog leaves the page live,
+  // so focus out there is the page's — not a popup the dialog must yield to.
+  it('closes a non-modal dialog while focus sits on the page', () => {
+    const service = build({ defaultOpen: true, modal: false })
+    const content = document.createElement('div')
+    content.tabIndex = -1
+    document.body.append(content)
+    registered.push(
+      registerLayer({ id: 'dlg', depth: 1, element: content, modal: false, backdrop: () => null }),
+    )
+    const page = document.createElement('button')
+    document.body.append(page)
+    page.focus()
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(false)
   })
 })
 
@@ -438,6 +493,21 @@ describe('dialogTrapOptions', () => {
     const { enabled } = dialogTrapOptions(service, () => 'dlg-close')
 
     expect(enabled?.()).toBe(false)
+  })
+
+  it('stands down while a popup inside the dialog holds focus', () => {
+    const service = build({ defaultOpen: true })
+    const content = mountLayer(
+      'dlg',
+      1,
+      '<ul role="listbox"><li id="option" role="option" tabindex="0">a</li></ul>',
+    )
+    const { enabled } = dialogTrapOptions(service, () => 'dlg-close')
+
+    ;(content.querySelector('#option') as HTMLElement).focus()
+    expect(enabled?.()).toBe(false)
+    content.focus()
+    expect(enabled?.()).toBe(true)
   })
 
   it('resolves Close as the cycle’s last stop, wherever it renders', () => {
