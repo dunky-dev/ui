@@ -65,11 +65,13 @@ them to stand down:
 - `foreignPopupHoldsFocus(id)` — focus sits in a popup that is neither the
   layer's own window nor a registered layer: an element with a popup role
   (`aria-haspopup`'s values — listbox, menu, tree, grid, dialog), wherever it
-  renders, or anything outside the window that is in no popup role at all —
-  the page is inert while a modal layer is open, so whatever holds focus out
-  there is a layer. Focus on the body doesn't count: the layer re-enters from
-  there. Registered layers never count as foreign — a layer beneath is inert,
-  and focus reported there re-enters the topmost layer's trap.
+  renders, or — for a modal layer — anything outside the window that is in no
+  popup role at all: its page is inert, so whatever holds focus out there is a
+  layer. A non-modal layer leaves the page live, so focus out there is the
+  page's and the layer keeps answering. Focus on the body never counts: the
+  layer re-enters from there. Registered layers never count as foreign — a
+  layer beneath is inert, and focus reported there re-enters the topmost
+  layer's trap.
 - `expandedPopupControlHoldsFocus(id)` — focus sits on a control inside the
   window whose popup is expanded (`aria-expanded="true"` with `aria-haspopup`),
   the way a combobox keeps focus on its input while its list is open.

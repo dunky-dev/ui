@@ -9,12 +9,12 @@ import {
 const registered: Array<() => void> = []
 
 // A registered layer window with the given markup inside it.
-const mountLayer = (id: string, depth: number, html = ''): HTMLElement => {
+const mountLayer = (id: string, depth: number, html = '', modal = true): HTMLElement => {
   const content = document.createElement('div')
   content.tabIndex = -1
   content.innerHTML = html
   document.body.append(content)
-  registered.push(registerLayer({ id, depth, element: content, modal: true }))
+  registered.push(registerLayer({ id, depth, element: content, modal }))
   return content
 }
 
@@ -71,6 +71,16 @@ describe('foreignPopupHoldsFocus', () => {
     focus(beside, '#floating')
 
     expect(foreignPopupHoldsFocus('dlg')).toBe(true)
+  })
+
+  // A non-modal layer leaves the page live: focus out there is the page's,
+  // not a popup's.
+  it('is false while focus sits outside a non-modal layer in an element with no popup role', () => {
+    mountLayer('dlg', 1, '', false)
+    const beside = mountBeside('<div><button id="page">page</button></div>')
+    focus(beside, '#page')
+
+    expect(foreignPopupHoldsFocus('dlg')).toBe(false)
   })
 
   it('is false while focus sits in another registered layer', () => {

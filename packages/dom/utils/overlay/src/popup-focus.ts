@@ -13,10 +13,11 @@ export const POPUP_SELECTOR =
 /**
  * Whether focus sits in a popup that is neither the layer's own window nor a
  * registered layer — wherever it renders, inside the window or portalled
- * beside it. Outside every registered window and in no popup role counts too:
- * the page is inert while a modal layer is open, so whatever holds focus out
- * there is a layer. The body (focus in browser chrome, or nowhere) doesn't: the
- * layer re-enters from there.
+ * beside it. For a modal layer, outside every registered window and in no
+ * popup role counts too: its page is inert, so whatever holds focus out there
+ * is a layer. A non-modal layer leaves the page live, so focus out there is
+ * the page's and the layer keeps answering. The body (focus in browser chrome,
+ * or nowhere) never counts: the layer re-enters from there.
  */
 export function foreignPopupHoldsFocus(id: string): boolean {
   const layer = getLayer(id)
@@ -24,7 +25,7 @@ export function foreignPopupHoldsFocus(id: string): boolean {
   const active = document.activeElement
   if (active === null || active === document.body) return false
   const popup = active.closest(POPUP_SELECTOR)
-  if (popup === null) return layerContaining(active) === undefined
+  if (popup === null) return layer.modal && layerContaining(active) === undefined
   return popup !== layer.element && layerContaining(popup)?.element !== popup
 }
 
