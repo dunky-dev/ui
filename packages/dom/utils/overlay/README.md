@@ -44,7 +44,9 @@ const unregister = registerLayer({
   modal: true,
   backdrop: () => backdropElement, // stays pressable while topmost
 })
-getInitialFocus(content).focus({ preventScroll: true })
+// Designated element, else the first form field, else the window — each step
+// skipped unless it actually rendered.
+getInitialFocus(content, designatedElement).focus({ preventScroll: true })
 
 // Escape, outside-press, focus trapping: only the topmost layer answers.
 if (isTopmostLayer(id)) {

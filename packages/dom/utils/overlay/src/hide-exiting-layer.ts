@@ -17,21 +17,29 @@ export function hideExitingLayer(
   while (root.parentElement !== null && root.parentElement !== boundary) {
     root = root.parentElement
   }
+  // A `boundary` that isn't an ancestor exhausts the walk at the document
+  // root — inerting <html> would take the whole page out. Scope the miss to
+  // the content itself.
+  if (root.parentElement === null) root = content
 
   const targets: Element[] = [root]
   if (backdrop != null && !root.contains(backdrop)) targets.push(backdrop)
 
-  const hidden: Element[] = []
+  const hidden: Array<[Element, string | null]> = []
   for (const element of targets) {
-    if (element.hasAttribute('aria-hidden') || element.hasAttribute('inert')) continue
+    // `aria-hidden="false"` asserts visible — the opposite of author-hidden —
+    // so only a truthy value counts as the author's.
+    const ariaHidden = element.getAttribute('aria-hidden')
+    if ((ariaHidden !== null && ariaHidden !== 'false') || element.hasAttribute('inert')) continue
     element.setAttribute('aria-hidden', 'true')
     element.setAttribute('inert', '')
-    hidden.push(element)
+    hidden.push([element, ariaHidden])
   }
 
   return () => {
-    for (const element of hidden) {
-      element.removeAttribute('aria-hidden')
+    for (const [element, previousAriaHidden] of hidden) {
+      if (previousAriaHidden === null) element.removeAttribute('aria-hidden')
+      else element.setAttribute('aria-hidden', previousAriaHidden)
       element.removeAttribute('inert')
     }
   }

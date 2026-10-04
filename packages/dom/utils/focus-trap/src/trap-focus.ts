@@ -18,13 +18,17 @@ export interface TrapFocusOptions {
 /**
  * Traps Tab / Shift+Tab within `container`: every press steps focus through
  * the cycle (DOM order, the `last` element at the end), wrapping at both
- * ends — including from the container itself, and never tabbing out. The
- * trap steps focus itself rather than only guarding the edges: a logical
- * order can diverge from DOM order, so native tabbing can't be trusted
- * mid-cycle. With no focusables inside, Tab is a no-op. Returns a release
- * that removes the listener.
+ * ends — including from the container itself or from focus still outside the
+ * container (e.g. on the trigger), and never tabbing out. The listener is
+ * document-level, capture-phase: a container listener would only hear presses
+ * once focus is already inside. The trap steps focus itself rather than only
+ * guarding the edges: a logical order can diverge from DOM order, so native
+ * tabbing can't be trusted mid-cycle. With no focusables inside, Tab is a
+ * no-op. Initial focus on open stays the caller's job. Returns a release that
+ * removes the listener.
  */
 export function trapFocus(container: HTMLElement, options: TrapFocusOptions = {}): () => void {
+  const doc = container.ownerDocument
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== 'Tab') return
     if (options.enabled?.() === false) return
@@ -42,11 +46,12 @@ export function trapFocus(container: HTMLElement, options: TrapFocusOptions = {}
       }
     }
 
-    const active = document.activeElement
+    const active = doc.activeElement
     const index = active instanceof HTMLElement ? focusables.indexOf(active) : -1
     const lastIndex = focusables.length - 1
-    // Off-cycle focus (the container, or a scripted tabindex=-1 target)
-    // re-enters at the edge the direction implies.
+    // Off-cycle focus (the container, a scripted tabindex=-1 target, or
+    // anywhere outside the container) re-enters at the edge the direction
+    // implies.
     const next = event.shiftKey
       ? index <= 0
         ? lastIndex
@@ -57,6 +62,8 @@ export function trapFocus(container: HTMLElement, options: TrapFocusOptions = {}
     focusables[next]?.focus()
   }
 
-  container.addEventListener('keydown', onKeyDown)
-  return () => container.removeEventListener('keydown', onKeyDown)
+  // Capture phase: bubble delivery can be cut off by a stopPropagation in
+  // the subtree.
+  doc.addEventListener('keydown', onKeyDown, true)
+  return () => doc.removeEventListener('keydown', onKeyDown, true)
 }

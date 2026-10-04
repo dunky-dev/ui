@@ -1,5 +1,106 @@
 # @dunky.dev/dialog
 
+## 0.4.0
+
+### Minor Changes
+
+- [#39](https://github.com/dunky-dev/ui/pull/39) [`ffa4fad`](https://github.com/dunky-dev/ui/commit/ffa4fada7719daa8661adab52c20952f3d8d7559) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `escapeScope` now exists. It was documented in the dialog specs — one layer per
+  Escape by default, or the whole stack — but no package implemented it, so
+  passing it did nothing.
+
+  ```tsx
+  // One press closes this dialog and every layer it was opened from.
+  <Dialog escapeScope='stack'>
+  ```
+
+  Only the dialog that receives the Escape gates and vetoes it: its
+  `closeOnEscape` and `onEscapeKeyDown` decide, exactly as before. Once allowed,
+  the layers beneath receive a plain close — their own dismissal settings are not
+  consulted again — unwinding top-down, so focus lands where it was before the
+  bottom-most dialog opened. A vetoed Escape leaves the whole stack standing.
+
+  The mechanics are shared rather than per-dialog: the layer stack gained
+  `below(id)` (`@dunky.dev/overlay`) and `layersBelow(id)` plus an optional
+  `Layer.dismiss` (`@dunky.dev/dom-overlay`), so any overlay family can offer a
+  stack-scoped dismissal on the same stack. A layer that registers no `dismiss`
+  opts out and stays open, which is what keeps a stack that mixes primitives from
+  being closed out from under them.
+
+  The specs also described a stack-scoped Close _press_; nothing implements that,
+  so the claim is removed rather than left standing.
+
+- [#39](https://github.com/dunky-dev/ui/pull/39) [`6b51d8d`](https://github.com/dunky-dev/ui/commit/6b51d8de4d1069863a56c7ac5f74cb3c8dfaa20c) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `closeOnBack` is now symmetric: the browser's Forward reopens what Back
+  closed. The history entry a Back press spends survives in the forward stack
+  and keeps marking the dialog's open ground — traversing forward into it
+  reopens the dialog, guarded again for the next Back. Reopening through the
+  trigger instead plants a fresh entry, exactly like navigating after a Back.
+  No new setting: back-close and forward-reopen are one behavior, so the
+  existing `closeOnBack` gates both. Both DOM substrates get it — React and
+  Solid — from the same code.
+
+  The reopen follows the shared dismissal contract — a new
+  `onForwardNavigation` callback fires first and `preventDefault()` vetoes,
+  and a controlled dialog only records the intent:
+
+  ```tsx
+  <Dialog
+    closeOnBack
+    onForwardNavigation={event => {
+      // e.g. decline the history-driven reopen while a form is mid-submit
+      if (submitting) event?.preventDefault?.()
+    }}
+  >
+  ```
+
+  A nested dialog comes back too. Closing the layer it was opened from unmounts
+  it — machine and all — so the ground it lost to a Back press has no owner left
+  to reopen it. It reopens anyway: the ground belongs to the dialog's place in
+  the stack rather than to the instance that planted it, so the dialog that
+  comes back with its parent recognizes it. Two dialogs at the same place can't
+  be told apart, and then neither reopens. The same recognition survives a
+  reload, so a traversal back into that ground reopens the dialog even after the
+  page went away.
+
+  Under the hood, `interceptBackNavigation(onBack, options?)` takes its optional
+  callbacks as an object and grew `claim`, the name for that ground, plus a
+  `watchSpentEntry(claim, reopen)` for a closed layer waiting to be recognized.
+  A Back-closed guard parks instead of dropping, a traversal re-entering its
+  spent entry asks the layer to reopen, and the guard re-arms on that entry in
+  place. A layer that passes neither option behaves exactly as before. A layer
+  that _closed_ gave its ground up on purpose and nothing reopens from it —
+  Forward never undoes a dismissal the user made deliberately.
+
+  `guardBackNavigation` (`@dunky.dev/dom-dialog`) now returns
+  `{ sync, release }` rather than a bare disposer: the guard outlives the open
+  state — that is the whole point of the Forward watch — so a host reports
+  every change through `sync(open)` and ends the episode with `release()`.
+  Whether a close parks the registration or releases it stays a DOM-layer
+  decision, made once for every substrate.
+
+  One web-mechanics caveat, spec'd in the navigation util and both DOM
+  bindings: a controlled dialog's Back-close is completed by the consumer
+  rather than by the press, so its entry is consumed and Forward has nothing to
+  re-enter.
+
+## 0.3.1
+
+### Patch Changes
+
+- [#44](https://github.com/dunky-dev/ui/pull/44) [`e3a5e96`](https://github.com/dunky-dev/ui/commit/e3a5e96b13499b3a0b1dc49d6ec195f67b2d0071) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Update the state-machine packages to the 2026-08-22 release: runtime `0.3.3`,
+  bindings `0.4.1`, utils `0.4.0`, and the React (`0.3.4`), Solid (`0.3.0`), and
+  native (`0.4.0`) adapters.
+
+  Every range moves together on purpose. The published adapters pin the runtime
+  exactly (`@dunky.dev/state-machine: 0.3.3`), so a package left on an older
+  caret would have pulled a second physical copy of the runtime into a consumer's
+  install — the dependency diamond `ARCHITECTURE.md` warns about, where anything
+  identity-sensitive (a singleton, a `WeakMap`, module-level state) silently stops
+  agreeing across the two copies. `@dunky.dev/controllable` was the oldest
+  offender, still on `^0.1.0`; the tree now resolves to a single runtime.
+
+- Updated dependencies [[`e3a5e96`](https://github.com/dunky-dev/ui/commit/e3a5e96b13499b3a0b1dc49d6ec195f67b2d0071)]:
+  - @dunky.dev/controllable@0.1.2
+
 ## 0.3.0
 
 ### Minor Changes

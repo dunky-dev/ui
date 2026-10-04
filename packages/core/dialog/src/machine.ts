@@ -42,6 +42,7 @@ export function dialogMachine(
     role,
     modal: options.modal ?? true,
     closeOnEscape: options.closeOnEscape ?? true,
+    escapeScope: options.escapeScope ?? 'layer',
     // An alert dialog interrupts for a response — an outside press must not
     // dismiss it unless explicitly opted in.
     closeOnInteractOutside: options.closeOnInteractOutside ?? role === 'dialog',
@@ -64,6 +65,13 @@ export function dialogMachine(
         on: {
           open: intend('open', { target: 'open', value: true }),
           toggle: intend('open', { target: 'open', value: true }),
+          // Forward re-enters the ground a Back-close left behind — the
+          // mirror of `history.back`, gated by the same setting.
+          'history.forward': intend('open', {
+            guard: canCloseOnBack,
+            target: 'open',
+            value: true,
+          }),
           'controlled.sync': synced('open', { value: true, target: 'open' }),
         },
       },
@@ -89,6 +97,11 @@ export function dialogMachine(
         on: {
           open: intend('open', { target: 'open', value: true }),
           toggle: intend('open', { target: 'open', value: true }),
+          'history.forward': intend('open', {
+            guard: canCloseOnBack,
+            target: 'open',
+            value: true,
+          }),
           'exit.complete': { target: 'closed' },
           'controlled.sync': synced('open', { value: true, target: 'open' }),
         },

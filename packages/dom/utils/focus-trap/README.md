@@ -1,9 +1,11 @@
 # @dunky.dev/dom-focus-trap
 
 Framework-free Tab/Shift+Tab containment for a DOM subtree. `trapFocus`
-attaches one keydown listener to a container and steps focus through the
-cycle itself: DOM order, wrapping at both ends (including from the container
-itself), never tabbing out. With no focusables inside, Tab is a no-op.
+attaches one document-level keydown listener and steps focus through the
+container's cycle itself: DOM order, wrapping at both ends (including from
+the container itself or from focus still outside it), never tabbing out.
+Non-rendered elements are excluded, a same-name radio group is one tab stop,
+and with no focusables inside, Tab is a no-op.
 
 The `last` option resolves the cycle's final stop wherever it renders — e.g.
 a dialog's close button that sits first in the DOM but must not interrupt the

@@ -1,0 +1,520 @@
+// @vitest-environment jsdom
+// The DOM half of the Dialog, driven directly — no substrate, no framework.
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { machine, type Machine } from '@dunky.dev/state-machine'
+import { dialogMachine } from '@dunky.dev/dialog'
+import type {
+  DialogContext,
+  DialogMachineEvent,
+  DialogOptions,
+  DialogStateName,
+} from '@dunky.dev/dialog'
+import { registerLayer } from '@dunky.dev/dom-overlay'
+import {
+  acceptsBackdropPress,
+  acceptsViewportPress,
+  dialogTrapOptions,
+  domDialogEffects,
+  guardBackNavigation,
+  openDialogLayer,
+  startExitWindow,
+} from '@dunky.dev/dom-dialog'
+
+type DialogService = Machine<DialogStateName, DialogContext, DialogMachineEvent>
+
+const build = (options: DialogOptions = {}): DialogService => {
+  const service = machine(dialogMachine({ id: 'dlg', ...options }))
+  service.start()
+  return service
+}
+
+// The Escape listener is the last effect in the list; the ones before it are
+// the core's, covered by the core's own tests. Every armed listener is
+// disposed after the test: the listener is document-level, so one left over
+// — a vetoing one above all — would answer the next test's Escape too.
+const armed: (() => void)[] = []
+const armEscape = (service: DialogService, props: DialogOptions = {}): (() => void) => {
+  const [effect] = domDialogEffects[
+    domDialogEffects.length - 1
+  ] as (typeof domDialogEffects)[number]
+  const dispose = effect(service, props) ?? ((): void => {})
+  armed.push(dispose)
+  return dispose
+}
+
+const pressEscape = (): boolean =>
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }))
+
+// The layer stack is a realm-global that outlives a test — every registration
+// has to be undone or the next test inherits a stale topmost.
+const registered: (() => void)[] = []
+
+// A layer, mounted and registered, standing in for a rendered dialog window.
+const mountLayer = (id: string, depth: number, html = '', dismiss?: () => void): HTMLElement => {
+  const content = document.createElement('div')
+  content.tabIndex = -1
+  content.innerHTML = html
+  document.body.append(content)
+  registered.push(
+    registerLayer({ id, depth, element: content, modal: true, backdrop: () => null, dismiss }),
+  )
+  return content
+}
+
+afterEach(() => {
+  while (armed.length > 0) (armed.pop() as () => void)()
+  while (registered.length > 0) (registered.pop() as () => void)()
+  document.body.innerHTML = ''
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
+
+describe('domDialogEffects — Escape', () => {
+  it('closes the dialog through the machine', () => {
+    const service = build({ defaultOpen: true })
+    mountLayer('dlg', 1)
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(false)
+  })
+
+  it('offers the consumer a veto before the machine moves', () => {
+    const service = build({ defaultOpen: true })
+    mountLayer('dlg', 1)
+    armEscape(service, { onEscapeKeyDown: event => event.preventDefault?.() })
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+  })
+
+  it('is ignored by a dialog that is not topmost — one layer per press', () => {
+    const service = build({ defaultOpen: true })
+    mountLayer('dlg', 1)
+    mountLayer('above', 2)
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+  })
+
+  // escapeScope: 'stack' — the receiving dialog gates and vetoes, then the
+  // layers beneath get a plain close, top-down.
+  it('unwinds the whole stack when the topmost dialog scopes Escape to it', () => {
+    const lower = build({ defaultOpen: true, id: 'lower' })
+    const upper = build({ defaultOpen: true, id: 'upper', escapeScope: 'stack' })
+    mountLayer('lower', 1, '', () => lower.send({ type: 'close' }))
+    mountLayer('upper', 2, '', () => upper.send({ type: 'close' }))
+    armEscape(upper)
+
+    pressEscape()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([false, false])
+  })
+
+  it('leaves the stack alone when the topmost dialog vetoes its stack-scoped Escape', () => {
+    const lower = build({ defaultOpen: true, id: 'lower' })
+    const upper = build({ defaultOpen: true, id: 'upper', escapeScope: 'stack' })
+    mountLayer('lower', 1, '', () => lower.send({ type: 'close' }))
+    mountLayer('upper', 2, '', () => upper.send({ type: 'close' }))
+    armEscape(upper, { onEscapeKeyDown: event => event.preventDefault?.() })
+
+    pressEscape()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([true, true])
+  })
+
+  it('detaches its listener on dispose', () => {
+    const service = build({ defaultOpen: true })
+    mountLayer('dlg', 1)
+    armEscape(service)()
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+  })
+
+  // A popup inside the dialog owns Escape while it holds focus — read from
+  // ARIA, so a popup that never registers in the stack counts too.
+  it('stands down while a popup inside the dialog holds focus', () => {
+    const service = build({ defaultOpen: true })
+    const content = mountLayer(
+      'dlg',
+      1,
+      '<ul role="listbox"><li id="option" role="option" tabindex="0">a</li></ul>',
+    )
+    ;(content.querySelector('#option') as HTMLElement).focus()
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+  })
+
+  it('stands down while a control with an expanded popup holds focus', () => {
+    const service = build({ defaultOpen: true })
+    const content = mountLayer(
+      'dlg',
+      1,
+      '<input id="combo" role="combobox" aria-haspopup="listbox" aria-expanded="true" />',
+    )
+    ;(content.querySelector('#combo') as HTMLElement).focus()
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+  })
+
+  // Escape answers wherever focus is. A non-modal dialog leaves the page live,
+  // so focus out there is the page's — not a popup the dialog must yield to.
+  it('closes a non-modal dialog while focus sits on the page', () => {
+    const service = build({ defaultOpen: true, modal: false })
+    const content = document.createElement('div')
+    content.tabIndex = -1
+    document.body.append(content)
+    registered.push(
+      registerLayer({ id: 'dlg', depth: 1, element: content, modal: false, backdrop: () => null }),
+    )
+    const page = document.createElement('button')
+    document.body.append(page)
+    page.focus()
+    armEscape(service)
+
+    pressEscape()
+    expect(service.matches('open')).toBe(false)
+  })
+})
+
+describe('openDialogLayer', () => {
+  const options = { id: 'dlg', depth: 1, modal: true, backdrop: () => null }
+
+  // Mounts a dialog window and opens it, tracking the close so a test that
+  // never calls it still leaves the stack clean. Closing twice is a no-op.
+  const open = (
+    html: string,
+    extra: Partial<typeof options> & {
+      initialFocus?: HTMLElement | null
+      restoreFocus?: () => HTMLElement | null
+    } = {},
+  ): { content: HTMLElement; close: () => void } => {
+    const content = document.createElement('div')
+    content.tabIndex = -1
+    content.innerHTML = html
+    document.body.append(content)
+
+    const dispose = openDialogLayer(content, { ...options, ...extra })
+    let closed = false
+    const close = (): void => {
+      if (closed) return
+      closed = true
+      dispose()
+    }
+    registered.push(close)
+    return { content, close }
+  }
+
+  it('moves focus to the first form field, without scrolling the locked surface', () => {
+    const content = document.createElement('div')
+    content.tabIndex = -1
+    content.innerHTML = '<input id="field" />'
+    document.body.append(content)
+    const field = document.getElementById('field') as HTMLInputElement
+    const focus = vi.spyOn(field, 'focus')
+
+    registered.push(openDialogLayer(content, options))
+
+    expect(document.activeElement).toBe(field)
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('honors an explicit initialFocus over the overlay default', () => {
+    const content = document.createElement('div')
+    content.tabIndex = -1
+    content.innerHTML = '<input id="field" /><button id="pick">pick</button>'
+    document.body.append(content)
+    const pick = content.querySelector('#pick') as HTMLButtonElement
+
+    registered.push(openDialogLayer(content, { ...options, initialFocus: pick }))
+
+    expect(document.activeElement).toBe(pick)
+  })
+
+  it('falls back to the dialog window when the target refuses focus', () => {
+    const content = document.createElement('div')
+    content.tabIndex = -1
+    content.innerHTML = '<input id="field" disabled />'
+    document.body.append(content)
+    const field = content.querySelector('#field') as HTMLInputElement
+
+    registered.push(openDialogLayer(content, { ...options, initialFocus: field }))
+
+    expect(document.activeElement).toBe(content)
+  })
+
+  it('warns when focus cannot move into the dialog at all', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    // A dialog window without tabindex can't take the fallback focus.
+    const content = document.createElement('div')
+    document.body.append(content)
+
+    registered.push(openDialogLayer(content, options))
+
+    expect(document.activeElement).not.toBe(content)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('tabindex="-1"'))
+  })
+
+  it('restores focus to whatever held it before the dialog opened', () => {
+    const trigger = document.createElement('button')
+    document.body.append(trigger)
+    trigger.focus()
+
+    open('').close()
+
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('prefers the element that held focus over the designated restore target', () => {
+    const trigger = document.createElement('button')
+    const designated = document.createElement('button')
+    document.body.append(trigger, designated)
+    trigger.focus()
+
+    open('', { restoreFocus: () => designated }).close()
+
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('falls back to the restore target when focus sat on the body before opening', () => {
+    // A pointer press can leave focus on the body — nothing meaningful to
+    // restore to.
+    const designated = document.createElement('button')
+    document.body.append(designated)
+    ;(document.activeElement as HTMLElement | null)?.blur()
+
+    open('', { restoreFocus: () => designated }).close()
+
+    expect(document.activeElement).toBe(designated)
+  })
+
+  it('falls back to the restore target when the previous holder left the document', () => {
+    const trigger = document.createElement('button')
+    const designated = document.createElement('button')
+    document.body.append(trigger, designated)
+    trigger.focus()
+
+    const { close } = open('', { restoreFocus: () => designated })
+    trigger.remove()
+    close()
+
+    expect(document.activeElement).toBe(designated)
+  })
+
+  it('leaves focus where it is when nothing meaningful preceded and no target is designated', () => {
+    ;(document.activeElement as HTMLElement | null)?.blur()
+
+    const { content, close } = open('')
+    close()
+
+    expect(document.activeElement).toBe(content)
+  })
+
+  it('releases the layer beneath before focus returns to it', () => {
+    // The ordering contract. jsdom doesn't enforce `inert`, so a focus
+    // assertion wouldn't discriminate — observe the order directly instead:
+    // by the time focus is restored, the layer below must already be free.
+    const below = mountLayer('below', 1, '<button id="beneath">beneath</button>')
+    const beneath = below.querySelector('#beneath') as HTMLButtonElement
+    beneath.focus()
+
+    const { close } = open('', { depth: 2 })
+    expect(below.hasAttribute('inert')).toBe(true)
+
+    let inertWhenRestored: boolean | undefined
+    vi.spyOn(beneath, 'focus').mockImplementation(() => {
+      inertWhenRestored = below.hasAttribute('inert')
+    })
+    close()
+
+    expect(inertWhenRestored).toBe(false)
+  })
+})
+
+describe('startExitWindow', () => {
+  const mountExiting = (): HTMLElement => {
+    const content = document.createElement('div')
+    document.body.append(content)
+    return content
+  }
+
+  it('takes the still-painting layer out of interaction and reports its end', () => {
+    const content = mountExiting()
+    const onComplete = vi.fn()
+    startExitWindow(content, { onComplete })
+
+    expect(content.hasAttribute('inert')).toBe(true)
+    content.dispatchEvent(new Event('transitionend'))
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('undoes the hide and stops watching when the exit is interrupted', () => {
+    const content = mountExiting()
+    const onComplete = vi.fn()
+    startExitWindow(content, { onComplete })()
+
+    expect(content.hasAttribute('inert')).toBe(false)
+    content.dispatchEvent(new Event('transitionend'))
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+})
+
+describe('guardBackNavigation', () => {
+  // jsdom's history traversal is asynchronous — await the popstate itself.
+  const nextPop = (): Promise<void> =>
+    new Promise(resolve => {
+      window.addEventListener('popstate', () => resolve(), { once: true })
+    })
+
+  // A dialog reduced to what the guard reads: an open flag the core would
+  // move, plus the host's job of reporting every change — and only a change,
+  // the way an effect keyed on the open state does.
+  const wire = (): {
+    isOpen: () => boolean
+    open: () => void
+    close: () => void
+    report: () => void
+    release: () => void
+  } => {
+    let opened = false
+    let reported = false
+    const guard = guardBackNavigation({
+      backNavigate: () => void (opened = false),
+      forwardNavigate: () => void (opened = true),
+      isOpen: () => opened,
+      depth: 1,
+    })
+    const report = (): void => {
+      if (opened === reported) return
+      reported = opened
+      guard.sync(opened)
+    }
+    return {
+      isOpen: () => opened,
+      open: () => {
+        opened = true
+        report()
+      },
+      close: () => {
+        opened = false
+        report()
+      },
+      report,
+      release: guard.release,
+    }
+  }
+
+  // A host traversal, then the report the substrate makes once it landed.
+  const traverse = async (dialog: ReturnType<typeof wire>, go: () => void): Promise<void> => {
+    const pop = nextPop()
+    go()
+    await pop
+    dialog.report()
+  }
+
+  it('parks a Back-closed dialog so Forward reopens it, guarded again', async () => {
+    const dialog = wire()
+    dialog.open()
+
+    await traverse(dialog, () => window.history.back())
+    expect(dialog.isOpen()).toBe(false)
+
+    await traverse(dialog, () => window.history.forward())
+    expect(dialog.isOpen()).toBe(true)
+
+    await traverse(dialog, () => window.history.back())
+    expect(dialog.isOpen()).toBe(false)
+    dialog.release() // parked, so nothing left to consume
+  })
+
+  it('releases on a close by any other means — Forward reopens nothing', async () => {
+    const dialog = wire()
+    dialog.open()
+
+    // The release consumes the still-current guard entry through a real
+    // traversal; settle it here rather than in the next test.
+    const consume = nextPop()
+    dialog.close()
+    await consume
+
+    await traverse(dialog, () => window.history.forward())
+    expect(dialog.isOpen()).toBe(false)
+  })
+
+  it('release ends a parked episode — the Forward watch goes with it', async () => {
+    const dialog = wire()
+    dialog.open()
+
+    await traverse(dialog, () => window.history.back())
+    dialog.release()
+
+    await traverse(dialog, () => window.history.forward())
+    expect(dialog.isOpen()).toBe(false)
+  })
+})
+
+describe('outside-press gating', () => {
+  it('lets only the topmost dialog answer a backdrop press', () => {
+    mountLayer('dlg', 1)
+    expect(acceptsBackdropPress('dlg')).toBe(true)
+
+    mountLayer('above', 2)
+    expect(acceptsBackdropPress('dlg')).toBe(false)
+  })
+
+  it('ignores a viewport press that bubbled up from the content', () => {
+    mountLayer('dlg', 1)
+    const viewport = document.createElement('div')
+    const content = document.createElement('div')
+
+    expect(acceptsViewportPress('dlg', { target: viewport, currentTarget: viewport })).toBe(true)
+    expect(acceptsViewportPress('dlg', { target: content, currentTarget: viewport })).toBe(false)
+  })
+})
+
+describe('dialogTrapOptions', () => {
+  it('traps only while modal and topmost', () => {
+    const service = build({ defaultOpen: true })
+    mountLayer('dlg', 1)
+    const { enabled } = dialogTrapOptions(service, () => 'dlg-close')
+
+    expect(enabled?.()).toBe(true)
+    mountLayer('above', 2)
+    expect(enabled?.()).toBe(false)
+  })
+
+  it('never traps a non-modal dialog', () => {
+    const service = build({ defaultOpen: true, modal: false })
+    mountLayer('dlg', 1)
+    const { enabled } = dialogTrapOptions(service, () => 'dlg-close')
+
+    expect(enabled?.()).toBe(false)
+  })
+
+  it('stands down while a popup inside the dialog holds focus', () => {
+    const service = build({ defaultOpen: true })
+    const content = mountLayer(
+      'dlg',
+      1,
+      '<ul role="listbox"><li id="option" role="option" tabindex="0">a</li></ul>',
+    )
+    const { enabled } = dialogTrapOptions(service, () => 'dlg-close')
+
+    ;(content.querySelector('#option') as HTMLElement).focus()
+    expect(enabled?.()).toBe(false)
+    content.focus()
+    expect(enabled?.()).toBe(true)
+  })
+
+  it('resolves Close as the cycle’s last stop, wherever it renders', () => {
+    const service = build({ defaultOpen: true })
+    mountLayer('dlg', 1, '<button id="dlg-close">close</button>')
+    const { last } = dialogTrapOptions(service, () => 'dlg-close')
+
+    expect(last?.()).toBe(document.getElementById('dlg-close'))
+  })
+})

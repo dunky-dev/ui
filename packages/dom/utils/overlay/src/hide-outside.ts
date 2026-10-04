@@ -1,44 +1,88 @@
 // Never hide these: they carry no rendered content, or must stay announced.
 const HIDE_SKIP = /^(SCRIPT|STYLE|LINK|TEMPLATE)$/
 
-/**
- * The containment trick: walks from `target` up to the document root and marks
- * every sibling along the way `aria-hidden` + `inert`, so assistive tech sees
- * only the target's subtree and nothing outside it can be reached — by pointer,
- * find-in-page, or programmatic focus. `exclude` names the one same-layer
- * element rendered outside the target's subtree (the layer's own backdrop,
- * portalled alongside its viewport) that must stay pressable. Returns a
- * function that removes exactly what it added. Callers hide one target at a
- * time.
- */
-export function hideOutside(target: HTMLElement, exclude?: Element | null): () => void {
-  const hidden: Element[] = []
+const NOOP = (): void => {}
 
-  let node: HTMLElement | null = target
-  while (node !== null && node !== document.body && node.parentElement !== null) {
-    for (const sibling of Array.from(node.parentElement.children)) {
-      // Skip the path itself, the layer's own excluded element, content-less
-      // tags, and anything the author already controls — an existing
-      // `aria-hidden` (any value) or `inert` is theirs.
+/**
+ * The containment trick: descends from the body and marks everything outside
+ * the target `aria-hidden` + `inert`, so assistive tech sees only the target's
+ * subtree and nothing outside it can be reached — by pointer, find-in-page, or
+ * programmatic focus. The target plus `exclude` are the *retained roots*, left
+ * wholly reachable: `exclude` names the elements rendered outside the target's
+ * subtree that must stay so — the layer's own backdrop (portalled alongside its
+ * viewport, and it must stay pressable) and the layers stacked above the
+ * target. A branch holding a retained root is descended into rather than
+ * spared whole: where a layer sits is the consumer's choice — every overlay
+ * exposes `container` on its Portal part — so it can land on an app branch that
+ * holds page content beside it, and sparing the branch would leave that content
+ * reachable. A target at or above the body is a no-op: nothing sits outside it.
+ * Returns a function that removes exactly what it added. Callers hide one
+ * target at a time.
+ */
+export function hideOutside(target: HTMLElement, exclude?: readonly Element[]): () => void {
+  // Without this the descent would hide the page itself rather than no-op.
+  // Covers `document.body` and `document.documentElement`.
+  if (target.contains(document.body)) return NOOP
+
+  const roots: Element[] = [target]
+  if (exclude !== undefined) {
+    for (const element of exclude) roots.push(element)
+  }
+
+  // Hoisted out of the walk: hot path, and the closure a `.some()` would
+  // allocate per node buys nothing here.
+  function isRoot(node: Element): boolean {
+    for (const root of roots) {
+      if (root === node) return true
+    }
+    return false
+  }
+
+  // `Node.contains` is true of a node itself, so this only means "an ancestor
+  // of a root" because `isRoot` is always tested first.
+  function retainsRoot(node: Element): boolean {
+    for (const root of roots) {
+      if (node.contains(root)) return true
+    }
+    return false
+  }
+
+  const hidden: Array<[Element, string | null]> = []
+
+  function hideOutsideOf(parent: Element): void {
+    for (const child of Array.from(parent.children)) {
+      // A retained root and its subtree stay wholly reachable.
+      if (isRoot(child)) continue
+      // Page content can sit beside a retained root, so descend rather than
+      // skip the whole branch.
+      if (retainsRoot(child)) {
+        hideOutsideOf(child)
+        continue
+      }
+      // Skip content-less tags and anything the author already hides — an
+      // existing `inert` or a truthy `aria-hidden` is theirs.
+      // `aria-hidden="false"` asserts visible, the opposite of author-hidden,
+      // so it doesn't count and the undo restores the authored value.
+      const ariaHidden = child.getAttribute('aria-hidden')
       if (
-        sibling === node ||
-        sibling === exclude ||
-        HIDE_SKIP.test(sibling.tagName) ||
-        sibling.hasAttribute('aria-hidden') ||
-        sibling.hasAttribute('inert')
+        HIDE_SKIP.test(child.tagName) ||
+        (ariaHidden !== null && ariaHidden !== 'false') ||
+        child.hasAttribute('inert')
       ) {
         continue
       }
-      sibling.setAttribute('aria-hidden', 'true')
-      sibling.setAttribute('inert', '')
-      hidden.push(sibling)
+      child.setAttribute('aria-hidden', 'true')
+      child.setAttribute('inert', '')
+      hidden.push([child, ariaHidden])
     }
-    node = node.parentElement
   }
 
+  hideOutsideOf(document.body)
+
   return () => {
-    for (const element of hidden) {
-      element.removeAttribute('aria-hidden')
+    for (const [element, previousAriaHidden] of hidden) {
+      if (previousAriaHidden === null) element.removeAttribute('aria-hidden')
+      else element.setAttribute('aria-hidden', previousAriaHidden)
       element.removeAttribute('inert')
     }
   }

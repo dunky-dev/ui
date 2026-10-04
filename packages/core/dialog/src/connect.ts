@@ -43,6 +43,11 @@ export interface DialogApi {
    * only wires its host mechanics (a session-history guard entry on the web, a
    * hardware back handler on native) to this call. */
   backNavigate: () => void
+  /** Reports the host's Forward navigation re-entering the ground a
+   * Back-close left behind. `backNavigate`'s mirror, decided the same way:
+   * `onForwardNavigation` fires first (`preventDefault()` vetoes), the
+   * machine gates on `closeOnBack`, and the controlled contract applies. */
+  forwardNavigate: () => void
   parts: {
     trigger: DialogPartBindings
     backdrop: DialogPartBindings
@@ -74,6 +79,22 @@ export const dialogConnect: Connect<
     if (event?.defaultPrevented !== true) send({ type: 'interact.outside' })
   }
 
+  // The host's traversal has no cancelable event — synthesize the veto
+  // payload so the callback contract matches the other dismissals.
+  const historyNavigate = (
+    callback: ((event?: BackNavigationPayload) => void) | undefined,
+    event: DialogMachineEvent,
+  ): void => {
+    const payload: BackNavigationPayload = {
+      defaultPrevented: false,
+      preventDefault() {
+        payload.defaultPrevented = true
+      },
+    }
+    callback?.(payload)
+    if (payload.defaultPrevented !== true) send(event)
+  }
+
   return {
     open,
     mounted: state !== 'closed',
@@ -84,16 +105,10 @@ export const dialogConnect: Connect<
       send({ type: next ? 'open' : 'close' })
     },
     backNavigate() {
-      // The host's back has no cancelable event — synthesize the veto payload
-      // so the callback contract matches the other dismissals.
-      const payload: BackNavigationPayload = {
-        defaultPrevented: false,
-        preventDefault() {
-          payload.defaultPrevented = true
-        },
-      }
-      props.onBackNavigation?.(payload)
-      if (payload.defaultPrevented !== true) send({ type: 'history.back' })
+      historyNavigate(props.onBackNavigation, { type: 'history.back' })
+    },
+    forwardNavigate() {
+      historyNavigate(props.onForwardNavigation, { type: 'history.forward' })
     },
     parts: {
       trigger: {

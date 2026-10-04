@@ -1,5 +1,34 @@
 # @dunky.dev/dom-scroll-lock
 
+## 0.1.2
+
+### Patch Changes
+
+- [#48](https://github.com/dunky-dev/ui/pull/48) [`4208569`](https://github.com/dunky-dev/ui/commit/4208569ecad4b141ecdf814ae195bcc0e14a7afc) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Two `lockScroll` fixes:
+  - Scrollbar compensation is now additive: the footprint is added on top of
+    the target's computed padding instead of assigned over it. Previously the
+    inline longhand won the cascade and erased any `padding-inline-end` /
+    `padding-block-end` the target already had (inline or from a stylesheet),
+    shifting layout the other way — the lock must not shift layout in either
+    direction.
+  - Release restores the saved inline styles via `style.setProperty` instead of
+    branching per value: a saved `''` (originally unset) removes the
+    declaration per CSSOM, so the target returns to exactly what the first
+    holder saw.
+
+- [#39](https://github.com/dunky-dev/ui/pull/39) [`9d93cfc`](https://github.com/dunky-dev/ui/commit/9d93cfc638c75e8ee8c48a1ad51b2537645680cf) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `lockScroll` now saves, hides, and restores `overflow` per axis
+  (`overflow-x` / `overflow-y`), never via the shorthand. Per CSSOM the
+  `overflow` shorthand serializes back to `''` unless both longhands are set,
+  so a container that declares its scrolling on one axis only —
+
+  ```tsx
+  <div style={{ overflowY: 'auto' }}>
+  ```
+
+  — saved as "unset"; release then removed the consumer's own declaration and
+  the container stopped scrolling permanently. Restore now returns the inline
+  style to exactly what the first holder saw, as the contract promises.
+
 ## 0.1.1
 
 ### Patch Changes

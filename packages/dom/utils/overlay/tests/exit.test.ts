@@ -102,7 +102,7 @@ describe('hideExitingLayer', () => {
       '<div id="viewport"><div id="backdrop"></div><dialog id="content"></dialog></div>'
     const viewport = document.getElementById('viewport') as HTMLElement
     const backdrop = document.getElementById('backdrop') as HTMLElement
-    viewport.setAttribute('aria-hidden', 'false')
+    viewport.setAttribute('aria-hidden', 'true')
 
     const undo = hideExitingLayer(
       document.getElementById('content') as HTMLElement,
@@ -113,6 +113,39 @@ describe('hideExitingLayer', () => {
     expect(viewport.hasAttribute('inert')).toBe(false) // the author's aria-hidden is theirs
 
     undo()
+    expect(viewport.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('hides an aria-hidden="false" root and restores the value on undo', () => {
+    // "false" asserts visible — the opposite of author-hidden — so the skip
+    // for authored hiding must not cover it.
+    document.body.innerHTML = '<div id="viewport"><dialog id="content"></dialog></div>'
+    const viewport = document.getElementById('viewport') as HTMLElement
+    viewport.setAttribute('aria-hidden', 'false')
+
+    const undo = hideExitingLayer(document.getElementById('content') as HTMLElement, document.body)
+    expect(viewport.hasAttribute('inert')).toBe(true)
+    expect(viewport.getAttribute('aria-hidden')).toBe('true')
+
+    undo()
     expect(viewport.getAttribute('aria-hidden')).toBe('false')
+    expect(viewport.hasAttribute('inert')).toBe(false)
+  })
+
+  it('falls back to the content when the boundary is not an ancestor', () => {
+    // A stale or mismatched consumer-supplied boundary must not walk past the
+    // real portal root and inert <html> — that would take out the whole page.
+    document.body.innerHTML =
+      '<div id="portal"><dialog id="content"></dialog></div><div id="unrelated"></div>'
+    const content = document.getElementById('content') as HTMLElement
+    const unrelated = document.getElementById('unrelated') as HTMLElement
+
+    const undo = hideExitingLayer(content, unrelated)
+    expect(document.documentElement.hasAttribute('inert')).toBe(false)
+    expect(document.documentElement.hasAttribute('aria-hidden')).toBe(false)
+    expect(content.hasAttribute('inert')).toBe(true)
+
+    undo()
+    expect(content.hasAttribute('inert')).toBe(false)
   })
 })

@@ -288,6 +288,49 @@ describe('dialog machine — back navigation', () => {
   })
 })
 
+describe('dialog machine — forward navigation', () => {
+  it('ignores history.forward without closeOnBack (the default)', () => {
+    const { service } = build()
+    service.send({ type: 'history.forward' })
+    expect(service.state).toBe('closed')
+    expect(service.context.open.intent).toBeNull()
+  })
+
+  it('reopens on history.forward when closeOnBack, interrupting the exit window too', () => {
+    const { service } = build({ closeOnBack: true })
+    service.send({ type: 'history.forward' })
+    expect(service.state).toBe('open')
+
+    const animated = build({ defaultOpen: true, closeOnBack: true, animated: true })
+    animated.service.send({ type: 'history.back' })
+    expect(animated.service.state).toBe('closing')
+    animated.service.send({ type: 'history.forward' })
+    expect(animated.service.state).toBe('open')
+  })
+
+  it('forwardNavigate fires the callback and reopens unless vetoed', () => {
+    const onForwardNavigation = vi.fn()
+    const { service, connection } = build({ closeOnBack: true, onForwardNavigation })
+    connection.snapshot.forwardNavigate()
+    expect(onForwardNavigation).toHaveBeenCalledTimes(1)
+    expect(service.state).toBe('open')
+
+    const vetoed = build({
+      closeOnBack: true,
+      onForwardNavigation: event => event?.preventDefault?.(),
+    })
+    vetoed.connection.snapshot.forwardNavigate()
+    expect(vetoed.service.state).toBe('closed')
+  })
+
+  it('a controlled dialog records the reopen intent and stays put', () => {
+    const { service, connection } = build({ open: false, closeOnBack: true })
+    connection.snapshot.forwardNavigate()
+    expect(service.state).toBe('closed')
+    expect(service.context.open.intent).toEqual({ value: true })
+  })
+})
+
 describe('dialog machine — animated exit', () => {
   it('a close intent holds the exit window open until exit.complete', () => {
     const { service } = build({ defaultOpen: true, animated: true })

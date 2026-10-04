@@ -12,8 +12,8 @@ const mount = (html: string, options?: TrapFocusOptions): HTMLElement => {
 }
 
 // dispatchEvent returns false when a handler called preventDefault.
-const pressTab = (container: HTMLElement, shiftKey = false): boolean =>
-  container.dispatchEvent(
+const pressTab = (target: HTMLElement, shiftKey = false): boolean =>
+  target.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true }),
   )
 
@@ -94,6 +94,120 @@ describe('trapFocus', () => {
 
     expect(pressTab(container)).toBe(true)
     expect(document.activeElement?.id).toBe('last')
+  })
+
+  it('intercepts Tab pressed while focus is outside the container', () => {
+    mount(BUTTONS)
+    const outside = document.createElement('button')
+    outside.type = 'button'
+    document.body.appendChild(outside)
+    outside.focus()
+
+    expect(pressTab(outside)).toBe(false)
+    expect(document.activeElement?.id).toBe('first')
+  })
+
+  it('excludes non-rendered elements from the cycle', () => {
+    const container = mount(
+      '<button type="button" id="first">first</button>' +
+        '<button type="button" hidden>hidden</button>' +
+        '<button type="button" style="display: none">display none</button>' +
+        '<button type="button" style="visibility: hidden">visibility hidden</button>' +
+        '<div style="display: none"><button type="button">wrapped</button></div>' +
+        '<div hidden><button type="button">wrapped</button></div>' +
+        '<button type="button" id="last">last</button>',
+    )
+    document.getElementById('first')?.focus()
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('last')
+  })
+
+  it('excludes controls disabled by an ancestor fieldset, except in its first legend', () => {
+    // The selector only sees an element's own attributes; a control inside a
+    // disabled fieldset matches it, but a browser refuses to focus it — and
+    // the trap has already preventDefault()-ed, so the cycle would dead-end.
+    const container = mount(
+      '<button type="button" id="first">first</button>' +
+        '<fieldset disabled>' +
+        '<legend><input id="legend-input" /></legend>' +
+        '<input id="fieldset-input" />' +
+        '</fieldset>' +
+        '<button type="button" id="last">last</button>',
+    )
+    document.getElementById('first')?.focus()
+
+    // Controls in a disabled fieldset's first legend stay enabled natively.
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('legend-input')
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('last')
+  })
+
+  it('excludes inert elements and inert subtrees from the cycle', () => {
+    const container = mount(
+      '<button type="button" id="first">first</button>' +
+        '<button type="button" inert>inert</button>' +
+        '<div inert><button type="button">wrapped</button></div>' +
+        '<button type="button" id="last">last</button>',
+    )
+    document.getElementById('first')?.focus()
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('last')
+  })
+
+  it('includes iframes and a details summary in the cycle', () => {
+    const container = mount(
+      '<button type="button" id="first">first</button>' +
+        '<iframe id="frame" title="embedded"></iframe>' +
+        '<details><summary id="summary">more</summary>content</details>' +
+        '<button type="button" id="last">last</button>',
+    )
+    document.getElementById('first')?.focus()
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('frame')
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('summary')
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('last')
+  })
+
+  it('collapses a same-name radio group to its checked radio', () => {
+    const container = mount(
+      '<button type="button" id="before">before</button>' +
+        '<input type="radio" name="choice" id="r1" />' +
+        '<input type="radio" name="choice" id="r2" checked />' +
+        '<input type="radio" name="choice" id="r3" />' +
+        '<button type="button" id="after">after</button>',
+    )
+    document.getElementById('before')?.focus()
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('r2')
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('after')
+  })
+
+  it('collapses a same-name radio group with no checked radio to its first', () => {
+    const container = mount(
+      '<button type="button" id="before">before</button>' +
+        '<input type="radio" name="choice" id="r1" />' +
+        '<input type="radio" name="choice" id="r2" />' +
+        '<input type="radio" name="choice" id="r3" />' +
+        '<button type="button" id="after">after</button>',
+    )
+    document.getElementById('before')?.focus()
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('r1')
+
+    pressTab(container)
+    expect(document.activeElement?.id).toBe('after')
   })
 
   it('stops trapping once released', () => {

@@ -1,6 +1,7 @@
 interface Lock {
   count: number
-  savedOverflow: string
+  savedOverflowX: string
+  savedOverflowY: string
   savedPaddingInlineEnd: string
   savedPaddingBlockEnd: string
 }
@@ -43,13 +44,12 @@ function getScrollbarSizes(target: HTMLElement): ScrollbarSizes {
       height: window.innerHeight - document.documentElement.clientHeight,
     }
   }
+  // Computed lengths on a rendered element always resolve to `Npx`.
   const style = getComputedStyle(target)
   const bordersX =
-    (Number.parseFloat(style.borderLeftWidth) || 0) +
-    (Number.parseFloat(style.borderRightWidth) || 0)
+    Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.borderRightWidth)
   const bordersY =
-    (Number.parseFloat(style.borderTopWidth) || 0) +
-    (Number.parseFloat(style.borderBottomWidth) || 0)
+    Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth)
   return {
     width: target.offsetWidth - target.clientWidth - bordersX,
     height: target.offsetHeight - target.clientHeight - bordersY,
@@ -70,15 +70,36 @@ export function lockScroll(target: HTMLElement = document.body): () => void {
   if (lock === undefined) {
     lock = {
       count: 0,
-      savedOverflow: target.style.overflow,
+      // Both axes are handled by longhand throughout — saved, hidden, and
+      // restored. The `overflow` shorthand serializes back to '' unless both
+      // longhands are set, so a container that scrolls on one axis
+      // (`overflow-y: auto`) would save as "unset" and restore by removing
+      // the consumer's own declaration.
+      savedOverflowX: target.style.overflowX,
+      savedOverflowY: target.style.overflowY,
       savedPaddingInlineEnd: target.style.paddingInlineEnd,
       savedPaddingBlockEnd: target.style.paddingBlockEnd,
     }
     locks.set(target, lock)
     const scrollbar = getScrollbarSizes(target)
-    if (scrollbar.width > 0) target.style.paddingInlineEnd = `${scrollbar.width}px`
-    if (scrollbar.height > 0) target.style.paddingBlockEnd = `${scrollbar.height}px`
-    target.style.overflow = 'hidden'
+    if (scrollbar.width > 0 || scrollbar.height > 0) {
+      // Add the footprint to the computed padding rather than assigning it
+      // outright: the inline longhand wins the cascade, so assignment would
+      // eat padding the target already has (inline or from a stylesheet).
+      const padding = getComputedStyle(target)
+      if (scrollbar.width > 0) {
+        target.style.paddingInlineEnd = `${
+          Number.parseFloat(padding.paddingInlineEnd) + scrollbar.width
+        }px`
+      }
+      if (scrollbar.height > 0) {
+        target.style.paddingBlockEnd = `${
+          Number.parseFloat(padding.paddingBlockEnd) + scrollbar.height
+        }px`
+      }
+    }
+    target.style.overflowX = 'hidden'
+    target.style.overflowY = 'hidden'
   }
   lock.count++
 
@@ -89,18 +110,11 @@ export function lockScroll(target: HTMLElement = document.body): () => void {
     released = true
     if (--held.count > 0) return
     locks.delete(target)
-    // Assigning '' doesn't clear a longhand in jsdom's CSSOM — remove instead.
-    if (held.savedOverflow !== '') target.style.overflow = held.savedOverflow
-    else target.style.removeProperty('overflow')
-    if (held.savedPaddingInlineEnd !== '') {
-      target.style.paddingInlineEnd = held.savedPaddingInlineEnd
-    } else {
-      target.style.removeProperty('padding-inline-end')
-    }
-    if (held.savedPaddingBlockEnd !== '') {
-      target.style.paddingBlockEnd = held.savedPaddingBlockEnd
-    } else {
-      target.style.removeProperty('padding-block-end')
-    }
+    // setProperty, not the camelCase setters: a saved `''` (originally unset)
+    // must remove the declaration, which setProperty does per CSSOM.
+    target.style.setProperty('overflow-x', held.savedOverflowX)
+    target.style.setProperty('overflow-y', held.savedOverflowY)
+    target.style.setProperty('padding-inline-end', held.savedPaddingInlineEnd)
+    target.style.setProperty('padding-block-end', held.savedPaddingBlockEnd)
   }
 }

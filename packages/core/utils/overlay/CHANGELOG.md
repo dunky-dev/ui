@@ -1,5 +1,57 @@
 # @dunky.dev/overlay
 
+## 0.2.0
+
+### Minor Changes
+
+- [#39](https://github.com/dunky-dev/ui/pull/39) [`ffa4fad`](https://github.com/dunky-dev/ui/commit/ffa4fada7719daa8661adab52c20952f3d8d7559) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `escapeScope` now exists. It was documented in the dialog specs — one layer per
+  Escape by default, or the whole stack — but no package implemented it, so
+  passing it did nothing.
+
+  ```tsx
+  // One press closes this dialog and every layer it was opened from.
+  <Dialog escapeScope='stack'>
+  ```
+
+  Only the dialog that receives the Escape gates and vetoes it: its
+  `closeOnEscape` and `onEscapeKeyDown` decide, exactly as before. Once allowed,
+  the layers beneath receive a plain close — their own dismissal settings are not
+  consulted again — unwinding top-down, so focus lands where it was before the
+  bottom-most dialog opened. A vetoed Escape leaves the whole stack standing.
+
+  The mechanics are shared rather than per-dialog: the layer stack gained
+  `below(id)` (`@dunky.dev/overlay`) and `layersBelow(id)` plus an optional
+  `Layer.dismiss` (`@dunky.dev/dom-overlay`), so any overlay family can offer a
+  stack-scoped dismissal on the same stack. A layer that registers no `dismiss`
+  opts out and stays open, which is what keeps a stack that mixes primitives from
+  being closed out from under them.
+
+  The specs also described a stack-scoped Close _press_; nothing implements that,
+  so the claim is removed rather than left standing.
+
+- [#39](https://github.com/dunky-dev/ui/pull/39) [`4698e0c`](https://github.com/dunky-dev/ui/commit/4698e0c5f24182e050473cd68faf2e60d2b66630) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Assistive-tech containment no longer lapses while a non-modal layer is open
+  above a modal one.
+
+  Containment now follows the topmost **modal** layer rather than the topmost
+  layer. The ordinary layers — a select menu, a combobox list, a tooltip, a
+  context menu — are non-modal and live inside dialogs; opening one used to
+  release the dialog's containment, leaving the page behind reachable by
+  pointer, keyboard, and screen reader for exactly as long as someone was
+  interacting with the menu. The layers stacked above the modal one are held
+  out of the hiding — they portal to the body as siblings of the dialog, so
+  without the exception the containment would inert the very layer the user is
+  in. Topmost keeps its meaning: a non-modal layer above still owns Escape and
+  the focus trap; only containment stays put.
+
+  To support this, the agnostic stack gains a public `ordered()` method
+  returning every layer topmost first — the host needs to look past the top of
+  the stack, while modality stays a host concept:
+
+  ```ts
+  const stack = createLayerStack<Layer>()
+  stack.ordered() // every layer, topmost first
+  ```
+
 ## 0.1.1
 
 ### Patch Changes

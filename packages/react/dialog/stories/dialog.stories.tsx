@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Dialog } from '@dunky.dev/react-dialog'
 
@@ -25,9 +25,9 @@ const viewport: CSSProperties = {
   padding: 24,
 }
 const content: CSSProperties = {
-  // Reset the UA <dialog> styles so the viewport's flex centering owns position.
-  position: 'static',
-  border: 'none',
+  // `margin: auto` inside the viewport's flex box does the centering;
+  // `relative` makes the corner Close button pin to the window, not the page.
+  position: 'relative',
   margin: 'auto',
   maxWidth: 480,
   padding: 24,
@@ -68,6 +68,24 @@ const input: CSSProperties = {
   border: '1px solid #ccc',
   borderRadius: 6,
   font: 'inherit',
+}
+const listbox: CSSProperties = {
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  minWidth: 220,
+  margin: '4px 0 0',
+  padding: 4,
+  listStyle: 'none',
+  background: 'white',
+  border: '1px solid #ccc',
+  borderRadius: 6,
+  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.16)',
+}
+const option: CSSProperties = {
+  padding: '6px 10px',
+  borderRadius: 4,
+  cursor: 'pointer',
 }
 // A scoped dialog opens inside a container instead of over the whole page: it
 // portals into that element, and its overlay layers switch from `fixed`
@@ -424,32 +442,277 @@ export const nested: StoryType = {
   render: () => <NestedDialogs />,
 }
 
-// closeOnBack turns the host's Back into a dismissal: while the dialog is open,
-// a guard entry sits in the session history, so the browser's Back closes the
-// dialog instead of leaving the page — what mobile users expect from a
-// full-screen overlay. The canvas has no browser chrome, so the in-dialog
-// button stands in for a real Back press by calling `history.back()`.
-export const closeOnBack: StoryType = {
+// A popup inside the dialog that never joins the layer stack — a third-party
+// listbox stands in. While it holds focus, Tab and Escape are its: the
+// dialog's trap and Escape stand down until focus is back in the window, so
+// one Escape closes the listbox and the next closes the dialog.
+const editors = ['Team members', 'Anyone with the link', 'Only me']
+const Listbox = () => {
+  const [open, setOpen] = useState(false)
+  const [value, setValue] = useState(editors[0])
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const close = () => {
+    setOpen(false)
+    buttonRef.current?.focus()
+  }
+  const pick = (editor: string) => {
+    setValue(editor)
+    close()
+  }
+  useEffect(() => {
+    if (open) listRef.current?.querySelector<HTMLElement>('[role="option"]')?.focus()
+  }, [open])
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        ref={buttonRef}
+        type='button'
+        aria-haspopup='listbox'
+        aria-expanded={open}
+        aria-controls='who-can-edit'
+        onClick={() => setOpen(!open)}
+      >
+        {value}
+      </button>
+      {open && (
+        <ul
+          id='who-can-edit'
+          ref={listRef}
+          role='listbox'
+          aria-label='Who can edit'
+          style={listbox}
+          onKeyDown={event => {
+            if (event.key === 'Escape') close()
+            if (event.key === 'Tab') setOpen(false)
+          }}
+        >
+          {editors.map(editor => (
+            <li
+              key={editor}
+              role='option'
+              tabIndex={0}
+              aria-selected={editor === value}
+              style={option}
+              onClick={() => pick(editor)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') pick(editor)
+              }}
+            >
+              {editor}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export const innerPopup: StoryType = {
   render: () => (
-    <Dialog defaultOpen closeOnBack>
+    <Dialog defaultOpen>
       <Dialog.Trigger>Open dialog</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop style={backdrop} />
         <Dialog.Viewport style={viewport}>
-          <Dialog.Content style={closableContent}>
+          <Dialog.Content style={content}>
             <CloseButton />
-            <Dialog.Title>Rename board</Dialog.Title>
+            <Dialog.Title>Board settings</Dialog.Title>
             <Dialog.Description>
-              The browser&apos;s Back closes this dialog instead of navigating away. Press Back — or
-              the button below, which stands in for it here — and the dialog dismisses while the
-              page stays put.
+              Open the listbox, then press Tab and Escape: the popup answers first, the dialog only
+              once it is closed.
             </Dialog.Description>
+            <Listbox />
             <div style={actions}>
-              <button onClick={() => window.history.back()}>Simulate browser Back</button>
+              <button>Save</button>
             </div>
           </Dialog.Content>
         </Dialog.Viewport>
       </Dialog.Portal>
     </Dialog>
   ),
+}
+
+// closeOnBack turns the host's Back into a dismissal: while the dialog is open,
+// a guard entry sits in the session history, so the browser's Back closes the
+// dialog instead of leaving the page — what mobile users expect from a
+// full-screen overlay. The spent entry survives in the forward stack, so the
+// browser's Forward reopens what Back closed. The canvas has no browser
+// chrome, so the buttons stand in for real presses by calling
+// `history.back()` / `history.forward()`.
+export const closeOnBack: StoryType = {
+  render: () => (
+    <>
+      <Dialog defaultOpen closeOnBack>
+        <Dialog.Trigger>Open dialog</Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Backdrop style={backdrop} />
+          <Dialog.Viewport style={viewport}>
+            <Dialog.Content style={closableContent}>
+              <CloseButton />
+              <Dialog.Title>Rename board</Dialog.Title>
+              <Dialog.Description>
+                The browser&apos;s Back closes this dialog instead of navigating away. Press Back —
+                or the button below, which stands in for it here — and the dialog dismisses while
+                the page stays put. Forward, from the canvas, reopens it.
+              </Dialog.Description>
+              <div style={actions}>
+                <button onClick={() => window.history.back()}>Simulate browser Back</button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>{' '}
+      <button onClick={() => window.history.forward()}>Simulate browser Forward</button>
+    </>
+  ),
+}
+
+// A stack of guards: every open layer plants its own history entry, so Back
+// unwinds the stack one layer per press and Forward re-enters it one layer per
+// press. Uncontrolled on purpose — a controlled dialog's Back-close is
+// completed by the consumer, so its entry is consumed and Forward has nothing
+// to re-enter (the `nested` story above is the controlled shape).
+//
+// Two sequences worth walking, with the in-dialog buttons or the canvas ones
+// (the canvas is inert while any modal layer is open):
+//
+//  1. Both open -> Back closes the inner only -> Forward reopens it. The outer
+//     never moves.
+//  2. Back, Back closes both -> Forward reopens the outer -> Forward again
+//     reopens the inner. Closing the outer unmounted the inner along with it,
+//     so the one that comes back is a different machine; it recognizes the
+//     entry as its own ground by its place in the stack.
+const HistoryButtons = () => (
+  <div style={actions}>
+    <button onClick={() => window.history.back()}>Simulate browser Back</button>
+    <button onClick={() => window.history.forward()}>Simulate browser Forward</button>
+  </div>
+)
+
+export const nestedCloseOnBack: StoryType = {
+  render: () => (
+    <>
+      <Dialog defaultOpen closeOnBack>
+        <Dialog.Trigger>Open outer</Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Backdrop style={backdrop} />
+          <Dialog.Viewport style={viewport}>
+            <Dialog.Content style={closableContent}>
+              <CloseButton />
+              <Dialog.Title>Outer dialog</Dialog.Title>
+              <Dialog.Description>
+                Two guard entries while both layers are open. Back closes the topmost one first.
+              </Dialog.Description>
+              <Dialog closeOnBack>
+                <Dialog.Trigger>Open inner</Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Backdrop style={backdrop} />
+                  <Dialog.Viewport style={viewport}>
+                    <Dialog.Content style={closableContent}>
+                      <CloseButton />
+                      <Dialog.Title>Inner dialog</Dialog.Title>
+                      <Dialog.Description>
+                        Back closes this layer and leaves the outer alone; Forward brings it back,
+                        guarded again.
+                      </Dialog.Description>
+                      <HistoryButtons />
+                    </Dialog.Content>
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+              <HistoryButtons />
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>{' '}
+      <button onClick={() => window.history.back()}>Simulate browser Back</button>{' '}
+      <button onClick={() => window.history.forward()}>Simulate browser Forward</button>
+    </>
+  ),
+}
+
+// Containment makes everything outside the topmost modal layer invisible to
+// assistive tech and unreachable by pointer, Tab, and find-in-page
+// (`aria-hidden` + `inert`) — but it keeps painting, so the story's `[inert]`
+// rule dims what containment hid to make the state visible. The panel is the
+// interesting half: it is non-modal (a select menu's habitat) and portalled
+// into the app branch, BESIDE page content. A branch holding a retained layer
+// is descended into rather than spared whole, so the article next to the
+// panel dims individually while the panel itself stays bright and reachable.
+const appBranch: CSSProperties = {
+  // The panel's absolute viewport pins to the branch.
+  position: 'relative',
+  marginTop: 16,
+  padding: 16,
+  border: '1px dashed #999',
+  borderRadius: 8,
+}
+const branchViewport: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  display: 'flex',
+  padding: 16,
+}
+const branchPanel: CSSProperties = {
+  margin: 'auto',
+  maxWidth: 320,
+  padding: 16,
+  background: 'white',
+  border: '1px solid #ccc',
+  borderRadius: 8,
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.24)',
+}
+
+const ContainedPage = () => {
+  const [branch, setBranch] = useState<HTMLElement | null>(null)
+  return (
+    <>
+      <style>{'[inert] { opacity: 0.35; }'}</style>
+      <article>
+        Page content at the canvas root — a body-level cousin of the dialog&apos;s portal.{' '}
+        <button>Unreachable while the dialog is open</button>
+      </article>
+      <div ref={setBranch} style={appBranch}>
+        <article>
+          The app branch: the panel portals in here, right beside this article.{' '}
+          <button>Unreachable too</button>
+        </article>
+      </div>
+      <Dialog defaultOpen>
+        <Dialog.Trigger>Open dialog</Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Backdrop style={backdrop} />
+          <Dialog.Viewport style={viewport}>
+            <Dialog.Content style={closableContent}>
+              <CloseButton />
+              <Dialog.Title>Containment</Dialog.Title>
+              <Dialog.Description>
+                Everything dimmed is aria-hidden and inert: Tab never reaches it, presses fall flat,
+                screen readers see only this window. Open the panel — it lands inside the app
+                branch, and the article beside it stays contained.
+              </Dialog.Description>
+              {branch && (
+                <Dialog modal={false}>
+                  <Dialog.Trigger>Open panel in the app branch</Dialog.Trigger>
+                  <Dialog.Portal container={branch}>
+                    <Dialog.Viewport style={branchViewport}>
+                      <Dialog.Content aria-label='Branch panel' style={branchPanel}>
+                        A non-modal layer above the dialog, held out of the containment while its
+                        neighbor article stays in it. Escape closes this layer first.
+                      </Dialog.Content>
+                    </Dialog.Viewport>
+                  </Dialog.Portal>
+                </Dialog>
+              )}
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    </>
+  )
+}
+
+export const containment: StoryType = {
+  render: () => <ContainedPage />,
 }
