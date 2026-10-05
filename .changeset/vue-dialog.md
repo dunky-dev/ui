@@ -45,7 +45,9 @@ starts open. `Content`'s `initialFocus` and `restoreFocus` accept an element,
 a ref, or a getter, resolved at open and close time; a template unwraps refs
 before the element mounts, so it passes a getter
 (`:initial-focus="() => cancelButton"`). The Portal renders nothing on the
-server and teleports once mounted, so hydration matches. Everything else
+server and teleports once mounted, so hydration matches; under `<KeepAlive>`
+a cached dialog parks its layers off the page, state intact, until the view
+returns. Everything else
 follows the core spec: a `div` window with the dialog role, layer stack with
 assistive-tech containment, focus trap with Close as the cycle's last stop,
 scroll lock (scoped to the Portal container when given), exit animations

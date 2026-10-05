@@ -1000,6 +1000,27 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(screen.getByLabelText('Name'))
     })
 
+    // A Content rendered with the root (no Portal) stays mounted while closed,
+    // and a stylesheet may hide it by its state — the open sequence has to
+    // wait for the update that renders it open, as a React effect does.
+    it('an always-mounted Content takes focus once the update that opens it has rendered', async () => {
+      const style = document.createElement('style')
+      style.textContent = '[data-state="closed"][role="dialog"] { display: none; }'
+      document.head.append(style)
+      await renderSettled(() => (
+        <Dialog modal={false}>
+          <Dialog.Trigger>Trigger</Dialog.Trigger>
+          <Dialog.Content aria-label='Inline'>
+            <input aria-label='Name' />
+          </Dialog.Content>
+        </Dialog>
+      ))
+
+      await openDialog()
+      expect(document.activeElement).toBe(screen.getByLabelText('Name'))
+      style.remove()
+    })
+
     // Children mount before their parent, so a Title rendered with the root
     // (no Portal) reports itself before the root starts the machine.
     it('a Title mounted before the root starts its machine still labels the dialog', async () => {
@@ -1090,18 +1111,29 @@ describe('Dialog', () => {
 
     // The adapter pauses a deactivated dialog's machine, as React's <Activity>
     // does — so its layers can't stay painted, holding the page, meanwhile.
-    it('a KeepAlive deactivation takes the layers down and releases the page; reactivation restores them', async () => {
+    it('a KeepAlive deactivation parks the layers and releases the page; reactivation restores both, state intact', async () => {
       const shown = ref(true)
-      const Page = defineComponent(() => () => <DefaultDialog defaultOpen />)
+      const Page = defineComponent(() => () => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Viewport>
+              <Dialog.Content aria-label='Form'>
+                <input aria-label='Name' />
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>
+      ))
       const Elsewhere = defineComponent(() => () => <button type='button'>Elsewhere</button>)
       const { container } = await renderSettled(() => (
         <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>
       ))
-      expect(container.hasAttribute('inert')).toBe(true)
+      const field = screen.getByLabelText('Name') as HTMLInputElement
+      field.value = 'typed'
 
       shown.value = false
       await nextTick()
-      expect(screen.queryByRole('dialog', { hidden: true })).toBeNull()
+      expect(field.isConnected).toBe(false) // parked with the cached view
       expect(container.hasAttribute('inert')).toBe(false)
       expect(document.body.style.overflowY).not.toBe('hidden')
       const elsewhere = screen.getByText('Elsewhere')
@@ -1111,8 +1143,10 @@ describe('Dialog', () => {
 
       shown.value = true
       await nextTick()
-      const dialog = screen.getByRole('dialog') // still open: the state survived
-      expect(document.activeElement).toBe(dialog)
+      await nextTick() // the open sequence waits out the flush that re-enables the teleport
+      expect(screen.getByLabelText('Name')).toBe(field)
+      expect(field.value).toBe('typed')
+      expect(document.activeElement).toBe(field)
       expect(document.body.style.overflowY).toBe('hidden')
     })
 

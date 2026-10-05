@@ -4,6 +4,7 @@ import {
   effectScope,
   h,
   inject,
+  nextTick,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -70,22 +71,32 @@ const booleanOption = { type: Boolean, default: undefined }
 // Runs `effects` in a scope that lives while the component is mounted and
 // active. A <KeepAlive> deactivation ends it like an unmount — the adapter
 // pauses the machine the same way, as React's <Activity> runs its effect
-// cleanups — and reactivation runs it again. Mounted hooks never run during
-// server rendering, so neither does it.
+// cleanups — and reactivation runs it again, once the flush that restores the
+// view is done: a Portal re-enables its teleport in that flush, and the
+// layer has to be back in place before its sequences run. Mounted hooks
+// never run during server rendering, so neither does it.
 function whileActive(effects: () => void): void {
   let scope: EffectScope | undefined
+  let active = false
   const start = (): void => {
-    if (scope !== undefined) return
+    if (!active || scope !== undefined) return
     scope = effectScope()
     scope.run(effects)
   }
   const stop = (): void => {
+    active = false
     scope?.stop()
     scope = undefined
   }
-  onMounted(start)
-  // Also fires on a kept-alive first mount, right after `onMounted`.
-  onActivated(start)
+  onMounted(() => {
+    active = true
+    start()
+  })
+  // Also fires on a kept-alive first mount, after `onMounted` already started.
+  onActivated(() => {
+    active = true
+    void nextTick(start)
+  })
   onDeactivated(stop)
   onBeforeUnmount(stop)
 }
@@ -155,7 +166,7 @@ const DialogRoot = defineComponent<DialogProps, DialogEmits>(
           })
           guard.sync(open)
         },
-        { immediate: true },
+        { immediate: true, flush: 'post' },
       )
       onScopeDispose(() => {
         guard?.release()
@@ -229,13 +240,17 @@ export const Portal: DialogComponent<DialogPortalProps> = defineComponent(
 
     // The server has no document to teleport into, so it renders no portal —
     // and the client's hydration pass must render the same: the teleport
-    // arrives with the first update after mount. A <KeepAlive> deactivation
-    // takes it down again, since Vue leaves teleported content painted over
-    // the next view while the machine behind it is paused.
-    const active = shallowRef(false)
+    // arrives with the first update after mount.
+    const mounted = shallowRef(false)
     onMounted(() => {
-      active.value = true
+      mounted.value = true
     })
+
+    // A <KeepAlive> deactivation parks the layers back in place, inside the
+    // cached subtree and off the document — Vue would leave teleported
+    // content painted over the next view while the machine behind it is
+    // paused. Disabling, not unmounting, keeps their state for reactivation.
+    const active = shallowRef(true)
     onActivated(() => {
       active.value = true
     })
@@ -257,10 +272,10 @@ export const Portal: DialogComponent<DialogPortalProps> = defineComponent(
     return () => {
       // `mounted`, not `open`: an animated dialog stays in the tree through
       // `closing` so its exit visual can play before everything unmounts.
-      if (!active.value || !context.api.value.mounted) return null
+      if (!mounted.value || !context.api.value.mounted) return null
       return h(
         Teleport,
-        { key: generation, to: props.container ?? document.body },
+        { key: generation, to: props.container ?? document.body, disabled: !active.value },
         slots.default?.() ?? [],
       )
     }
@@ -381,7 +396,10 @@ export const Content: DialogComponent<DialogContentProps> = defineComponent(
                 onComplete: () => machine.send({ type: 'exit.complete' }),
               })
         },
-        { immediate: true },
+        // `post`: a Content rendered with the root stays mounted, so the
+        // sequence must see the DOM the open state renders — a React effect
+        // runs after commit.
+        { immediate: true, flush: 'post' },
       )
       onScopeDispose(() => release?.())
     })

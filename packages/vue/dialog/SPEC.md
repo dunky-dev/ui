@@ -126,10 +126,12 @@ Vue-specific notes on top of the core contract:
   does come back, and so does one whose page reloaded in between — the entry
   remembers the dialog's place in the stack, not the instance that planted it.
 - **`<KeepAlive>`**: a deactivated dialog's machine is paused by the
-  adapter, as React's `<Activity>` pauses its effects, so its DOM work ends
-  too — the Portal takes the layers down (Vue would leave teleported content
-  painted over the next view), and the history guard, focus trap, and scroll
-  lock release. Reactivation restores them with the open state intact.
+  adapter, as React's `<Activity>` pauses its effects, so its DOM work pauses
+  too: the Portal parks the layers back in place, inside the cached view and
+  off the document — Vue would otherwise leave teleported content painted
+  over the next view — and the history guard, focus trap, and scroll lock
+  release. Reactivation brings the same layers back, their content's state
+  intact, and runs the open sequence again.
 - **Server rendering** touches no DOM: the root and its Trigger render, the
   document-level work starts on mount, and the base id comes from `useId`, so
   the hydrated parts carry the ids the server rendered.
