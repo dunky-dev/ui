@@ -26,20 +26,20 @@ useFocusTrap(panel, { enabled: () => isTopmostLayer(props.id) })
 </script>
 
 <template>
-  <dialog ref="panel">...</dialog>
+  <div ref="panel" role="dialog">...</div>
 </template>
 ```
 
 Vue-specific notes on top of the DOM contract:
 
-- The trap follows the target ref: it binds when the ref holds an element
-  (a template ref fills after setup, so the binding must follow the ref,
-  not the call site), releases when it clears or the component unmounts,
-  and re-arms on a new element.
-- Options are read through the composable's closure on every Tab press, so
-  inline `enabled` / `last` see the latest state — the per-press
-  re-evaluation the DOM contract promises — without ever re-binding the
-  listener.
+- The target is a `MaybeRefOrGetter` — a template ref, a getter, or the
+  element itself. The trap arms when the component mounts (a template ref
+  has filled by then), re-arms when the target yields a new element, and
+  releases on unmount. Mounted hooks never run during server rendering, so
+  the trap touches no DOM there.
+- The options object is read on each Tab press, so inline `enabled` / `last`
+  see the latest state without re-binding the listener — the per-press
+  re-evaluation the DOM contract promises.
 
 ## API
 
@@ -47,7 +47,7 @@ Vue-specific notes on top of the DOM contract:
 
 Returns nothing — the trap lives and dies with the component.
 
-| Param     | Type                       | Default | Description                                                                            |
-| --------- | -------------------------- | ------- | -------------------------------------------------------------------------------------- |
-| `target`  | `Ref<HTMLElement \| null>` | —       | The container to trap Tab / Shift+Tab within.                                          |
-| `options` | `UseFocusTrapOptions`      | `{}`    | The DOM trap's options: `enabled?: () => boolean`, `last?: () => HTMLElement \| null`. |
+| Param     | Type                                                 | Default | Description                                                                            |
+| --------- | ---------------------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
+| `target`  | `MaybeRefOrGetter<HTMLElement \| null \| undefined>` | —       | The container to trap Tab / Shift+Tab within.                                          |
+| `options` | `UseFocusTrapOptions`                                | `{}`    | The DOM trap's options: `enabled?: () => boolean`, `last?: () => HTMLElement \| null`. |

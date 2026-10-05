@@ -1,9 +1,9 @@
 # @dunky.dev/vue-use-focus-trap
 
 Vue binding for [`@dunky.dev/dom-focus-trap`](../../../dom/utils/focus-trap):
-`useFocusTrap(ref)` traps Tab / Shift+Tab within the referenced container while
-it exists. The trap behavior itself is framework-free — this composable only
-owns the Vue lifecycle.
+`useFocusTrap(target)` traps Tab / Shift+Tab within the target container while
+the component is mounted. The trap behavior itself is framework-free — this
+composable only owns the Vue lifecycle.
 
 ## Install
 
@@ -23,6 +23,6 @@ useFocusTrap(panel, { enabled: () => isTopmost(panel.value) })
 </script>
 
 <template>
-  <dialog ref="panel">...</dialog>
+  <div ref="panel" role="dialog">...</div>
 </template>
 ```
