@@ -8,15 +8,21 @@ import {
   onScopeDispose,
   toValue,
   watch,
-  type ComponentInternalInstance,
   type EffectScope,
   type MaybeRefOrGetter,
 } from 'vue'
 import { lockScroll } from '@dunky.dev/dom-scroll-lock'
 
+// The instance fields the walk reads, structurally: Vue 3.6 types the chain
+// as its Vapor-aware generic instance.
+interface InstanceNode {
+  isDeactivated: boolean
+  parent: InstanceNode | null
+}
+
 // Whether the component sits in a <KeepAlive> view that is deactivated — it
 // mounted into a cached view after the user left it, and waits for the return.
-function inDeactivatedView(instance: ComponentInternalInstance | null): boolean {
+function inDeactivatedView(instance: InstanceNode | null): boolean {
   for (let node = instance; node !== null; node = node.parent) {
     if (node.isDeactivated) return true
   }

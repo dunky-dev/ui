@@ -17,7 +17,6 @@ import {
   toValue,
   watch,
   type ButtonHTMLAttributes,
-  type ComponentInternalInstance,
   type ComponentOptionsMixin,
   type DefineComponent,
   type EffectScope,
@@ -70,10 +69,17 @@ type DialogComponent<Props, Emits extends EmitsOptions = {}> = DefineComponent<
 // (`open` absent = uncontrolled) hold.
 const booleanOption = { type: Boolean, default: undefined }
 
+// The instance fields the walk reads, structurally: Vue 3.6 types the chain
+// as its Vapor-aware generic instance.
+interface InstanceNode {
+  isDeactivated: boolean
+  parent: InstanceNode | null
+}
+
 // Whether the component sits in a <KeepAlive> view that is deactivated: async
 // data can mount a dialog into a cached view after the user left it, and its
 // DOM then waits in the cache for the view's return.
-function inDeactivatedView(instance: ComponentInternalInstance | null): boolean {
+function inDeactivatedView(instance: InstanceNode | null): boolean {
   for (let node = instance; node !== null; node = node.parent) {
     if (node.isDeactivated) return true
   }
