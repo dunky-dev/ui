@@ -1021,6 +1021,21 @@ describe('Dialog', () => {
       style.remove()
     })
 
+    // The exit window is the `closing` state only: a Content rendered with
+    // the root is also mounted while plainly closed, and must leave the page
+    // alone then.
+    it('a closed Content rendered with the root leaves the page live', async () => {
+      const { container } = await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Trigger>Trigger</Dialog.Trigger>
+          <Dialog.Content aria-label='Inline'>content</Dialog.Content>
+        </Dialog>
+      ))
+      await pressEscape()
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(container.hasAttribute('aria-hidden')).toBe(false)
+    })
+
     // Children mount before their parent, so a Title rendered with the root
     // (no Portal) reports itself before the root starts the machine.
     it('a Title mounted before the root starts its machine still labels the dialog', async () => {

@@ -363,42 +363,43 @@ export const Content: DialogComponent<DialogContentProps> = defineComponent(
     const { api, machine, depth, container, backdropRef } = useDialogContext()
     const contentRef = shallowRef<HTMLElement | null>(null)
 
-    // The machine's `open` state is the edge, not mount/unmount: an animated
-    // dialog stays mounted through `closing`, and Content rendered while not
-    // open is that exit window. The sequences and their inverses are the DOM
-    // package's; this watcher only ties them to Vue's lifecycle — it starts
-    // once the element exists. Released by hand rather than through the
-    // watcher's onCleanup, which Vue 3.6 also runs when the source merely
-    // re-evaluates — on every api change.
+    // The machine's state is the edge, not mount/unmount: an animated dialog
+    // stays mounted through `closing`, its exit window, and a Content rendered
+    // with the root (no Portal) is mounted while closed too. The sequences
+    // and their inverses are the DOM package's; this watcher only ties them
+    // to Vue's lifecycle, once the element exists. Released by hand rather
+    // than through the watcher's onCleanup, which Vue 3.6 also runs when the
+    // source merely re-evaluates.
     whileActive(() => {
       let release: (() => void) | undefined
       watch(
-        () => api.value.open,
-        open => {
+        () => (api.value.open ? 'open' : api.value.mounted ? 'closing' : 'closed'),
+        state => {
           release?.()
           release = undefined
           const content = contentRef.value
-          if (content === null) return
+          if (content === null || state === 'closed') return
 
-          release = open
-            ? openDialogLayer(content, {
-                id: machine.context.id,
-                depth,
-                modal: machine.context.modal,
-                backdrop: () => backdropRef.value,
-                initialFocus: toValue(props.initialFocus),
-                restoreFocus: () => toValue(props.restoreFocus) ?? null,
-                dismiss: () => machine.send({ type: 'close' }),
-              })
-            : startExitWindow(content, {
-                container: container(),
-                backdrop: backdropRef.value,
-                onComplete: () => machine.send({ type: 'exit.complete' }),
-              })
+          release =
+            state === 'open'
+              ? openDialogLayer(content, {
+                  id: machine.context.id,
+                  depth,
+                  modal: machine.context.modal,
+                  backdrop: () => backdropRef.value,
+                  initialFocus: toValue(props.initialFocus),
+                  restoreFocus: () => toValue(props.restoreFocus) ?? null,
+                  dismiss: () => machine.send({ type: 'close' }),
+                })
+              : startExitWindow(content, {
+                  container: container(),
+                  backdrop: backdropRef.value,
+                  onComplete: () => machine.send({ type: 'exit.complete' }),
+                })
         },
-        // `post`: a Content rendered with the root stays mounted, so the
-        // sequence must see the DOM the open state renders — a React effect
-        // runs after commit.
+        // `post`: the sequences must see the DOM the new state renders — a
+        // stylesheet may hide a closed window — as a React effect runs after
+        // commit.
         { immediate: true, flush: 'post' },
       )
       onScopeDispose(() => release?.())
