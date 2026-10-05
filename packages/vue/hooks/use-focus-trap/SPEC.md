@@ -37,7 +37,8 @@ Vue-specific notes on top of the DOM contract:
   has filled by then), re-arms when the target yields a new element, and
   releases on unmount. A `<KeepAlive>` deactivation releases it too and
   reactivation arms it again, as React's `<Activity>` runs an effect's
-  cleanup. Mounted hooks never run during server rendering, so the trap
+  cleanup; mounted into a view that is already deactivated, it waits for
+  the view's return. Mounted hooks never run during server rendering, so the trap
   touches no DOM there.
 - The options object is read on each Tab press, so inline `enabled` / `last`
   see the latest state without re-binding the listener — the per-press

@@ -1165,6 +1165,52 @@ describe('Dialog', () => {
       expect(document.body.style.overflowY).toBe('hidden')
     })
 
+    // Async data can mount a dialog into a cached view after the user left it.
+    it('a dialog mounted into a deactivated KeepAlive view holds still until the view returns', async () => {
+      const shown = ref(true)
+      const loaded = ref(false)
+      const Page = defineComponent(
+        () => () =>
+          loaded.value ? (
+            <Dialog defaultOpen closeOnBack>
+              <Dialog.Portal>
+                <Dialog.Content aria-label='Late'>content</Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          ) : (
+            <span>loading</span>
+          ),
+      )
+      const Elsewhere = defineComponent(() => () => <button type='button'>Elsewhere</button>)
+      const before: unknown = window.history.state
+      const { container } = await renderSettled(() => (
+        <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>
+      ))
+      shown.value = false
+      await nextTick()
+
+      loaded.value = true
+      await nextTick()
+      await nextTick()
+      expect(screen.queryByRole('dialog', { hidden: true })).toBeNull()
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(document.body.style.overflowY).not.toBe('hidden')
+      expect(window.history.state).toEqual(before)
+
+      shown.value = true
+      await nextTick()
+      await nextTick()
+      expect(document.activeElement).toBe(screen.getByRole('dialog'))
+      expect(document.body.style.overflowY).toBe('hidden')
+
+      // Unmounting releases the guard entry the activation planted.
+      const consume = new Promise(resolve =>
+        window.addEventListener('popstate', resolve, { once: true }),
+      )
+      cleanup()
+      await consume
+    })
+
     it('hydrates server-rendered markup without a mismatch, keeping its ids', async () => {
       const App = () => <DefaultDialog defaultOpen />
       const html = await renderToString(createSSRApp(App))

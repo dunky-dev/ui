@@ -131,7 +131,9 @@ Vue-specific notes on top of the core contract:
   off the document — Vue would otherwise leave teleported content painted
   over the next view — and the history guard, focus trap, and scroll lock
   release. Reactivation brings the same layers back, their content's state
-  intact, and runs the open sequence again.
+  intact, and runs the open sequence again. A dialog mounted into a view
+  that is already deactivated — async data resolving after the user left —
+  holds still the same way until the view returns.
 - **Server rendering** touches no DOM: the root and its Trigger render, the
   document-level work starts on mount, and the base id comes from `useId`, so
   the hydrated parts carry the ids the server rendered.

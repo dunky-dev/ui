@@ -1,5 +1,6 @@
 import {
   effectScope,
+  getCurrentInstance,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -7,6 +8,7 @@ import {
   onScopeDispose,
   toValue,
   watch,
+  type ComponentInternalInstance,
   type EffectScope,
   type MaybeRefOrGetter,
 } from 'vue'
@@ -14,6 +16,15 @@ import { trapFocus } from '@dunky.dev/dom-focus-trap'
 import type { TrapFocusOptions } from '@dunky.dev/dom-focus-trap'
 
 export interface UseFocusTrapOptions extends TrapFocusOptions {}
+
+// Whether the component sits in a <KeepAlive> view that is deactivated — it
+// mounted into a cached view after the user left it, and waits for the return.
+function inDeactivatedView(instance: ComponentInternalInstance | null): boolean {
+  for (let node = instance; node !== null; node = node.parent) {
+    if (node.isDeactivated) return true
+  }
+  return false
+}
 
 /**
  * Traps Tab / Shift+Tab within `target` while the component is mounted and
@@ -31,6 +42,7 @@ export function useFocusTrap(
   // live without re-binding. Released by hand rather than through the
   // watcher's onCleanup, which Vue 3.6 also runs when the target merely
   // re-evaluates.
+  const instance = getCurrentInstance()
   let scope: EffectScope | undefined
   const arm = (): void => {
     if (scope !== undefined) return
@@ -52,7 +64,9 @@ export function useFocusTrap(
     scope?.stop()
     scope = undefined
   }
-  onMounted(arm)
+  onMounted(() => {
+    if (!inDeactivatedView(instance)) arm()
+  })
   // Also fires on a kept-alive first mount, right after `onMounted`.
   onActivated(arm)
   onDeactivated(disarm)

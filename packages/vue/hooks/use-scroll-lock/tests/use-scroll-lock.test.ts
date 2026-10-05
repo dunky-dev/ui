@@ -86,4 +86,23 @@ describe('useScrollLock', () => {
     expect(document.body.style.overflowY).toBe('hidden')
     unmount()
   })
+
+  it('holds nothing when mounted into a deactivated KeepAlive view, and locks once it returns', async () => {
+    const shown = ref(true)
+    const loaded = ref(false)
+    const Lock = Locker()
+    const Page = defineComponent(() => () => (loaded.value ? h(Lock) : null))
+    const { unmount } = render(() => h(KeepAlive, null, () => (shown.value ? h(Page) : null)))
+    shown.value = false
+    await nextTick()
+
+    loaded.value = true // mounts the locker into the cached view
+    await nextTick()
+    expect(document.body.style.overflowY).toBe('')
+
+    shown.value = true
+    await nextTick()
+    expect(document.body.style.overflowY).toBe('hidden')
+    unmount()
+  })
 })

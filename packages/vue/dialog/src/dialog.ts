@@ -2,6 +2,7 @@ import {
   Teleport,
   defineComponent,
   effectScope,
+  getCurrentInstance,
   h,
   inject,
   nextTick,
@@ -16,6 +17,7 @@ import {
   toValue,
   watch,
   type ButtonHTMLAttributes,
+  type ComponentInternalInstance,
   type ComponentOptionsMixin,
   type DefineComponent,
   type EffectScope,
@@ -68,6 +70,16 @@ type DialogComponent<Props, Emits extends EmitsOptions = {}> = DefineComponent<
 // (`open` absent = uncontrolled) hold.
 const booleanOption = { type: Boolean, default: undefined }
 
+// Whether the component sits in a <KeepAlive> view that is deactivated: async
+// data can mount a dialog into a cached view after the user left it, and its
+// DOM then waits in the cache for the view's return.
+function inDeactivatedView(instance: ComponentInternalInstance | null): boolean {
+  for (let node = instance; node !== null; node = node.parent) {
+    if (node.isDeactivated) return true
+  }
+  return false
+}
+
 // Runs `effects` in a scope that lives while the component is mounted and
 // active. A <KeepAlive> deactivation ends it like an unmount — the adapter
 // pauses the machine the same way, as React's <Activity> runs its effect
@@ -76,6 +88,7 @@ const booleanOption = { type: Boolean, default: undefined }
 // layer has to be back in place before its sequences run. Mounted hooks
 // never run during server rendering, so neither does it.
 function whileActive(effects: () => void): void {
+  const instance = getCurrentInstance()
   let scope: EffectScope | undefined
   let active = false
   const start = (): void => {
@@ -89,7 +102,7 @@ function whileActive(effects: () => void): void {
     scope = undefined
   }
   onMounted(() => {
-    active = true
+    active = !inDeactivatedView(instance)
     start()
   })
   // Also fires on a kept-alive first mount, after `onMounted` already started.
@@ -242,15 +255,16 @@ export const Portal: DialogComponent<DialogPortalProps> = defineComponent(
     // and the client's hydration pass must render the same: the teleport
     // arrives with the first update after mount.
     const mounted = shallowRef(false)
-    onMounted(() => {
-      mounted.value = true
-    })
-
     // A <KeepAlive> deactivation parks the layers back in place, inside the
     // cached subtree and off the document — Vue would leave teleported
     // content painted over the next view while the machine behind it is
     // paused. Disabling, not unmounting, keeps their state for reactivation.
     const active = shallowRef(true)
+    const instance = getCurrentInstance()
+    onMounted(() => {
+      mounted.value = true
+      active.value = !inDeactivatedView(instance)
+    })
     onActivated(() => {
       active.value = true
     })

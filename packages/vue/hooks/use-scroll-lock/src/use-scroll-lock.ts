@@ -1,5 +1,6 @@
 import {
   effectScope,
+  getCurrentInstance,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -7,10 +8,20 @@ import {
   onScopeDispose,
   toValue,
   watch,
+  type ComponentInternalInstance,
   type EffectScope,
   type MaybeRefOrGetter,
 } from 'vue'
 import { lockScroll } from '@dunky.dev/dom-scroll-lock'
+
+// Whether the component sits in a <KeepAlive> view that is deactivated — it
+// mounted into a cached view after the user left it, and waits for the return.
+function inDeactivatedView(instance: ComponentInternalInstance | null): boolean {
+  for (let node = instance; node !== null; node = node.parent) {
+    if (node.isDeactivated) return true
+  }
+  return false
+}
 
 /**
  * Locks scrolling while the component is mounted and `locked` — the Vue
@@ -29,6 +40,7 @@ export function useScrollLock(
   // during server rendering, where there is no body to lock. Released by
   // hand rather than through the watcher's onCleanup, which Vue 3.6 also
   // runs when a source merely re-evaluates.
+  const instance = getCurrentInstance()
   let scope: EffectScope | undefined
   const hold = (): void => {
     if (scope !== undefined) return
@@ -50,7 +62,9 @@ export function useScrollLock(
     scope?.stop()
     scope = undefined
   }
-  onMounted(hold)
+  onMounted(() => {
+    if (!inDeactivatedView(instance)) hold()
+  })
   // Also fires on a kept-alive first mount, right after `onMounted`.
   onActivated(hold)
   onDeactivated(drop)

@@ -69,4 +69,24 @@ describe('useFocusTrap', () => {
     await nextTick()
     expect(tab(container)).toBe(false)
   })
+
+  it('stays unarmed when mounted into a deactivated KeepAlive view, and arms once it returns', async () => {
+    const shown = ref(true)
+    const loaded = ref(false)
+    const Page = defineComponent(() => () => (loaded.value ? <Trap /> : <span>loading</span>))
+    render(() => <KeepAlive>{shown.value ? <Page /> : null}</KeepAlive>)
+    shown.value = false
+    await nextTick()
+
+    loaded.value = true // mounts the trap into the cached view
+    await nextTick()
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    expect(tab(outside)).toBe(true)
+
+    shown.value = true
+    await nextTick()
+    expect(tab(screen.getByTestId('container'))).toBe(false)
+    outside.remove()
+  })
 })
