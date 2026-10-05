@@ -75,8 +75,8 @@ Svelte-specific notes on top of the core contract:
 - **`Content`'s `initialFocus`** accepts an element or a getter resolved at
   open time. `bind:this` fills only after the component that declares it has
   initialized, so pass a getter — `initialFocus={() => cancelButton}` — or a
-  `$state` element. `restoreFocus` takes the same shape, resolved at close
-  time.
+  `$state` element. `restoreFocus` takes the same shape (exported as
+  `DialogFocusTarget`), resolved at close time.
 - **Element access**: every part that renders an element takes a bindable
   `ref` — `<Dialog.Content bind:ref={panel}>`. `bind:this` on a component
   yields the component, not its element.

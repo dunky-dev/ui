@@ -36,6 +36,7 @@ export const Dialog: Component<DialogProps, {}, ''> & Parts = Object.assign(Root
 })
 
 export type {
+  DialogFocusTarget,
   DialogProps,
   DialogTriggerProps,
   DialogPortalProps,

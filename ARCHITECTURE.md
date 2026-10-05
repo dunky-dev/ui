@@ -295,8 +295,11 @@ rest. `pnpm build` runs these builds after tsdown (`pnpm build:svelte`), so
 
 The alternatives don't hold up: compiling components with a tsdown Svelte
 plugin pins every consumer to this repo's Svelte and runtime internals and
-leaves SSR out; publishing raw `src` drops the generated component types and
-the TS-to-JS step non-TypeScript toolchains rely on.
+leaves SSR out; publishing raw `src` drops the `.d.ts` beside each component
+and leaves the `.ts` modules — rune modules included — for the consumer's
+bundler to transpile. Components keep their `<script lang="ts">` either way:
+Svelte 5 compiles TypeScript in a component natively, so the packager leaves
+it in place.
 
 Two consequences in the source. Nothing bundles or rewrites the emitted files,
 so relative imports name the file they will load (`./context.js`,

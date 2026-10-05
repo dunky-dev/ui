@@ -15,26 +15,11 @@ import NestedGuards from './fixtures/nested-guards.svelte'
 import RestoreFocusDialog from './fixtures/restore-focus-dialog.svelte'
 import ScopedDialog from './fixtures/scoped-dialog.svelte'
 import StackScopedDialog from './fixtures/stack-scoped-dialog.svelte'
+import { keyDown, press, pressEscape } from './fixtures/interact'
 import UntitledDialog from './fixtures/untitled-dialog.svelte'
-
-// Svelte batches updates into a microtask — flush after every interaction
-// before reading the tree.
-const press = (element: HTMLElement): void => {
-  element.click()
-  flushSync()
-}
 
 const openDialog = (): void => {
   press(screen.getByText('Trigger'))
-}
-
-const keyDown = (target: EventTarget, init: KeyboardEventInit): void => {
-  target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }))
-  flushSync()
-}
-
-const pressEscape = (): void => {
-  keyDown(document.body, { key: 'Escape' })
 }
 
 describe('Dialog', () => {

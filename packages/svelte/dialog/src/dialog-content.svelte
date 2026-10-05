@@ -24,30 +24,27 @@
     (typeof target === 'function' ? target() : target) ?? null
 
   // The `open` state is the edge, not mount/destroy: an animated dialog stays
-  // mounted through `closing`. The sequence and its inverse are the DOM
-  // package's; these effects only tie them to Svelte's lifecycle, and read
-  // everything but the edge untracked.
+  // mounted through `closing`. One effect for both sides of it, because Svelte
+  // runs each effect's teardown right before that effect's own re-run — with
+  // two, a reopen would move focus in before the exit window lifted its
+  // inertness. The sequences are the DOM package's; this ties them to
+  // Svelte's lifecycle and reads everything but the edge untracked.
   $effect(() => {
-    if (!open) return
+    const isOpen = open
     return untrack(() => {
       if (content === null) return
-      return openDialogLayer(content, {
-        id: machine.context.id,
-        depth,
-        modal: machine.context.modal,
-        backdrop: () => backdropRef.current,
-        initialFocus: resolveFocusTarget(initialFocus),
-        restoreFocus: () => resolveFocusTarget(restoreFocus),
-        dismiss: () => machine.send({ type: 'close' }),
-      })
-    })
-  })
-
-  // Mounted while not open only happens in `closing`.
-  $effect(() => {
-    if (open) return
-    return untrack(() => {
-      if (content === null) return
+      if (isOpen) {
+        return openDialogLayer(content, {
+          id: machine.context.id,
+          depth,
+          modal: machine.context.modal,
+          backdrop: () => backdropRef.current,
+          initialFocus: resolveFocusTarget(initialFocus),
+          restoreFocus: () => resolveFocusTarget(restoreFocus),
+          dismiss: () => machine.send({ type: 'close' }),
+        })
+      }
+      // Mounted while not open only happens in `closing`.
       return startExitWindow(content, {
         container: dialog.container,
         backdrop: backdropRef.current,

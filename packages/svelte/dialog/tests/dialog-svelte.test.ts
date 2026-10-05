@@ -3,19 +3,12 @@
 // dialog.test.ts: id minting, mount-effect ordering, the open edge, the
 // mount()-based portal, and element access.
 import { render, screen } from '@testing-library/svelte'
-import { flushSync } from 'svelte'
 import { describe, expect, it, vi } from 'vitest'
 import DefaultDialog from './fixtures/default-dialog.svelte'
+import { press, pressEscape } from './fixtures/interact'
 import PresenceDialog from './fixtures/presence-dialog.svelte'
 import RefDialog from './fixtures/ref-dialog.svelte'
 import ScopedDialog from './fixtures/scoped-dialog.svelte'
-
-const pressEscape = (): void => {
-  document.body.dispatchEvent(
-    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
-  )
-  flushSync()
-}
 
 describe('Dialog (Svelte)', () => {
   describe('ids', () => {
@@ -70,6 +63,32 @@ describe('Dialog (Svelte)', () => {
 
       await rerender({ showTitle: false })
       expect(document.activeElement).toBe(action)
+    })
+  })
+
+  describe('exit window', () => {
+    // jsdom lets focus land inside an `inert` subtree; a browser refuses it.
+    // So assert the order: the interrupted exit un-hides its layer before
+    // the open sequence moves focus in.
+    it('lifts the exit inertness before a reopen moves focus in', () => {
+      render(DefaultDialog, { animated: true })
+      press(screen.getByText('Trigger'))
+      pressEscape()
+
+      const viewport = screen.getByTestId('viewport')
+      const inertAtFocus: boolean[] = []
+      const focus = HTMLElement.prototype.focus
+      const spy = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+        this: HTMLElement,
+        options?: FocusOptions,
+      ) {
+        inertAtFocus.push(viewport.hasAttribute('inert'))
+        focus.call(this, options)
+      })
+      press(screen.getByText('Trigger'))
+      spy.mockRestore()
+
+      expect(inertAtFocus).toEqual([false])
     })
   })
 
