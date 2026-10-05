@@ -1,0 +1,51 @@
+{
+  "name": "@dunky.dev/svelte-use-focus-trap",
+  "version": "0.0.0",
+  "description": "Svelte binding for @dunky.dev/dom-focus-trap.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dunky-dev/ui.git",
+    "directory": "packages/svelte/hooks/use-focus-trap"
+  },
+  "files": [
+    "dist",
+    "src",
+    "SPEC.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "svelte": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "svelte": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "svelte-package -i src && publint"
+  },
+  "dependencies": {
+    "@dunky.dev/dom-focus-trap": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/package": "^3.0.0",
+    "@testing-library/svelte": "^5.4.2",
+    "publint": "^0.3.21",
+    "svelte": "^5.57.1",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "svelte": "^5.40.0"
+  }
+}

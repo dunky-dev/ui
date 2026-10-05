@@ -1,0 +1,50 @@
+{
+  "name": "@dunky.dev/svelte-use-scroll-lock",
+  "version": "0.0.0",
+  "description": "Svelte binding for @dunky.dev/dom-scroll-lock.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dunky-dev/ui.git",
+    "directory": "packages/svelte/hooks/use-scroll-lock"
+  },
+  "files": [
+    "dist",
+    "src",
+    "SPEC.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "svelte": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "svelte": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "svelte-package -i src && publint"
+  },
+  "dependencies": {
+    "@dunky.dev/dom-scroll-lock": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/package": "^3.0.0",
+    "publint": "^0.3.21",
+    "svelte": "^5.57.1",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "svelte": "^5.40.0"
+  }
+}
