@@ -2,12 +2,13 @@ import {
   effectScope,
   getCurrentInstance,
   onActivated,
-  onBeforeUnmount,
   onDeactivated,
   onMounted,
   onScopeDispose,
+  onUnmounted,
   toValue,
   watch,
+  type ComponentPublicInstance,
   type EffectScope,
   type MaybeRefOrGetter,
 } from 'vue'
@@ -23,8 +24,8 @@ interface InstanceNode {
   parent: InstanceNode | null
 }
 
-// Whether the component sits in a <KeepAlive> view that is deactivated — it
-// mounted into a cached view after the user left it, and waits for the return.
+// Whether the component sits in a deactivated <KeepAlive> view — it mounted
+// into a cached view after the user left it, and waits for the return.
 function inDeactivatedView(instance: InstanceNode | null): boolean {
   for (let node = instance; node !== null; node = node.parent) {
     if (node.isDeactivated) return true
@@ -32,34 +33,44 @@ function inDeactivatedView(instance: InstanceNode | null): boolean {
   return false
 }
 
+// A template ref on a component holds its instance; the element is its `$el`.
+function toElement(
+  target: HTMLElement | ComponentPublicInstance | null | undefined,
+): HTMLElement | null {
+  const element = target instanceof HTMLElement ? target : target?.$el
+  return element instanceof HTMLElement ? element : null
+}
+
 /**
  * Traps Tab / Shift+Tab within `target` while the component is mounted and
  * the target holds an element — the Vue lifecycle around `trapFocus`. Arms on
  * mount, re-arms when the target yields a new element, releases on unmount.
+ * A component counts as its root element (`$el`).
  */
 export function useFocusTrap(
-  target: MaybeRefOrGetter<HTMLElement | null | undefined>,
+  target: MaybeRefOrGetter<HTMLElement | ComponentPublicInstance | null | undefined>,
   options: UseFocusTrapOptions = {},
 ): void {
-  // Armed from mount, when a template ref has filled; a <KeepAlive>
-  // deactivation releases it like an unmount, as React's <Activity> runs the
-  // effect's cleanup. Mounted hooks never run during server rendering. The
-  // trap reads the options object per Tab press, so `enabled` / `last` stay
-  // live without re-binding. Released by hand rather than through the
-  // watcher's onCleanup, which Vue 3.6 also runs when the target merely
+  // Armed from mount, when a template ref has filled — never during server
+  // rendering — and released after the DOM is gone, as React runs an
+  // effect's cleanup after commit. A <KeepAlive> deactivation releases it
+  // too, as React's <Activity> does. The trap reads the options per Tab
+  // press, so `enabled` / `last` stay live without re-binding. Released by
+  // hand: Vue 3.6 also runs a watcher's onCleanup when its source merely
   // re-evaluates.
   const instance = getCurrentInstance()
   let scope: EffectScope | undefined
   const arm = (): void => {
     if (scope !== undefined) return
-    scope = effectScope()
+    // Detached: the component scope stops before the DOM is removed.
+    scope = effectScope(true)
     scope.run(() => {
       let untrap: (() => void) | undefined
       watch(
-        () => toValue(target),
+        () => toElement(toValue(target)),
         container => {
           untrap?.()
-          untrap = container == null ? undefined : trapFocus(container, options)
+          untrap = container === null ? undefined : trapFocus(container, options)
         },
         { immediate: true, flush: 'post' },
       )
@@ -76,5 +87,5 @@ export function useFocusTrap(
   // Also fires on a kept-alive first mount, right after `onMounted`.
   onActivated(arm)
   onDeactivated(disarm)
-  onBeforeUnmount(disarm)
+  onUnmounted(disarm)
 }

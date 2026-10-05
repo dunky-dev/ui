@@ -89,4 +89,27 @@ describe('useFocusTrap', () => {
     expect(tab(screen.getByTestId('container'))).toBe(false)
     outside.remove()
   })
+
+  it("takes a component's ref as its root element", () => {
+    const Panel = defineComponent((_, { slots }) => () => (
+      <div tabindex={-1} data-testid='container'>
+        {slots.default?.()}
+      </div>
+    ))
+    render(
+      defineComponent(() => {
+        const panel = ref<InstanceType<typeof Panel> | null>(null)
+        useFocusTrap(panel)
+        return () => (
+          <Panel ref={panel}>
+            <button type='button'>first</button>
+            <button type='button'>last</button>
+          </Panel>
+        )
+      }),
+    )
+    screen.getByText('last').focus()
+    expect(tab(screen.getByTestId('container'))).toBe(false)
+    expect(document.activeElement).toBe(screen.getByText('first'))
+  })
 })

@@ -53,6 +53,10 @@ const press = async (element: HTMLElement): Promise<void> => {
 
 const openDialog = (): Promise<void> => press(screen.getByText('Trigger'))
 
+// A macrotask: every flush a reactivation chains (restore, re-enable the
+// teleport, then the open sequence) has run.
+const afterFlushes = (): Promise<void> => new Promise(resolve => setTimeout(resolve))
+
 const pressEscape = (): Promise<void> => fireEvent.keyDown(document.body, { key: 'Escape' })
 
 // Runtime-compiled templates resolve components by registered name, so the
@@ -1034,6 +1038,73 @@ describe('Dialog', () => {
       await pressEscape()
       expect(container.hasAttribute('inert')).toBe(false)
       expect(container.hasAttribute('aria-hidden')).toBe(false)
+      expect(document.body.style.overflowY).not.toBe('hidden')
+    })
+
+    it('an animated Content rendered with the root hides only itself through its exit', async () => {
+      const { container } = await renderSettled(() => (
+        <Dialog defaultOpen animated>
+          <Dialog.Trigger>Trigger</Dialog.Trigger>
+          <Dialog.Content aria-label='Inline'>content</Dialog.Content>
+        </Dialog>
+      ))
+      await pressEscape()
+      const dialog = screen.getByRole('dialog', { hidden: true })
+      expect(dialog.getAttribute('data-state')).toBe('closing')
+      expect(dialog.hasAttribute('inert')).toBe(true)
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(screen.getByText('Trigger').closest('[inert]')).toBeNull()
+    })
+
+    // Cleanup after the DOM is gone, children first — as React's effects —
+    // or the parent would restore focus while the child still holds the page.
+    it("closing a parent over an open child returns focus to the parent's trigger", async () => {
+      const open = ref(false)
+      await renderSettled(() => (
+        <Dialog open={open.value}>
+          <Dialog.Trigger>Trigger</Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Content aria-label='Outer'>
+              <Dialog defaultOpen>
+                <Dialog.Portal>
+                  <Dialog.Content aria-label='Inner'>inner</Dialog.Content>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      const trigger = screen.getByText('Trigger')
+      trigger.focus()
+      open.value = true
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Inner' }))
+
+      open.value = false
+      await afterFlushes()
+      expect(document.activeElement).toBe(trigger)
+    })
+
+    // A template ref on a component holds its instance, not an element.
+    it("initialFocus and restoreFocus take a component's ref as its element", async () => {
+      const Action = defineComponent(() => () => <button type='button'>Action</button>)
+      const action = ref<InstanceType<typeof Action> | null>(null)
+      const trigger = ref<InstanceType<typeof Dialog.Trigger> | null>(null)
+      await renderSettled(() => (
+        <Dialog>
+          <Dialog.Trigger ref={trigger}>Trigger</Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Content aria-label='Settings' initialFocus={action} restoreFocus={trigger}>
+              <Action ref={action} />
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      await openDialog() // a click leaves focus on the body: the fallback applies
+      expect(document.activeElement).toBe(screen.getByText('Action'))
+
+      await pressEscape()
+      expect(document.activeElement).toBe(screen.getByText('Trigger'))
     })
 
     // Children mount before their parent, so a Title rendered with the root
@@ -1157,8 +1228,7 @@ describe('Dialog', () => {
       expect(elsewhere.dispatchEvent(tab)).toBe(true) // the trap let go
 
       shown.value = true
-      await nextTick()
-      await nextTick() // the open sequence waits out the flush that re-enables the teleport
+      await afterFlushes() // the open sequence waits out the flush that re-enables the teleport
       expect(screen.getByLabelText('Name')).toBe(field)
       expect(field.value).toBe('typed')
       expect(document.activeElement).toBe(field)
@@ -1198,8 +1268,7 @@ describe('Dialog', () => {
       expect(window.history.state).toEqual(before)
 
       shown.value = true
-      await nextTick()
-      await nextTick()
+      await afterFlushes()
       expect(document.activeElement).toBe(screen.getByRole('dialog'))
       expect(document.body.style.overflowY).toBe('hidden')
 

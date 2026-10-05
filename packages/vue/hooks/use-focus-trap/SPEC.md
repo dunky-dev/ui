@@ -33,7 +33,7 @@ useFocusTrap(panel, { enabled: () => isTopmostLayer(props.id) })
 Vue-specific notes on top of the DOM contract:
 
 - The target is a `MaybeRefOrGetter` — a template ref, a getter, or the
-  element itself. The trap arms when the component mounts (a template ref
+  element itself; a component counts as its root element (`$el`). The trap arms when the component mounts (a template ref
   has filled by then), re-arms when the target yields a new element, and
   releases on unmount. A `<KeepAlive>` deactivation releases it too and
   reactivation arms it again, as React's `<Activity>` runs an effect's
@@ -50,7 +50,7 @@ Vue-specific notes on top of the DOM contract:
 
 Returns nothing — the trap lives and dies with the component.
 
-| Param     | Type                                                 | Default | Description                                                                            |
-| --------- | ---------------------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
-| `target`  | `MaybeRefOrGetter<HTMLElement \| null \| undefined>` | —       | The container to trap Tab / Shift+Tab within.                                          |
-| `options` | `UseFocusTrapOptions`                                | `{}`    | The DOM trap's options: `enabled?: () => boolean`, `last?: () => HTMLElement \| null`. |
+| Param     | Type                                                                            | Default | Description                                                                            |
+| --------- | ------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
+| `target`  | `MaybeRefOrGetter<HTMLElement \| ComponentPublicInstance \| null \| undefined>` | —       | The container to trap Tab / Shift+Tab within.                                          |
+| `options` | `UseFocusTrapOptions`                                                           | `{}`    | The DOM trap's options: `enabled?: () => boolean`, `last?: () => HTMLElement \| null`. |

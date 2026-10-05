@@ -105,4 +105,20 @@ describe('useScrollLock', () => {
     expect(document.body.style.overflowY).toBe('hidden')
     unmount()
   })
+
+  it("takes a component's ref as its root element", () => {
+    const Surface = defineComponent(() => () => h('section'))
+    const surface = ref<InstanceType<typeof Surface> | null>(null)
+    const { unmount } = render(
+      defineComponent({
+        setup() {
+          useScrollLock(true, surface)
+          return () => h(Surface, { ref: surface })
+        },
+      }),
+    )
+    expect((surface.value?.$el as HTMLElement).style.overflowY).toBe('hidden')
+    expect(document.body.style.overflowY).toBe('')
+    unmount()
+  })
 })

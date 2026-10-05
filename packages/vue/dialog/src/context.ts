@@ -13,6 +13,9 @@ export interface DialogContextValue {
   // Content scopes the scroll lock to it. A getter so the Portal's prop stays
   // live: the root provides null, Portal re-provides the context filled in.
   container: () => HTMLElement | null
+  // Whether the parts render inside a Portal — without one the window sits in
+  // the page itself, which bounds what its exit window may hide.
+  portalled: boolean
   // The rendered Backdrop, shared because Backdrop and Content are sibling
   // parts: Content's stack entry excepts its own backdrop from the
   // containment so it stays pressable while its dialog is topmost.

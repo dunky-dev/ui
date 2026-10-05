@@ -1,5 +1,6 @@
 import {
   Teleport,
+  computed,
   defineComponent,
   effectScope,
   getCurrentInstance,
@@ -7,7 +8,6 @@ import {
   inject,
   nextTick,
   onActivated,
-  onBeforeUnmount,
   onDeactivated,
   onMounted,
   onScopeDispose,
@@ -18,6 +18,7 @@ import {
   watch,
   type ButtonHTMLAttributes,
   type ComponentOptionsMixin,
+  type ComponentPublicInstance,
   type DefineComponent,
   type EffectScope,
   type EmitsOptions,
@@ -47,12 +48,11 @@ import { mergeProps, normalize } from '@dunky.dev/vue-state-machine'
 import { DialogContextKey, useDialogContext } from './context'
 import { useDialog } from './use-dialog'
 
-// Explicit so the exports satisfy --isolatedDeclarations (a bare
-// defineComponent call gives the variable no annotatable type). It is the
-// options-carrying type an SFC gets: the function-signature defineComponent
-// types its result as a bare constructor, which tooling built around SFCs
-// (Storybook's Meta) rejects — the value is the same options object either
-// way, so the casts below only name it.
+// The options-carrying type an SFC gets: the function-signature
+// defineComponent infers a bare constructor, which tooling built around SFCs
+// (Storybook's Meta) rejects. The value is the same options object either
+// way, so each part's cast only names it — and gives the export the explicit
+// type --isolatedDeclarations needs.
 type DialogComponent<Props, Emits extends EmitsOptions = {}> = DefineComponent<
   Props,
   {},
@@ -76,9 +76,8 @@ interface InstanceNode {
   parent: InstanceNode | null
 }
 
-// Whether the component sits in a <KeepAlive> view that is deactivated: async
-// data can mount a dialog into a cached view after the user left it, and its
-// DOM then waits in the cache for the view's return.
+// Whether the component sits in a deactivated <KeepAlive> view: async data
+// can mount a dialog into a cached view after the user left it.
 function inDeactivatedView(instance: InstanceNode | null): boolean {
   for (let node = instance; node !== null; node = node.parent) {
     if (node.isDeactivated) return true
@@ -86,38 +85,42 @@ function inDeactivatedView(instance: InstanceNode | null): boolean {
   return false
 }
 
-// Runs `effects` in a scope that lives while the component is mounted and
-// active. A <KeepAlive> deactivation ends it like an unmount — the adapter
-// pauses the machine the same way, as React's <Activity> runs its effect
-// cleanups — and reactivation runs it again, once the flush that restores the
-// view is done: a Portal re-enables its teleport in that flush, and the
-// layer has to be back in place before its sequences run. Mounted hooks
-// never run during server rendering, so neither does it.
+// Runs `effects` in a scope that lives while the component is mounted and its
+// view active. A <KeepAlive> deactivation ends it like an unmount — the
+// adapter pauses the machine the same way, as React's <Activity> runs its
+// effect cleanups. Released after the DOM is gone and children first, as
+// React runs cleanups after commit: a parent closing over an open child must
+// not restore focus into a layer that is still registered above it. Mounted
+// hooks never run during server rendering, so neither does this.
 function whileActive(effects: () => void): void {
   const instance = getCurrentInstance()
   let scope: EffectScope | undefined
-  let active = false
   const start = (): void => {
-    if (!active || scope !== undefined) return
-    scope = effectScope()
+    if (scope !== undefined) return
+    // Detached: the component scope stops before the DOM is removed, parent
+    // first — the release order above needs the unmounted hook instead.
+    scope = effectScope(true)
     scope.run(effects)
   }
   const stop = (): void => {
-    active = false
     scope?.stop()
     scope = undefined
   }
   onMounted(() => {
-    active = !inDeactivatedView(instance)
-    start()
+    if (!inDeactivatedView(instance)) start()
   })
   // Also fires on a kept-alive first mount, after `onMounted` already started.
-  onActivated(() => {
-    active = true
-    void nextTick(start)
-  })
+  onActivated(start)
   onDeactivated(stop)
-  onBeforeUnmount(stop)
+  onUnmounted(stop)
+}
+
+// A template ref on a component holds its instance; the element is its `$el`.
+function toElement(
+  target: HTMLElement | ComponentPublicInstance | null | undefined,
+): HTMLElement | null {
+  const element = target instanceof HTMLElement ? target : target?.$el
+  return element instanceof HTMLElement ? element : null
 }
 
 // =============================================================================
@@ -163,35 +166,42 @@ const DialogRoot = defineComponent<DialogProps, DialogEmits>(
     const { api, machine } = useDialog(() => ({ ...props, ...callbacks }))
     const backdropRef = shallowRef<HTMLElement | null>(null)
 
-    provide(DialogContextKey, { api, machine, depth, container: () => null, backdropRef })
+    provide(DialogContextKey, {
+      api,
+      machine,
+      depth,
+      container: () => null,
+      portalled: false,
+      backdropRef,
+    })
 
     // The guard lives on the root — it concerns the dialog's openness, not any
     // rendered part. It spans more than the open state, so it can't be the
     // watcher's cleanup: a Back-close leaves the registration parked for the
     // Forward that may reopen it, and only the scope's end — an unmount or a
     // deactivation — ends the episode outright.
-    let guard: BackNavigationGuard | null = null
-
-    whileActive(() => {
-      watch(
-        () => api.value.open,
-        open => {
-          if (!machine.context.closeOnBack) return
-          guard ??= guardBackNavigation({
-            backNavigate: () => api.value.backNavigate(),
-            forwardNavigate: () => api.value.forwardNavigate(),
-            isOpen: () => machine.matches('open'),
-            depth,
-          })
-          guard.sync(open)
-        },
-        { immediate: true, flush: 'post' },
-      )
-      onScopeDispose(() => {
-        guard?.release()
-        guard = null
+    if (machine.context.closeOnBack) {
+      let guard: BackNavigationGuard | null = null
+      whileActive(() => {
+        watch(
+          () => api.value.open,
+          open => {
+            guard ??= guardBackNavigation({
+              backNavigate: () => api.value.backNavigate(),
+              forwardNavigate: () => api.value.forwardNavigate(),
+              isOpen: () => machine.matches('open'),
+              depth,
+            })
+            guard.sync(open)
+          },
+          { immediate: true, flush: 'post' },
+        )
+        onScopeDispose(() => {
+          guard?.release()
+          guard = null
+        })
       })
-    })
+    }
 
     return () => slots.default?.()
   },
@@ -201,13 +211,13 @@ const DialogRoot = defineComponent<DialogProps, DialogEmits>(
     // through to whichever single part happens to render.
     inheritAttrs: false,
     props: {
-      id: { type: String, default: undefined },
+      id: String,
       open: booleanOption,
       defaultOpen: booleanOption,
       modal: booleanOption,
-      role: { type: String as PropType<DialogRole>, default: undefined },
+      role: String as PropType<DialogRole>,
       closeOnEscape: booleanOption,
-      escapeScope: { type: String as PropType<DialogEscapeScope>, default: undefined },
+      escapeScope: String as PropType<DialogEscapeScope>,
       closeOnInteractOutside: booleanOption,
       closeOnBack: booleanOption,
       animated: booleanOption,
@@ -228,7 +238,7 @@ const DialogRoot = defineComponent<DialogProps, DialogEmits>(
 
 export interface DialogTriggerProps extends ButtonHTMLAttributes {}
 
-export const Trigger: DialogComponent<DialogTriggerProps> = defineComponent(
+export const Trigger = defineComponent(
   (_props: DialogTriggerProps, { attrs, slots }) => {
     const { api } = useDialogContext()
     return () =>
@@ -250,25 +260,28 @@ export interface DialogPortalProps {
   container?: HTMLElement | null
 }
 
-export const Portal: DialogComponent<DialogPortalProps> = defineComponent(
+export const Portal = defineComponent(
   (props: DialogPortalProps, { slots }) => {
     const context = useDialogContext()
     // Re-provide the context with the scoped container (null = page body) so
     // Content locks the right scroll surface.
-    provide(DialogContextKey, { ...context, container: () => props.container ?? null })
+    provide(DialogContextKey, {
+      ...context,
+      container: () => props.container ?? null,
+      portalled: true,
+    })
 
     // The server has no document to teleport into, so it renders no portal —
     // and the client's hydration pass must render the same: the teleport
-    // arrives with the first update after mount.
-    const mounted = shallowRef(false)
-    // A <KeepAlive> deactivation parks the layers back in place, inside the
-    // cached subtree and off the document — Vue would leave teleported
-    // content painted over the next view while the machine behind it is
-    // paused. Disabling, not unmounting, keeps their state for reactivation.
+    // arrives with the first update after mount. While the view is
+    // deactivated by <KeepAlive>, the teleport is disabled: Vue parks the
+    // layers back in place, in the cached view and off the document, instead
+    // of leaving them painted over the next view — with their state intact.
+    const ready = shallowRef(false)
     const active = shallowRef(true)
     const instance = getCurrentInstance()
     onMounted(() => {
-      mounted.value = true
+      ready.value = true
       active.value = !inDeactivatedView(instance)
     })
     onActivated(() => {
@@ -278,21 +291,24 @@ export const Portal: DialogComponent<DialogPortalProps> = defineComponent(
       active.value = false
     })
 
+    // `mounted`, not `open`: an animated dialog stays in the tree through
+    // `closing` so its exit visual can play before everything unmounts. A
+    // computed, so the portal re-renders when that flips, not on every change.
+    const mounted = computed(() => context.api.value.mounted)
+
     // A container swap re-creates the teleport instead of moving it, like
     // React's and Solid's portals: a moved window drops focus, and its
     // containment was computed for the old placement.
     let generation = 0
     watch(
-      () => props.container ?? null,
+      () => props.container ?? document.body,
       () => {
         generation++
       },
     )
 
     return () => {
-      // `mounted`, not `open`: an animated dialog stays in the tree through
-      // `closing` so its exit visual can play before everything unmounts.
-      if (!mounted.value || !context.api.value.mounted) return null
+      if (!ready.value || !mounted.value) return null
       return h(
         Teleport,
         { key: generation, to: props.container ?? document.body, disabled: !active.value },
@@ -309,7 +325,7 @@ export const Portal: DialogComponent<DialogPortalProps> = defineComponent(
 
 export interface DialogBackdropProps extends HTMLAttributes {}
 
-export const Backdrop: DialogComponent<DialogBackdropProps> = defineComponent(
+export const Backdrop = defineComponent(
   (_props: DialogBackdropProps, { attrs, slots }) => {
     const { api, machine, backdropRef } = useDialogContext()
     return () => {
@@ -339,7 +355,7 @@ export const Backdrop: DialogComponent<DialogBackdropProps> = defineComponent(
 
 export interface DialogViewportProps extends HTMLAttributes {}
 
-export const Viewport: DialogComponent<DialogViewportProps> = defineComponent(
+export const Viewport = defineComponent(
   (_props: DialogViewportProps, { attrs, slots }) => {
     const { api, machine } = useDialogContext()
     return () => {
@@ -365,8 +381,9 @@ export const Viewport: DialogComponent<DialogViewportProps> = defineComponent(
 // close, traps while modal
 // =============================================================================
 
-/** An element, a ref to one, or a getter — resolved when the dialog reads it. */
-type FocusTarget = MaybeRefOrGetter<HTMLElement | null | undefined>
+/** An element, a component, a ref to either, or a getter — resolved when the
+ * dialog reads it. A component counts as its root element (`$el`). */
+type FocusTarget = MaybeRefOrGetter<HTMLElement | ComponentPublicInstance | null | undefined>
 
 export interface DialogContentProps extends HTMLAttributes {
   /** The element to focus when the dialog opens — resolved at open time, so a
@@ -378,27 +395,43 @@ export interface DialogContentProps extends HTMLAttributes {
   restoreFocus?: FocusTarget
 }
 
-export const Content: DialogComponent<DialogContentProps> = defineComponent(
+export const Content = defineComponent(
   (props: DialogContentProps, { attrs, slots }) => {
-    const { api, machine, depth, container, backdropRef } = useDialogContext()
+    const { api, machine, depth, container, portalled, backdropRef } = useDialogContext()
     const contentRef = shallowRef<HTMLElement | null>(null)
+
+    // Whether the window is where it renders: back from a <KeepAlive> cache it
+    // is still parked until the Portal re-enables its teleport, in the flush
+    // that restores the view — so the sequences wait that flush out.
+    const placed = shallowRef(true)
+    const instance = getCurrentInstance()
+    onMounted(() => {
+      placed.value = !inDeactivatedView(instance)
+    })
+    onDeactivated(() => {
+      placed.value = false
+    })
+    onActivated(() => {
+      void nextTick(() => {
+        placed.value = true
+      })
+    })
 
     // The machine's state is the edge, not mount/unmount: an animated dialog
     // stays mounted through `closing`, its exit window, and a Content rendered
     // with the root (no Portal) is mounted while closed too. The sequences
     // and their inverses are the DOM package's; this watcher only ties them
-    // to Vue's lifecycle, once the element exists. Released by hand rather
-    // than through the watcher's onCleanup, which Vue 3.6 also runs when the
-    // source merely re-evaluates.
+    // to Vue's lifecycle. Released by hand: Vue 3.6 also runs a watcher's
+    // onCleanup when its source merely re-evaluates — on every api change.
     whileActive(() => {
       let release: (() => void) | undefined
       watch(
-        () => (api.value.open ? 'open' : api.value.mounted ? 'closing' : 'closed'),
-        state => {
+        [() => (api.value.open ? 'open' : api.value.mounted ? 'closing' : 'closed'), placed],
+        ([state, isPlaced]) => {
           release?.()
           release = undefined
           const content = contentRef.value
-          if (content === null || state === 'closed') return
+          if (content === null || !isPlaced || state === 'closed') return
 
           release =
             state === 'open'
@@ -407,12 +440,14 @@ export const Content: DialogComponent<DialogContentProps> = defineComponent(
                   depth,
                   modal: machine.context.modal,
                   backdrop: () => backdropRef.value,
-                  initialFocus: toValue(props.initialFocus),
-                  restoreFocus: () => toValue(props.restoreFocus) ?? null,
+                  initialFocus: toElement(toValue(props.initialFocus)),
+                  restoreFocus: () => toElement(toValue(props.restoreFocus)),
                   dismiss: () => machine.send({ type: 'close' }),
                 })
               : startExitWindow(content, {
-                  container: container(),
+                  // Without a Portal the window sits in the page itself: the
+                  // exit hides the window, not its outermost ancestor.
+                  container: portalled ? container() : content.parentElement,
                   backdrop: backdropRef.value,
                   onComplete: () => machine.send({ type: 'exit.complete' }),
                 })
@@ -425,11 +460,14 @@ export const Content: DialogComponent<DialogContentProps> = defineComponent(
       onScopeDispose(() => release?.())
     })
 
-    // The lock spans the whole mount — through `closing` too: releasing it
-    // mid-exit would bring the scrollbar back and reflow the page under the
-    // still-painting layer. The context's `null` means "page body", not the
-    // hook's "no target yet" — name the body. Read on mount, client-side.
-    useScrollLock(machine.context.modal, () => container() ?? document.body)
+    // The lock spans the dialog's occupancy — through `closing` too:
+    // releasing it mid-exit would bring the scrollbar back and reflow the page
+    // under the still-painting layer. The context's `null` means "page body",
+    // which the hook needs named.
+    useScrollLock(
+      () => machine.context.modal && api.value.mounted,
+      () => container() ?? document.body,
+    )
 
     useFocusTrap(
       contentRef,
@@ -455,7 +493,7 @@ export const Content: DialogComponent<DialogContentProps> = defineComponent(
 
 export interface DialogTitleProps extends HTMLAttributes {}
 
-export const Title: DialogComponent<DialogTitleProps> = defineComponent(
+export const Title = defineComponent(
   (_props: DialogTitleProps, { attrs, slots }) => {
     const { api, machine } = useDialogContext()
 
@@ -475,7 +513,7 @@ export const Title: DialogComponent<DialogTitleProps> = defineComponent(
 
 export interface DialogDescriptionProps extends HTMLAttributes {}
 
-export const Description: DialogComponent<DialogDescriptionProps> = defineComponent(
+export const Description = defineComponent(
   (_props: DialogDescriptionProps, { attrs, slots }) => {
     const { api, machine } = useDialogContext()
 
@@ -494,7 +532,7 @@ export const Description: DialogComponent<DialogDescriptionProps> = defineCompon
 
 export interface DialogCloseProps extends ButtonHTMLAttributes {}
 
-export const Close: DialogComponent<DialogCloseProps> = defineComponent(
+export const Close = defineComponent(
   (_props: DialogCloseProps, { attrs, slots }) => {
     const { api } = useDialogContext()
     return () =>

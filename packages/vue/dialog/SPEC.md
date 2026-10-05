@@ -49,27 +49,34 @@ Vue-specific notes on top of the core contract:
   change, it never requests one: a controlled dialog — `v-model:open`
   included — doesn't move on its own Trigger, Close, Escape, or outside
   press. Wire the intent at its source: `@click` on the Trigger, a handler
-  on `escape-key-down`, your own action buttons.
+  on `escape-key-down`, your own action buttons. A wrapper that forwards its
+  own `defineModel('open')` through `v-model:open` makes the dialog
+  controlled the moment that model holds a value, with the same obligation.
+  The veto composes with plain listeners; a modifier listener
+  (`@click.capture`, `.once`) is a separate DOM listener the part's handler
+  doesn't consult. A listener that throws is caught by Vue's error handling,
+  so it can't veto.
 - **Boolean props follow the core defaults when absent.** Vue casts an absent
   Boolean prop to `false`; this root declares its booleans without that
   cast, so `<Dialog>` is modal and uncontrolled, and a bare attribute
   (`<Dialog default-open>`) switches the option on.
 - **`Portal`** teleports the layers to `document.body`, or to a `container`
   element you supply. Nothing is kept mounted while closed; an `animated`
-  dialog stays mounted through the core contract's `closing` state so its
-  exit can play — see the exit-animation note below. The server renders no
-  portal (there is no document to teleport into), and so neither does the
-  client's hydration pass: the teleport arrives with the first update after
-  the Portal mounts. Swapping `container` while open re-creates the teleport
-  on the new target rather than moving it, like the React and Solid portals —
-  the open sequence runs again against the new placement. When scoped to a
-  `container`, the scroll lock applies to that container instead of the page,
-  and the backdrop/viewport must be positioned `absolute` (not `fixed`) so the
-  overlay pins to the container. Because an `absolute` overlay can't stay fixed
-  inside a scrolling element, a scoped container that needs a scrollable
-  background should be a non-scrolling positioned boundary wrapping an inner
-  scroller — portal into the boundary; the overlay fills its visible box and
-  the backdrop blocks the scroller behind it (see the `scoped` story).
+  dialog stays mounted through the core contract's `closing` state so its exit
+  can play — see the exit-animation note below. The server renders no portal
+  (there is no document to teleport into), and so neither does the client's
+  hydration pass: the teleport arrives with the first update after the Portal
+  mounts. Swapping `container` while open re-creates the teleport on the new
+  target rather than moving it, like the React and Solid portals — the open
+  sequence runs again against the new placement. `container` takes an element,
+  not a selector — query it first. When scoped to a `container`, the scroll
+  lock applies to that container instead of the page, and the
+  backdrop/viewport must be positioned `absolute` (not `fixed`) so the overlay
+  pins to the container. Because an `absolute` overlay can't stay fixed inside
+  a scrolling element, a scoped container that needs a scrollable background
+  should be a non-scrolling positioned boundary wrapping an inner scroller —
+  portal into the boundary; the overlay fills its visible box and the backdrop
+  blocks the scroller behind it (see the `scoped` story).
 - **`Content`** renders a `<div>` carrying the `dialog` (or `alertdialog`)
   role, not the native `<dialog>` element. The dialog window is the initial
   focus target — focusable in script, out of the tab order — which needs
@@ -81,12 +88,16 @@ Vue-specific notes on top of the core contract:
   (see the core spec's Internals). With the role explicit and the element
   neutral, there is nothing left to gain and one conformance rule left to
   break.
-- **`Content`'s `initialFocus`** accepts an element, a ref, or a getter
-  (`MaybeRefOrGetter`), resolved at open time; `restoreFocus` takes the same
-  shape, resolved at close time. A template unwraps a ref when it renders —
-  before an element inside the dialog has mounted — so a template passes a
-  getter: `:initial-focus="() => cancelButton"`. Script and TSX pass the ref
-  itself.
+- **`Content`'s `initialFocus`** accepts an element, a component (its `$el`),
+  a ref to either, or a getter, resolved at open time; `restoreFocus` takes
+  the same shape, resolved at close time. A template unwraps a ref when it
+  renders — before an element inside the dialog has mounted — so a template
+  passes a getter: `:initial-focus="() => cancelButton"`. Script and TSX pass
+  the ref itself.
+- **`Content` without a `Portal`** stays mounted while closed, so its DOM
+  work follows the dialog's state, not its mount: the scroll lock holds while
+  the dialog is open or closing, and the exit window hides the window
+  alone — it sits in the page, not in a container of its own.
 - **Element access**: every part renders exactly one root element, so a
   template ref on a part reaches it as `$el` (`contentPart.value.$el`). A
   non-modal Backdrop renders nothing, and the Portal renders no element of
@@ -136,7 +147,9 @@ Vue-specific notes on top of the core contract:
   holds still the same way until the view returns.
 - **Server rendering** touches no DOM: the root and its Trigger render, the
   document-level work starts on mount, and the base id comes from `useId`, so
-  the hydrated parts carry the ids the server rendered.
+  the hydrated parts carry the ids the server rendered. `useId` counts per
+  app: with several Vue apps on one page, give each its own
+  `app.config.idPrefix` — dialogs share one layer stack, keyed by id.
 - Everything ships headless, per the core contract's
   [Internals](../../core/dialog/SPEC.md#internals).
 
@@ -211,11 +224,11 @@ Content.
 The dialog window; renders a `<div>` with the `dialog` role. Default slot:
 the window's content.
 
-| Prop           | Type                                                 | Default           | Description                                                                                                                                                 |
-| -------------- | ---------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `initialFocus` | `MaybeRefOrGetter<HTMLElement \| null \| undefined>` | the dialog window | The element to focus when the dialog opens — resolved at open time.                                                                                         |
-| `restoreFocus` | `MaybeRefOrGetter<HTMLElement \| null \| undefined>` | —                 | Focused on close when nothing meaningful held focus before opening (the body, or an element since removed) — resolved at close time. Typically the trigger. |
-| `...attrs`     | `HTMLAttributes`                                     | —                 | Merged onto the rendered `<div>`.                                                                                                                           |
+| Prop           | Type                                                                            | Default           | Description                                                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `initialFocus` | `MaybeRefOrGetter<HTMLElement \| ComponentPublicInstance \| null \| undefined>` | the dialog window | The element to focus when the dialog opens — resolved at open time.                                                                                         |
+| `restoreFocus` | `MaybeRefOrGetter<HTMLElement \| ComponentPublicInstance \| null \| undefined>` | —                 | Focused on close when nothing meaningful held focus before opening (the body, or an element since removed) — resolved at close time. Typically the trigger. |
+| `...attrs`     | `HTMLAttributes`                                                                | —                 | Merged onto the rendered `<div>`.                                                                                                                           |
 
 ### `Dialog.Title`
 
