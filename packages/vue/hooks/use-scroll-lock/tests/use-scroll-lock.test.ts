@@ -39,6 +39,27 @@ describe('useScrollLock', () => {
     unmount()
   })
 
+  // `ref<HTMLElement>()` holds undefined until its element renders.
+  it('locks nothing while a template ref is still empty, and its element once it renders', async () => {
+    const shown = ref(false)
+    const target = ref<HTMLElement>()
+    const { unmount } = render(
+      defineComponent({
+        setup() {
+          useScrollLock(true, target)
+          return () => h('div', shown.value ? [h('section', { ref: target })] : [])
+        },
+      }),
+    )
+    expect(document.body.style.overflowY).toBe('')
+
+    shown.value = true
+    await nextTick()
+    expect(target.value?.style.overflowY).toBe('hidden')
+    expect(document.body.style.overflowY).toBe('')
+    unmount()
+  })
+
   it('follows a reactive locked flag, releasing when it turns off', async () => {
     const locked = ref(true)
     const { unmount } = mountLock(locked)

@@ -263,7 +263,7 @@ export const Portal: DialogComponent<DialogPortalProps> = defineComponent(
     // containment was computed for the old placement.
     let generation = 0
     watch(
-      () => props.container,
+      () => props.container ?? null,
       () => {
         generation++
       },
@@ -408,8 +408,8 @@ export const Content: DialogComponent<DialogContentProps> = defineComponent(
     // The lock spans the whole mount — through `closing` too: releasing it
     // mid-exit would bring the scrollbar back and reflow the page under the
     // still-painting layer. The context's `null` means "page body", not the
-    // hook's "no target yet" — map it to the hook's body default.
-    useScrollLock(machine.context.modal, () => container() ?? undefined)
+    // hook's "no target yet" — name the body. Read on mount, client-side.
+    useScrollLock(machine.context.modal, () => container() ?? document.body)
 
     useFocusTrap(
       contentRef,

@@ -34,9 +34,10 @@ Vue-specific notes on top of the DOM contract:
   `MaybeRefOrGetter` — a plain value, a ref, or a getter — so the lock
   tracks reactive state: a `target` change releases the old container and
   locks the new one.
-- An omitted `target` means the page body; `null` means "no target yet"
-  and locks nothing — the lock engages once a ref or getter resolves the
-  element. Mounted hooks never run during server rendering, so there is no
+- An omitted `target` means the page body. A target that resolves to
+  `null` or `undefined` — a template ref before its element renders — means
+  "no target yet" and locks nothing; the lock engages once the element
+  resolves. Mounted hooks never run during server rendering, so there is no
   body to touch there.
 - The DOM contract's shared per-container lock does the multi-holder
   arithmetic: several mounted lockers (nested modal layers) hold one lock,
@@ -48,7 +49,7 @@ Vue-specific notes on top of the DOM contract:
 
 Returns nothing — the lock lives and dies with the component.
 
-| Param    | Type                                                 | Default       | Description                                                                                                       |
-| -------- | ---------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `locked` | `MaybeRefOrGetter<boolean>`                          | `true`        | Whether the lock is held.                                                                                         |
-| `target` | `MaybeRefOrGetter<HTMLElement \| null \| undefined>` | the page body | The scroll container to lock (e.g. a scoped surface locks its own container, not the page). `null` locks nothing. |
+| Param    | Type                                                 | Default       | Description                                                                                                                     |
+| -------- | ---------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `locked` | `MaybeRefOrGetter<boolean>`                          | `true`        | Whether the lock is held.                                                                                                       |
+| `target` | `MaybeRefOrGetter<HTMLElement \| null \| undefined>` | the page body | The scroll container to lock (e.g. a scoped surface locks its own container, not the page). `null` / `undefined` locks nothing. |

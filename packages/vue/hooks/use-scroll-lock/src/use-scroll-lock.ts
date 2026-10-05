@@ -15,9 +15,10 @@ import { lockScroll } from '@dunky.dev/dom-scroll-lock'
 /**
  * Locks scrolling while the component is mounted and `locked` — the Vue
  * lifecycle around `lockScroll`. Targets the page body unless a `target` is
- * given. A `null` target means "no target yet" and locks nothing; pass a ref
- * or a getter and the lock engages once the element resolves. The lock is
- * shared per container: it restores when the last holder releases.
+ * given. A target that resolves to nothing — a template ref before its
+ * element renders — means "no target yet" and locks nothing; the lock engages
+ * once the element resolves. The lock is shared per container: it restores
+ * when the last holder releases.
  */
 export function useScrollLock(
   locked: MaybeRefOrGetter<boolean> = true,
@@ -35,10 +36,10 @@ export function useScrollLock(
     scope.run(() => {
       let unlock: (() => void) | undefined
       watch(
-        [() => toValue(locked), () => (target === undefined ? undefined : toValue(target))],
+        [() => toValue(locked), () => (target === undefined ? document.body : toValue(target))],
         ([isLocked, container]) => {
           unlock?.()
-          unlock = !isLocked || container === null ? undefined : lockScroll(container)
+          unlock = !isLocked || container == null ? undefined : lockScroll(container)
         },
         { immediate: true, flush: 'post' },
       )
