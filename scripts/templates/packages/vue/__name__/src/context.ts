@@ -1,10 +1,10 @@
-import { inject, type InjectionKey, type Ref } from 'vue'
+import { inject, type ComputedRef, type InjectionKey } from 'vue'
 import type { __Name__Api, __Name__Machine } from '@dunky.dev/__name__'
 
 export interface __Name__ContextValue {
   // The connected api: its value is replaced on every machine change, so a
   // part whose render reads it re-renders exactly then.
-  api: Readonly<Ref<__Name__Api>>
+  api: ComputedRef<__Name__Api>
   machine: __Name__Machine
 }
 

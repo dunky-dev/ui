@@ -352,34 +352,38 @@ export const Content: DialogComponent<DialogContentProps> = defineComponent(
     // dialog stays mounted through `closing`, and Content rendered while not
     // open is that exit window. The sequences and their inverses are the DOM
     // package's; this watcher only ties them to Vue's lifecycle — it starts
-    // once the element exists.
+    // once the element exists. Released by hand rather than through the
+    // watcher's onCleanup, which Vue 3.6 also runs when the source merely
+    // re-evaluates — on every api change.
     whileActive(() => {
+      let release: (() => void) | undefined
       watch(
         () => api.value.open,
-        (open, _previous, onCleanup) => {
+        open => {
+          release?.()
+          release = undefined
           const content = contentRef.value
           if (content === null) return
 
-          onCleanup(
-            open
-              ? openDialogLayer(content, {
-                  id: machine.context.id,
-                  depth,
-                  modal: machine.context.modal,
-                  backdrop: () => backdropRef.value,
-                  initialFocus: toValue(props.initialFocus),
-                  restoreFocus: () => toValue(props.restoreFocus) ?? null,
-                  dismiss: () => machine.send({ type: 'close' }),
-                })
-              : startExitWindow(content, {
-                  container: container(),
-                  backdrop: backdropRef.value,
-                  onComplete: () => machine.send({ type: 'exit.complete' }),
-                }),
-          )
+          release = open
+            ? openDialogLayer(content, {
+                id: machine.context.id,
+                depth,
+                modal: machine.context.modal,
+                backdrop: () => backdropRef.value,
+                initialFocus: toValue(props.initialFocus),
+                restoreFocus: () => toValue(props.restoreFocus) ?? null,
+                dismiss: () => machine.send({ type: 'close' }),
+              })
+            : startExitWindow(content, {
+                container: container(),
+                backdrop: backdropRef.value,
+                onComplete: () => machine.send({ type: 'exit.complete' }),
+              })
         },
         { immediate: true },
       )
+      onScopeDispose(() => release?.())
     })
 
     // The lock spans the whole mount — through `closing` too: releasing it

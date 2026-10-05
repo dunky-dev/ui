@@ -1,10 +1,10 @@
-import { inject, type InjectionKey, type Ref, type ShallowRef } from 'vue'
+import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
 import type { DialogApi, DialogMachine } from '@dunky.dev/dialog'
 
 export interface DialogContextValue {
   // The connected api: its value is replaced on every machine change, so a
   // part whose render reads it re-renders exactly then.
-  api: Readonly<Ref<DialogApi>>
+  api: ComputedRef<DialogApi>
   machine: DialogMachine
   // Nesting level (1 = top-level). Decides the topmost dialog of a stack for
   // Escape, focus, and assistive-tech containment.

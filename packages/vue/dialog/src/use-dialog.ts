@@ -1,11 +1,11 @@
-import { toValue, useId, type MaybeRefOrGetter, type Ref } from 'vue'
+import { toValue, useId, type ComputedRef, type MaybeRefOrGetter } from 'vue'
 import { useMachine } from '@dunky.dev/vue-state-machine'
 import { dialogMachine, dialogConnect } from '@dunky.dev/dialog'
 import type { DialogApi, DialogMachine, DialogOptions } from '@dunky.dev/dialog'
 import { domDialogEffects } from '@dunky.dev/dom-dialog'
 
 export function useDialog(options: MaybeRefOrGetter<DialogOptions>): {
-  api: Readonly<Ref<DialogApi>>
+  api: ComputedRef<DialogApi>
   machine: DialogMachine
 } {
   const id = useId()

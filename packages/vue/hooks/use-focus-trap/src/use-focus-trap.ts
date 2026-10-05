@@ -4,6 +4,7 @@ import {
   onBeforeUnmount,
   onDeactivated,
   onMounted,
+  onScopeDispose,
   toValue,
   watch,
   type EffectScope,
@@ -27,29 +28,33 @@ export function useFocusTrap(
   // deactivation releases it like an unmount, as React's <Activity> runs the
   // effect's cleanup. Mounted hooks never run during server rendering. The
   // trap reads the options object per Tab press, so `enabled` / `last` stay
-  // live without re-binding.
+  // live without re-binding. Released by hand rather than through the
+  // watcher's onCleanup, which Vue 3.6 also runs when the target merely
+  // re-evaluates.
   let scope: EffectScope | undefined
   const arm = (): void => {
     if (scope !== undefined) return
     scope = effectScope()
-    scope.run(() =>
+    scope.run(() => {
+      let untrap: (() => void) | undefined
       watch(
         () => toValue(target),
-        (container, _previous, onCleanup) => {
-          if (container == null) return
-          onCleanup(trapFocus(container, options))
+        container => {
+          untrap?.()
+          untrap = container == null ? undefined : trapFocus(container, options)
         },
         { immediate: true, flush: 'post' },
-      ),
-    )
+      )
+      onScopeDispose(() => untrap?.())
+    })
   }
-  const release = (): void => {
+  const disarm = (): void => {
     scope?.stop()
     scope = undefined
   }
   onMounted(arm)
   // Also fires on a kept-alive first mount, right after `onMounted`.
   onActivated(arm)
-  onDeactivated(release)
-  onBeforeUnmount(release)
+  onDeactivated(disarm)
+  onBeforeUnmount(disarm)
 }
