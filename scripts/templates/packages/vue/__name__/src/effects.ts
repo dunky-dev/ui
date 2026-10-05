@@ -2,12 +2,14 @@ import type { ComponentEffect } from '@dunky.dev/vue-state-machine'
 import type { __Name__Machine, __Name__Options } from '@dunky.dev/__name__'
 
 // Substrate effects: prop-driven or platform work the machine can't own.
-// useMachine runs one watcher per entry, keyed on the listed prop deps.
+// useMachine runs each entry after mount and re-runs it when a listed prop
+// changes.
 type __Name__Effect = ComponentEffect<__Name__Machine, __Name__Options>
 
 // Config that lives in machine context is synced through events, so guards keep
 // working at runtime — the machine never reads props. Document listeners and
-// platform APIs also belong here (see the dialog for an example).
+// anything else a DOM host would write identically do NOT belong here — they
+// live in @dunky.dev/dom-__name__, so every DOM substrate shares one copy.
 const syncDisabled: __Name__Effect = [
   (machine, props) => {
     const disabled = props.disabled ?? false
