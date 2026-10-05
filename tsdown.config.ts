@@ -8,7 +8,9 @@ export default defineConfig({
   // The publishable packages, listed explicitly. A glob (`packages/**`) over-matches
   // src/tests dirs, and `include: 'auto'` walks node_modules — so for this layout an
   // explicit list is the clean choice. Keep in sync with the publish set in
-  // .changeset/config.json.
+  // .changeset/config.json. The Svelte packages are absent on purpose: they ship
+  // uncompiled for the consumer's Svelte to compile, so @sveltejs/package builds
+  // them instead (`pnpm build:svelte`, chained by `pnpm build`).
   workspace: [
     'packages/core/dialog',
     'packages/core/utils/controllable',

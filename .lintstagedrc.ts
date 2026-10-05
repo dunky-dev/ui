@@ -8,12 +8,20 @@ const IGNORED = '/scripts/templates/'
 
 const quote = (paths: string[]): string => paths.map(path => JSON.stringify(path)).join(' ')
 
+const checkable = (files: string[]): string[] => files.filter(file => !file.includes(IGNORED))
+
 const config: Configuration = {
   '*.{ts,tsx}': files => {
-    const checkable = files.filter(file => !file.includes(IGNORED))
-    if (checkable.length === 0) return []
-    const targets = quote(checkable)
-    return [`oxlint --fix ${targets}`, `oxfmt ${targets}`]
+    const targets = checkable(files)
+    if (targets.length === 0) return []
+    return [`oxlint --fix ${quote(targets)}`, `oxfmt ${quote(targets)}`]
+  },
+  // oxlint reads a component's <script> blocks; oxfmt can't parse `.svelte`
+  // yet, so these get the lint pass only.
+  '*.svelte': files => {
+    const targets = checkable(files)
+    if (targets.length === 0) return []
+    return [`oxlint --fix ${quote(targets)}`]
   },
 }
 

@@ -29,7 +29,10 @@
       "@dunky.dev/react-use-focus-trap": ["./packages/react/hooks/use-focus-trap/src"],
       "@dunky.dev/react-use-scroll-lock": ["./packages/react/hooks/use-scroll-lock/src"],
       "@dunky.dev/solid-use-focus-trap": ["./packages/solid/hooks/use-focus-trap/src"],
-      "@dunky.dev/solid-use-scroll-lock": ["./packages/solid/hooks/use-scroll-lock/src"]
+      "@dunky.dev/solid-use-scroll-lock": ["./packages/solid/hooks/use-scroll-lock/src"],
+      "@dunky.dev/svelte-dialog": ["./packages/svelte/dialog/src"],
+      "@dunky.dev/svelte-use-focus-trap": ["./packages/svelte/hooks/use-focus-trap/src"],
+      "@dunky.dev/svelte-use-scroll-lock": ["./packages/svelte/hooks/use-scroll-lock/src"]
     },
     "types": ["@types/node", "vitest/globals"]
   },
@@ -39,11 +42,14 @@
   // only ever see the missing module in CI. packages/solid needs Solid's JSX
   // namespace (`jsx: preserve` + solid-js import source), so it typechecks as
   // its own project — packages/solid/tsconfig.json, run by `pnpm typecheck`.
+  // packages/svelte holds `.svelte` files tsc can't read; svelte-check
+  // typechecks it instead (packages/svelte/tsconfig.json, same script).
   "exclude": [
     "**/node_modules",
     "**/dist",
     "packages/native/index.ts",
     "packages/native/.rnstorybook",
-    "packages/solid"
+    "packages/solid",
+    "packages/svelte"
   ]
 }
