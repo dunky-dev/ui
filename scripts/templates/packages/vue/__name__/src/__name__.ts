@@ -13,12 +13,11 @@ import { mergeProps, normalize } from '@dunky.dev/vue-state-machine'
 import { __Name__ContextKey, use__Name__Context } from './context'
 import { use__Name__ } from './use-__name__'
 
-// Explicit so the exports satisfy --isolatedDeclarations (a bare
-// defineComponent call gives the variable no annotatable type). It is the
-// options-carrying type an SFC gets: the function-signature defineComponent
-// types its result as a bare constructor, which tooling built around SFCs
-// (Storybook's Meta) rejects — the value is the same options object either
-// way, so the casts below only name it.
+// The options-carrying type an SFC gets: the function-signature
+// defineComponent infers a bare constructor, which tooling built around SFCs
+// (Storybook's Meta) rejects. The value is the same options object either
+// way, so each part's cast only names it — and gives the export the explicit
+// type --isolatedDeclarations needs.
 type __Name__Component<Props, Emits extends EmitsOptions = {}> = DefineComponent<
   Props,
   {},
@@ -72,7 +71,7 @@ const __Name__Root = defineComponent<__Name__Props, __Name__Emits>(
 
 export interface __Name__RootProps extends ButtonHTMLAttributes {}
 
-export const Root: __Name__Component<__Name__RootProps> = defineComponent(
+export const Root = defineComponent(
   (_props: __Name__RootProps, { attrs, slots }) => {
     const { api } = use__Name__Context()
     return () =>
