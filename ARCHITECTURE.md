@@ -6,7 +6,7 @@ one per host environment — the **substrates**. Behavior cannot drift between
 hosts because it exists in exactly one place.
 
 A substrate is any environment a primitive is delivered to: a framework
-(react), another framework (solid), or a different host entirely
+(react), other frameworks (solid, svelte), or a different host entirely
 (native). Substrates are cheap by design; the expensive thing — the behavior
 — is written once.
 
@@ -66,9 +66,9 @@ edges — lives under `dom/components/` instead. A util is primitive-agnostic
 and imports nothing from the repo but a smaller util; a component package is
 the opposite, and may import the primitive's core package and any DOM util.
 Both are equally
-framework-free. The split matters as substrates multiply: React and Solid
-differ in how they schedule an effect, not in what the effect does, so the
-what is written once and each binding contributes only its lifecycle.
+framework-free. The split matters as substrates multiply: React, Solid, and
+Svelte differ in how they schedule an effect, not in what the effect does, so
+the what is written once and each binding contributes only its lifecycle.
 
 Machine logic that several primitives need — the controlled/uncontrolled
 machinery (`@dunky.dev/controllable`) — lives the same way under
@@ -264,15 +264,46 @@ directory into the templates — the script discovers it. See
 
 - The root owns building (tsdown workspace), testing (vitest), lint/format
   (oxlint/oxfmt), and releases (changesets) — one config each, no per-package
-  tooling.
+  tooling. A substrate whose host needs its own compiler is the exception,
+  configured per package and recorded below: Solid compiles through a babel
+  `tsdown.config.ts`, and Svelte builds outside tsdown altogether
+  ([Svelte packages](#svelte-packages)).
 - Each substrate owns its dev harness and framework deps — e.g.
   `packages/react/.storybook`, run with `pnpm dev:<substrate>`.
-- Publishable packages are listed explicitly in `tsdown.config.ts`; a private
-  package gets a tsconfig path but is never published.
+- Publishable packages are listed explicitly in `tsdown.config.ts` (the Svelte
+  ones aside, see below); a private package gets a tsconfig path but is never
+  published.
 - A published tarball carries `dist`, `src`, and the package's docs
   (`README.md`, `SPEC.md`; pnpm copies in the root `LICENSE`). Consumers import
   `dist` — `publishConfig` points every entry at it. The source and spec ship
   so they can be read.
+
+### Svelte packages
+
+A Svelte package ships uncompiled, built by `@sveltejs/package` instead of
+tsdown. Svelte's compiled output targets `svelte/internal/*`, which is no
+stable API across Svelte versions, and a server render needs a different
+compile than the browser — so only the consumer's own Svelte can compile a
+component for the consumer. `svelte-package -i src` emits `dist` file for
+file: `.svelte` components and `.svelte.js` rune modules for that compiler,
+`.js` from `.ts`, and a `.d.ts` beside each (`.svelte.d.ts` for components).
+The `exports` map carries the `types` and `svelte` conditions — the `svelte`
+condition is how bundlers and vite-plugin-svelte recognize a package to
+compile, SSR included — and publint checks the result, as tsdown does for the
+rest. `pnpm build` runs these builds after tsdown (`pnpm build:svelte`), so
+`changeset:publish` ships them with everything else.
+
+The alternatives don't hold up: compiling components with a tsdown Svelte
+plugin pins every consumer to this repo's Svelte and runtime internals and
+leaves SSR out; publishing raw `src` drops the generated component types and
+the TS-to-JS step non-TypeScript toolchains rely on.
+
+Two consequences in the source. Nothing bundles or rewrites the emitted files,
+so relative imports name the file they will load (`./context.js`,
+`./use-x.svelte.js`, `./part.svelte`). And the build's declaration emit
+(svelte2tsx) and the substrate's typecheck (svelte-check) drive TypeScript's
+classic compiler API, which TypeScript 7 no longer ships — the Svelte packages
+pin a local `typescript@^6` while the rest of the repo runs 7.
 
 ## Versioning
 

@@ -25,23 +25,23 @@ up there with the same behavior and the same a11y.
                connect() -> logical bindings
                (onPress, role, data-state, ...)
                               |
-             +----------------+----------------+
-             |                                 |
-             v                                 |
- +------------------------+                    |
- | dom/components/<name>  |   the DOM half     |
- |  document listeners,   |   shared by every  |
- |  focus/stack sequence  |   DOM host         |
- +-----+------------+-----+                    |
-       |            ^                          |
-       |            |  dom/utils/*             |
-       |            |  focus-trap, overlay,    |
-       |            |  scroll-lock, ...        |
-       v                                       v
- +-----------+  +-----------+           +-----------+
- |   react   |  |   solid   |           |  native   |
- +-----------+  +-----------+           +-----------+
-             render + host lifecycle only
+             +----------------+-----------------------+
+             |                                        |
+             v                                        |
+ +------------------------+                           |
+ | dom/components/<name>  |   the DOM half            |
+ |  document listeners,   |   shared by every         |
+ |  focus/stack sequence  |   DOM host                |
+ +-----+------------+-----+                           |
+       |            ^                                 |
+       |            |  dom/utils/*                    |
+       |            |  focus-trap, overlay,           |
+       |            |  scroll-lock, ...               |
+       v                                              v
+ +-----------+  +-----------+  +-----------+    +-----------+
+ |   react   |  |   solid   |  |  svelte   |    |  native   |
+ +-----------+  +-----------+  +-----------+    +-----------+
+                  render + host lifecycle only
 ```
 
 The engine that runs the core machines lives in its own repo:
@@ -63,8 +63,8 @@ renders, not how machines execute.
   ordered focus sequences), written once and shared by every DOM host.
   Published as `@dunky.dev/dom-<name>`.
 - **`<substrate>/`** — the render. A thin binding per host (`react/`,
-  `solid/`, `native/`) that wires the machine to real elements. Published as
-  `@dunky.dev/<substrate>-<name>` (e.g. `@dunky.dev/react-dialog`).
+  `solid/`, `svelte/`, `native/`) that wires the machine to real elements.
+  Published as `@dunky.dev/<substrate>-<name>` (e.g. `@dunky.dev/react-dialog`).
 
 The dependency direction is one-way: `substrate -> dom -> core`. A binding
 adds no behavior of its own — if a decision is needed, it moves into the core
