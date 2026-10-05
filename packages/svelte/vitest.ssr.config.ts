@@ -11,6 +11,10 @@ export default defineConfig({
     globals: false,
     environment: 'node',
     include: ['**/tests/**/*.ssr.test.ts'],
+    // A rune module loaded straight from node_modules would run uncompiled;
+    // vite-plugin-svelte only inlines the Svelte packages the harness itself
+    // depends on, and the adapter is a dependency of the packages below it.
+    server: { deps: { inline: ['@dunky.dev/svelte-state-machine'] } },
     exclude: ['**/node_modules/**', '**/dist/**'],
   },
 })
