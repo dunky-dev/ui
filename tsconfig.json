@@ -39,14 +39,16 @@
   "include": ["./*.ts", "./packages"],
   // The native Expo shell (entry + .rnstorybook) imports the generated,
   // gitignored storybook.requires.ts — Metro compiles that glue, tsc would
-  // only ever see the missing module in CI. packages/solid needs Solid's JSX
-  // namespace (`jsx: preserve` + solid-js import source), so it typechecks as
-  // its own project — packages/solid/tsconfig.json, run by `pnpm typecheck`.
+  // only ever see the missing module in CI. packages/solid and packages/vue
+  // need their framework's JSX namespace (`jsx: preserve` + its import
+  // source), so each typechecks as its own project —
+  // packages/<substrate>/tsconfig.json, run by `pnpm typecheck`.
   "exclude": [
     "**/node_modules",
     "**/dist",
     "packages/native/index.ts",
     "packages/native/.rnstorybook",
-    "packages/solid"
+    "packages/solid",
+    "packages/vue"
   ]
 }

@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitest/config'
 
-// Two projects: the Solid tests need vite-plugin-solid's JSX transform, which
-// must not rewrite the React `.tsx` tests. The solid project lives with its
-// substrate (packages/solid/vitest.config.ts).
+// One project per JSX flavor: the Solid and Vue tests need their framework's
+// JSX transform, which must not rewrite the React `.tsx` tests. Each lives
+// with its substrate (packages/<substrate>/vitest.config.ts).
 export default defineConfig({
   test: {
     projects: [
@@ -20,12 +20,14 @@ export default defineConfig({
             'scripts/templates/**',
             'packages/native/**',
             'packages/solid/**',
+            'packages/vue/**',
             '**/.worktrees/**',
             '**/.claude/**',
           ],
         },
       },
       './packages/solid/vitest.config.ts',
+      './packages/vue/vitest.config.ts',
     ],
   },
 })

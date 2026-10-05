@@ -9,7 +9,7 @@
     "test:native": "pnpm --filter @dunky-dev/native test",
     "test:ci": "vitest run && pnpm test:native",
     "build": "tsdown",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/solid",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/solid && tsc --noEmit -p packages/vue",
     "lint": "oxlint --ignore-pattern '.worktrees' .",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",

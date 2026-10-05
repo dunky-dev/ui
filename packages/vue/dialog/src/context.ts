@@ -1,27 +1,29 @@
-import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
+import { inject, type InjectionKey, type Ref, type ShallowRef } from 'vue'
 import type { DialogApi, DialogMachine } from '@dunky.dev/dialog'
 
 export interface DialogContextValue {
-  api: ComputedRef<DialogApi>
+  // The connected api: its value is replaced on every machine change, so a
+  // part whose render reads it re-renders exactly then.
+  api: Readonly<Ref<DialogApi>>
   machine: DialogMachine
   // Nesting level (1 = top-level). Decides the topmost dialog of a stack for
   // Escape, focus, and assistive-tech containment.
   depth: number
-  // The element the Portal teleported into, or null for the page body —
+  // The element the Portal teleports into, or null for the page body —
   // Content scopes the scroll lock to it. A getter so the Portal's prop stays
-  // live: the root provides null; Portal re-provides the context filled in.
+  // live: the root provides null, Portal re-provides the context filled in.
   container: () => HTMLElement | null
-  // The rendered Backdrop element, shared because Backdrop and Content are
-  // sibling parts: Content's stack entry excepts its own backdrop from the
+  // The rendered Backdrop, shared because Backdrop and Content are sibling
+  // parts: Content's stack entry excepts its own backdrop from the
   // containment so it stays pressable while its dialog is topmost.
-  backdropEl: ShallowRef<HTMLDivElement | null>
+  backdropRef: ShallowRef<HTMLElement | null>
 }
 
 export const DialogContextKey: InjectionKey<DialogContextValue> = Symbol('DialogContext')
 
 export const useDialogContext = (): DialogContextValue => {
-  const context = inject(DialogContextKey, undefined)
-  if (context === undefined) {
+  const context = inject(DialogContextKey, null)
+  if (context === null) {
     throw new Error('Dialog parts must be rendered within a <Dialog> root')
   }
   return context

@@ -1,0 +1,12 @@
+{
+  // Vue's TSX (tests) needs Vue's JSX namespace, not React's — so
+  // packages/vue typechecks as its own project (the root tsconfig excludes
+  // it; `pnpm typecheck` runs both). `paths` is inherited from the root file.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "vue"
+  },
+  "include": ["."],
+  "exclude": ["**/node_modules", "**/dist"]
+}

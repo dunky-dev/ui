@@ -1,6 +1,7 @@
 export {
   Dialog,
   type DialogProps,
+  type DialogEmits,
   type DialogTriggerProps,
   type DialogPortalProps,
   type DialogBackdropProps,
