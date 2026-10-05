@@ -125,6 +125,11 @@ Vue-specific notes on top of the core contract:
   re-enter. A nested dialog unmounted along with the parent it was opened from
   does come back, and so does one whose page reloaded in between — the entry
   remembers the dialog's place in the stack, not the instance that planted it.
+- **`<KeepAlive>`**: a deactivated dialog's machine is paused by the
+  adapter, as React's `<Activity>` pauses its effects, so its DOM work ends
+  too — the Portal takes the layers down (Vue would leave teleported content
+  painted over the next view), and the history guard, focus trap, and scroll
+  lock release. Reactivation restores them with the open state intact.
 - **Server rendering** touches no DOM: the root and its Trigger render, the
   document-level work starts on mount, and the base id comes from `useId`, so
   the hydrated parts carry the ids the server rendered.
@@ -153,7 +158,7 @@ The root: owns open/close state, renders no DOM. Accepts the core
 
 | Emit                 | Payload                         | Description                                                                            |
 | -------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
-| `update:open`        | `open: boolean`                 | Fired on every open/close transition with the new value; with `open`, `v-model`.       |
+| `update:open`        | `open: boolean`                 | Fired on every open/close transition with the new value; with `open`, `v-model:open`.  |
 | `escape-key-down`    | `event: KeyboardPayload`        | Fired before an Escape dismissal (the `KeyboardEvent`); `preventDefault()` vetoes.     |
 | `interact-outside`   | `event?: PointerPayload`        | Fired before an outside-press dismissal (the `MouseEvent`); `preventDefault()` vetoes. |
 | `back-navigation`    | `event?: BackNavigationPayload` | Fired before a back-navigation dismissal; `preventDefault()` vetoes.                   |

@@ -28,7 +28,9 @@ useScrollLock() // the page behind can't scroll while mounted
 Vue-specific notes on top of the DOM contract:
 
 - The lock holds while the component is mounted and `locked` resolves true;
-  unmounting or turning `locked` off releases it. Both parameters accept a
+  unmounting or turning `locked` off releases it, and so does a `<KeepAlive>`
+  deactivation — reactivation locks again, as React's `<Activity>` runs an
+  effect's cleanup. Both parameters accept a
   `MaybeRefOrGetter` — a plain value, a ref, or a getter — so the lock
   tracks reactive state: a `target` change releases the old container and
   locks the new one.

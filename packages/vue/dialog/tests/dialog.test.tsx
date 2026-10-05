@@ -1031,6 +1031,22 @@ describe('Dialog', () => {
       expect(screen.getByRole('dialog').hasAttribute('aria-labelledby')).toBe(false)
     })
 
+    // Every part renders exactly one root element, so a component ref is
+    // the consumer's handle on it.
+    it("a part's template ref reaches its element as $el", async () => {
+      const content = ref<InstanceType<typeof Dialog.Content> | null>(null)
+      await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Content ref={content} aria-label='Settings'>
+              content
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      expect(content.value?.$el).toBe(screen.getByRole('dialog'))
+    })
+
     it('derives the part ids from the id prop, and from useId when it is absent or undefined', async () => {
       await renderSettled(() => (
         <>

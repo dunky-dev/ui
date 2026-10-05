@@ -35,8 +35,10 @@ Vue-specific notes on top of the DOM contract:
 - The target is a `MaybeRefOrGetter` — a template ref, a getter, or the
   element itself. The trap arms when the component mounts (a template ref
   has filled by then), re-arms when the target yields a new element, and
-  releases on unmount. Mounted hooks never run during server rendering, so
-  the trap touches no DOM there.
+  releases on unmount. A `<KeepAlive>` deactivation releases it too and
+  reactivation arms it again, as React's `<Activity>` runs an effect's
+  cleanup. Mounted hooks never run during server rendering, so the trap
+  touches no DOM there.
 - The options object is read on each Tab press, so inline `enabled` / `last`
   see the latest state without re-binding the listener — the per-press
   re-evaluation the DOM contract promises.
