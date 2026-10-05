@@ -38,7 +38,7 @@
   "dependencies": {
     "@dunky.dev/dialog": "workspace:*",
     "@dunky.dev/dom-dialog": "workspace:*",
-    "@dunky.dev/vue-state-machine": "^0.1.0",
+    "@dunky.dev/vue-state-machine": "^0.3.0",
     "@dunky.dev/vue-use-focus-trap": "workspace:*",
     "@dunky.dev/vue-use-scroll-lock": "workspace:*"
   },
