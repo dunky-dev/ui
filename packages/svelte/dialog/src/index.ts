@@ -22,8 +22,9 @@ interface Parts {
 }
 
 // One component per file is Svelte's unit, so the compound is assembled here:
-// the parts hang off the root as statics, reached as `<Dialog.Trigger>`.
-export const Dialog: Component<DialogProps> & Parts = Object.assign(Root, {
+// the parts hang off the root as statics, reached as `<Dialog.Trigger>`. The
+// root binds nothing (`''`): `open` is deliberately not bindable (SPEC.md).
+export const Dialog: Component<DialogProps, {}, ''> & Parts = Object.assign(Root, {
   Trigger,
   Portal,
   Backdrop,
