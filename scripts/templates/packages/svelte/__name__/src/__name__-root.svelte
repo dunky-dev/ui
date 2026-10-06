@@ -8,8 +8,9 @@
   let { children, ref = $bindable(null), ...rest }: __Name__RootProps = $props()
 
   const context = use__Name__Context()
+  // `??`, not spread order: an explicit `type={undefined}` keeps the default.
   const attrs = $derived(
-    mergeProps({ type: 'button' as const, ...rest }, normalize(context.api.parts.root)),
+    mergeProps({ ...rest, type: rest.type ?? 'button' }, normalize(context.api.parts.root)),
   )
 </script>
 

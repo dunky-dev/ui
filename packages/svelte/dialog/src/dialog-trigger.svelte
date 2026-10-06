@@ -6,8 +6,9 @@
   let { children, ref = $bindable(null), ...rest }: DialogTriggerProps = $props()
 
   const dialog = useDialogContext()
+  // `??`, not spread order: an explicit `type={undefined}` keeps the default.
   const attrs = $derived(
-    mergeProps({ type: 'button' as const, ...rest }, normalize(dialog.api.parts.trigger)),
+    mergeProps({ ...rest, type: rest.type ?? 'button' }, normalize(dialog.api.parts.trigger)),
   )
 </script>
 

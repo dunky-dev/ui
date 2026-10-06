@@ -11,6 +11,7 @@ import { press, pressEscape } from './fixtures/interact'
 import PresenceDialog from './fixtures/presence-dialog.svelte'
 import RefDialog from './fixtures/ref-dialog.svelte'
 import ScopedDialog from './fixtures/scoped-dialog.svelte'
+import TypedButtonsDialog from './fixtures/typed-buttons-dialog.svelte'
 
 describe('Dialog (Svelte)', () => {
   describe('ids', () => {
@@ -135,6 +136,18 @@ describe('Dialog (Svelte)', () => {
       screen.getByText('Trigger').focus()
       expect(first).not.toHaveBeenCalled()
       expect(second).toHaveBeenCalledTimes(1)
+    })
+
+    // A `type` the consumer leaves undefined must not erase the default — a
+    // typeless button inside a form submits it.
+    it('keeps Trigger and Close type="button" unless given a type', async () => {
+      const { rerender } = render(TypedButtonsDialog, { type: undefined })
+      expect(screen.getByText('Trigger').getAttribute('type')).toBe('button')
+      expect(screen.getByText('Close').getAttribute('type')).toBe('button')
+
+      await rerender({ type: 'submit' })
+      expect(screen.getByText('Trigger').getAttribute('type')).toBe('submit')
+      expect(screen.getByText('Close').getAttribute('type')).toBe('submit')
     })
   })
 
