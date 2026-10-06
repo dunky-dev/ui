@@ -14,6 +14,9 @@ export default defineConfig({
     // node by default; DOM tests opt into jsdom per-file via `@vitest-environment`.
     environment: 'node',
     include: ['**/tests/**/*.test.ts'],
+    // Server markup for the hydration test, rendered outside this project's
+    // browser resolution.
+    globalSetup: ['./dialog/tests/fixtures/server-render.ts'],
     // A rune module loaded straight from node_modules would run uncompiled;
     // vite-plugin-svelte only inlines the Svelte packages the harness itself
     // depends on, and the adapter is a dependency of the packages below it.

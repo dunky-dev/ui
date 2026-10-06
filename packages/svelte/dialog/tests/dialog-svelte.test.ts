@@ -3,7 +3,8 @@
 // dialog.test.ts: id minting, mount-effect ordering, the open edge, the
 // mount()-based portal, and element access.
 import { render, screen } from '@testing-library/svelte'
-import { describe, expect, it, vi } from 'vitest'
+import { flushSync, hydrate, unmount } from 'svelte'
+import { describe, expect, inject, it, onTestFinished, vi } from 'vitest'
 import BackdropLastDialog from './fixtures/backdrop-last-dialog.svelte'
 import DefaultDialog from './fixtures/default-dialog.svelte'
 import HandlerDialog from './fixtures/handler-dialog.svelte'
@@ -163,6 +164,31 @@ describe('Dialog (Svelte)', () => {
       await rerender({ type: 'submit' })
       expect(screen.getByText('Trigger').getAttribute('type')).toBe('submit')
       expect(screen.getByText('Close').getAttribute('type')).toBe('submit')
+    })
+  })
+
+  describe('hydration', () => {
+    // The server render's ids come from `$props.id()`; hydration must adopt
+    // them, or the trigger's aria-controls would dangle.
+    it('hydrates the server render onto the same ids', () => {
+      const warn = vi.spyOn(console, 'warn')
+      const target = document.createElement('div')
+      target.innerHTML = inject('defaultOpenServerMarkup')
+      document.body.append(target)
+      const serverTrigger = target.querySelector('button')
+      const serverControls = serverTrigger?.getAttribute('aria-controls')
+
+      const app = hydrate(DefaultDialog, { target, props: { defaultOpen: true } })
+      onTestFinished(() => {
+        void unmount(app)
+        target.remove()
+      })
+      flushSync()
+      const trigger = screen.getByText('Trigger')
+      expect(trigger).toBe(serverTrigger)
+      expect(screen.getByRole('dialog').id).toBe(serverControls)
+      expect(trigger.getAttribute('aria-controls')).toBe(serverControls)
+      expect(warn).not.toHaveBeenCalled()
     })
   })
 
