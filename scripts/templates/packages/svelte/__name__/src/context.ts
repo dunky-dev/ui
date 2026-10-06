@@ -8,8 +8,8 @@ export interface __Name__ContextValue {
   machine: __Name__Machine
 }
 
-// A private key rather than `createContext()`: its `has` arrived only in
-// Svelte 5.57, below the substrate's supported floor.
+// A private key rather than `createContext()`: its `has` only arrived in
+// Svelte 5.57, far above the substrate's floor (5.20).
 const __camelName__Context = Symbol('__name__')
 
 export const set__Name__Context = (context: __Name__ContextValue): __Name__ContextValue =>
