@@ -4,6 +4,7 @@
 // mount()-based portal, and element access.
 import { render, screen } from '@testing-library/svelte'
 import { describe, expect, it, vi } from 'vitest'
+import BackdropLastDialog from './fixtures/backdrop-last-dialog.svelte'
 import DefaultDialog from './fixtures/default-dialog.svelte'
 import HandlerDialog from './fixtures/handler-dialog.svelte'
 import { press, pressEscape } from './fixtures/interact'
@@ -94,6 +95,15 @@ describe('Dialog (Svelte)', () => {
   })
 
   describe('portal', () => {
+    // `bind:this` fills in tree order; the layer registers only once its
+    // whole tree is bound, so render order inside the Portal doesn't matter.
+    it('keeps a Backdrop rendered after the Viewport pressable', () => {
+      render(BackdropLastDialog)
+      const backdrop = screen.getByTestId('backdrop')
+      expect(backdrop.hasAttribute('inert')).toBe(false)
+      expect(backdrop.hasAttribute('aria-hidden')).toBe(false)
+    })
+
     it('re-mounts the layers in a new container while open', async () => {
       const first = document.createElement('div')
       const second = document.createElement('div')

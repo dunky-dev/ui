@@ -94,11 +94,12 @@ Svelte-specific notes on top of the core contract:
   stable from the server render through hydration. An explicit `id` wins; an
   explicit `id={undefined}` keeps the generated one.
 - **`Backdrop`** renders nothing when the dialog is non-modal (`modal={false}`),
-  per the core parts contract. Render it ahead of the `Viewport`, in the
-  anatomy's order: Svelte binds elements after mount in tree order, so the
-  layer's registration — run by `Content` — only sees a backdrop bound before
-  it, and a backdrop rendered after the viewport is contained (made inert)
-  with the rest of the page.
+  per the core parts contract. Its place among the Portal's parts is free:
+  Svelte binds elements after mount, in tree order, so `Content` registers the
+  layer only once the Portal's whole tree is bound. One limit remains: a
+  `Backdrop` in a Portal of its own, rendered after the `Content`'s Portal,
+  mounts as a separate tree and binds too late — it is contained (made inert)
+  with the rest of the page. Keep the backdrop in the same Portal.
 - **Exit animation** (`animated`): style the exit on the parts'
   `data-state="closing"` — a CSS transition or animation on **Content** (the
   element carrying the state, not a descendant) is what signals completion;

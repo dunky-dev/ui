@@ -15,6 +15,10 @@ export interface DialogContextValue {
   // the containment. A plain box: the stack reads it on demand, nothing
   // re-renders on it.
   backdropRef: { current: HTMLDivElement | null }
+  // Whether the Portal's layer has bound every part: `bind:this` fills in
+  // tree order, so Content's layer registration waits for this rather than
+  // miss a Backdrop rendered after it. Absent outside a Portal.
+  readonly bound?: boolean
 }
 
 // A private key rather than `createContext()`: its `has` arrived only in

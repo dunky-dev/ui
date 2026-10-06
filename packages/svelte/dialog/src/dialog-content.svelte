@@ -31,6 +31,7 @@
   // Svelte's lifecycle and reads everything but the edge untracked.
   $effect(() => {
     const isOpen = open
+    if (dialog.bound === false) return
     return untrack(() => {
       if (content === null) return
       if (isOpen) {

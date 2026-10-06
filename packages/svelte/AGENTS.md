@@ -14,11 +14,13 @@ differs:
   that calls runes is a `.svelte.ts` file.
 - **Effects run in tree order, children first.** `bind:this` fills in the
   same pass, after mount — a part sees a sibling's element only if the sibling
-  renders before it. The connected `api` is a fresh snapshot per machine
-  change, so an effect keyed on one value derives it first
-  (`const open = $derived(api.open)`) and reads everything else `untrack`ed.
-  Each effect tears down right before its own re-run, so two effects keyed on
-  the same edge interleave: keep a sequence and its inverse in one effect.
+  renders before it, so work that needs the whole tree waits for an
+  ancestor's effect (the dialog's Portal layer marks itself `bound`). The
+  connected `api` is a fresh snapshot per machine change, so an effect keyed
+  on one value derives it first (`const open = $derived(api.open)`) and reads
+  everything else `untrack`ed. Each effect tears down right before its own
+  re-run, so two effects keyed on the same edge interleave: keep a sequence
+  and its inverse in one effect.
 - **svelte-check typechecks it**, not `tsc`, which can't read `.svelte`
   (`pnpm typecheck` runs both). svelte-check and the package build drive
   TypeScript's classic API, gone in TypeScript 7, so these packages hold a
