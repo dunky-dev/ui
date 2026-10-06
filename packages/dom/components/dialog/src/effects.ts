@@ -6,12 +6,35 @@ import {
   layersBelow,
 } from '@dunky.dev/dom-overlay'
 
+// The Escape presses a dialog already answered: one press, one answer. Each
+// dialog asks the stack only when its own listener runs, and a user's key
+// press runs a microtask checkpoint between listeners — where the binding
+// flushes the close the previous listener made, so the dialog beneath can be
+// topmost by then. Realm-global, like the overlay store, so a duplicate copy
+// of this package honors it too.
+const ANSWERED_KEY = Symbol.for('@dunky.dev/dom-dialog#answered-escapes')
+
+function answeredEscapes(): WeakSet<Event> {
+  const scope = globalThis as unknown as Record<symbol, WeakSet<Event> | undefined>
+  let answered = scope[ANSWERED_KEY]
+  if (answered === undefined) {
+    answered = new WeakSet()
+    scope[ANSWERED_KEY] = answered
+  }
+  return answered
+}
+
 // Escape is a document-level concern, not a part's — it must work wherever
 // focus is.
 const trackEscape: DialogEffect = [
   (machine, props) => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape' || !machine.matches('open')) return
+      // Another dialog took this press, or another handler already consumed
+      // it — preventing its default is what popup libraries do with the
+      // Escape they close on.
+      const answered = answeredEscapes()
+      if (answered.has(event) || event.defaultPrevented) return
       // Only the topmost dialog answers Escape — a nested stack closes one
       // layer at a time, unless this dialog's scope is the whole stack.
       const { id } = machine.context
@@ -20,6 +43,9 @@ const trackEscape: DialogEffect = [
       // while it holds focus — this listener runs in the capture phase, so
       // it would otherwise close the dialog under the popup.
       if (foreignPopupHoldsFocus(id) || expandedPopupControlHoldsFocus(id)) return
+      // The press is this dialog's now, whatever comes of it: a close, a veto,
+      // a gate, or an intent a controlled consumer has yet to follow.
+      answered.add(event)
       props.onEscapeKeyDown?.(event)
       if (event.defaultPrevented) return
       // Read the stack before the send: closing this layer releases it, and
