@@ -60,14 +60,19 @@ describe('useFocusTrap', () => {
     const shown = ref(true)
     render(() => <KeepAlive>{shown.value ? <Trap /> : null}</KeepAlive>)
     const container = screen.getByTestId('container')
+    // The cached container is off the document; a Tab there would reach no
+    // listener either way — press it on the page instead.
+    const outside = document.createElement('button')
+    document.body.append(outside)
 
     shown.value = false
     await nextTick()
-    expect(tab(container)).toBe(true)
+    expect(tab(outside)).toBe(true)
 
     shown.value = true
     await nextTick()
     expect(tab(container)).toBe(false)
+    outside.remove()
   })
 
   it('stays unarmed when mounted into a deactivated KeepAlive view, and arms once it returns', async () => {
