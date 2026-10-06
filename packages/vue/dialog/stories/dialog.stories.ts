@@ -12,17 +12,11 @@ type StoryType = StoryObj<typeof Dialog>
 
 // The stories are runtime-compiled templates, which resolve components by
 // registered name — so the dotted part names an SFC resolves from the
-// `Dialog` import are registered as such.
-const dialogComponents: Record<string, Component> = {
-  Dialog,
-  'Dialog.Trigger': Dialog.Trigger,
-  'Dialog.Portal': Dialog.Portal,
-  'Dialog.Backdrop': Dialog.Backdrop,
-  'Dialog.Viewport': Dialog.Viewport,
-  'Dialog.Content': Dialog.Content,
-  'Dialog.Title': Dialog.Title,
-  'Dialog.Description': Dialog.Description,
-  'Dialog.Close': Dialog.Close,
+// `Dialog` import are registered as such, derived from the parts themselves
+// so none can be missed.
+const dialogComponents: Record<string, Component> = { Dialog }
+for (const [name, part] of Object.entries(Dialog)) {
+  if (/^[A-Z]/.test(name)) dialogComponents[`Dialog.${name}`] = part as Component
 }
 
 // The primitive ships headless — the story is the consumer, so it brings the

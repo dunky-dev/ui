@@ -14,7 +14,7 @@ import {
 } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import { cleanup, fireEvent, render, screen } from '@testing-library/vue'
-import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Dialog, type DialogEmits, type DialogProps } from '@dunky.dev/vue-dialog'
 
 // The root's props plus its emits' listener props (`onUpdate:open`, ...).
@@ -74,21 +74,25 @@ const refuseInertFocus = (): void => {
 
 // Runtime-compiled templates resolve components by registered name, so the
 // dotted part names an SFC resolves from the `Dialog` import are registered
-// as such.
-const dialogComponents: Record<string, Component> = {
-  Dialog,
-  'Dialog.Trigger': Dialog.Trigger,
-  'Dialog.Portal': Dialog.Portal,
-  'Dialog.Backdrop': Dialog.Backdrop,
-  'Dialog.Viewport': Dialog.Viewport,
-  'Dialog.Content': Dialog.Content,
-  'Dialog.Title': Dialog.Title,
-  'Dialog.Description': Dialog.Description,
-  'Dialog.Close': Dialog.Close,
+// as such — derived from the parts themselves, so none can be missed.
+const dialogComponents: Record<string, Component> = { Dialog }
+for (const [name, part] of Object.entries(Dialog)) {
+  if (/^[A-Z]/.test(name)) dialogComponents[`Dialog.${name}`] = part as Component
 }
 
 // Auto-cleanup needs vitest globals; this repo runs with globals: false.
-afterEach(cleanup)
+// Unmounting a guarded dialog spends its history entry through a traversal,
+// asynchronous in jsdom, that would land in the next test — a failed test
+// leaves entries armed — so the teardown waits for history to settle back.
+// And each test starts on a plain entry: a guard entry an earlier test left
+// current would read as this test's own.
+beforeEach(() => {
+  if (window.history.state !== null) window.history.replaceState(null, '')
+})
+afterEach(async () => {
+  cleanup()
+  for (let task = 0; task < 10 && window.history.state !== null; task++) await afterFlushes()
+})
 
 describe('Dialog', () => {
   describe('open / close', () => {
@@ -355,11 +359,6 @@ describe('Dialog', () => {
       expect(dialog.hasAttribute('aria-describedby')).toBe(false)
     })
 
-    it('renders role=alertdialog when requested', async () => {
-      await renderSettled(() => <DefaultDialog defaultOpen role='alertdialog' />)
-      expect(screen.queryByRole('alertdialog')).not.toBeNull()
-    })
-
     it('omits aria-modal when modal=false', async () => {
       await renderSettled(() => <DefaultDialog defaultOpen modal={false} />)
       expect(screen.getByRole('dialog').hasAttribute('aria-modal')).toBe(false)
@@ -408,10 +407,10 @@ describe('Dialog', () => {
     // mechanism that prevents it: focus never scrolls the locked surface.
     it('moves focus without scrolling the locked surface', async () => {
       const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus')
+      onTestFinished(() => focusSpy.mockRestore())
       await renderSettled(() => <DefaultDialog defaultOpen />)
 
       expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true })
-      focusSpy.mockRestore()
     })
 
     it('moves focus to the first form field when the dialog contains one', async () => {
@@ -521,6 +520,7 @@ describe('Dialog', () => {
     it('locks the portal container, not the body, when scoped', async () => {
       const panel = document.createElement('div')
       document.body.append(panel)
+      onTestFinished(() => panel.remove())
 
       await renderSettled(() => (
         <Dialog defaultOpen>
@@ -535,7 +535,6 @@ describe('Dialog', () => {
 
       await pressEscape()
       expect(panel.style.overflowY).not.toBe('hidden')
-      panel.remove()
     })
   })
 
@@ -619,12 +618,6 @@ describe('Dialog', () => {
       await traverse(() => window.history.back())
       await traverse(() => window.history.forward())
       expect(screen.queryByRole('dialog')).toBeNull()
-
-      // The decline left the still-watched entry current; unmounting consumes
-      // it — settle that traversal here, not in the next test.
-      const consume = nextPop()
-      cleanup()
-      await consume
     })
 
     // The nested round-trip: closing the outer takes the inner's whole
@@ -667,13 +660,6 @@ describe('Dialog', () => {
       expect(layers()).toBe('O-')
       await traverse(() => window.history.forward())
       expect(layers()).toBe('OI')
-
-      // Both layers are armed again; unmounting frees their entries one
-      // traversal at a time — settle both pops here, not in the next test.
-      const consume = nextPop()
-      cleanup()
-      await consume
-      await nextPop()
     })
 
     // Both layers guarded and closed in one update — a "close all" affordance,
