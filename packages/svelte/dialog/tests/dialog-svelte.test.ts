@@ -11,6 +11,7 @@ import { press, pressEscape } from './fixtures/interact'
 import PresenceDialog from './fixtures/presence-dialog.svelte'
 import RefDialog from './fixtures/ref-dialog.svelte'
 import ScopedDialog from './fixtures/scoped-dialog.svelte'
+import TransitionDialog from './fixtures/transition-dialog.svelte'
 import TypedButtonsDialog from './fixtures/typed-buttons-dialog.svelte'
 
 describe('Dialog (Svelte)', () => {
@@ -103,6 +104,20 @@ describe('Dialog (Svelte)', () => {
       const backdrop = screen.getByTestId('backdrop')
       expect(backdrop.hasAttribute('inert')).toBe(false)
       expect(backdrop.hasAttribute('aria-hidden')).toBe(false)
+    })
+
+    // The layers mount and unmount as a tree of their own, where an outro
+    // can't hold the unmount; intros stay off too, so enter and exit agree —
+    // both are animated through data-state (`animated` for the exit).
+    it('runs no Svelte transitions on the portalled layers', () => {
+      const onrun = vi.fn()
+      render(TransitionDialog, { onrun })
+      press(screen.getByText('Trigger'))
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      pressEscape()
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(onrun).not.toHaveBeenCalled()
     })
 
     it('re-mounts the layers in a new container while open', async () => {

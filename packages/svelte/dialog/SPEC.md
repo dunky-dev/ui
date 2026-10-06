@@ -109,7 +109,10 @@ Svelte-specific notes on top of the core contract:
   starts, and the still-painting layer is made `inert` until it unmounts.
   Enter needs no state — the parts mount straight into `data-state="open"`,
   so a CSS animation (or a transition via `@starting-style`) plays from
-  mount.
+  mount. Svelte's own `transition:` / `in:` / `out:` don't run on portalled
+  parts: the layers mount and unmount as a tree of their own, where an outro
+  can't hold the unmount, so intros are off too and enter and exit stay
+  symmetric — animate both through `data-state`.
 - **Back navigation** (`closeOnBack`): opening plants a guard entry in the
   session history, so the browser's Back closes the dialog instead of leaving
   the page — one layer per press in a nested stack, per the core contract. A

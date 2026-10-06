@@ -19,10 +19,13 @@
     if (!mounted) return
     // Read here, so a container swap re-mounts the layers on the new target.
     const target = container ?? document.body
+    // `intro: false`: unmount can't wait for an outro here, so Svelte
+    // transitions stay off both ways — `data-state` animates the parts.
     const layer = untrack(() =>
       mount(Layer, {
         target,
         context: contexts,
+        intro: false,
         props: {
           get children() {
             return children
