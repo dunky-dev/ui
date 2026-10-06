@@ -15,10 +15,14 @@ npm install @dunky.dev/svelte-use-focus-trap
 
 ```svelte
 <script lang="ts">
+  import { isTopmostLayer } from '@dunky.dev/dom-overlay'
   import { useFocusTrap } from '@dunky.dev/svelte-use-focus-trap'
 
+  let { id }: { id: string } = $props()
   let panel: HTMLDivElement | null = $state(null)
-  useFocusTrap(() => panel, { enabled: () => isTopmost(panel) })
+  // `enabled` follows runtime state — here, only the overlay stack's
+  // topmost layer traps.
+  useFocusTrap(() => panel, { enabled: () => isTopmostLayer(id) })
 </script>
 
 <div bind:this={panel} role="dialog">...</div>

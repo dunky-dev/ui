@@ -39,8 +39,9 @@ Peer: `svelte` `>=5.20.0 <5.33.5 || ^5.34.5` — see [Svelte versions](#svelte-v
 Svelte-specific notes on top of the core contract:
 
 - **Packaging**: the package ships its components uncompiled — `.svelte`
-  files and `.svelte.js` rune modules under the `svelte` export condition —
-  for your own Svelte compiler to compile, client and server alike. Svelte's
+  files under the `svelte` export condition, beside plain `.js` modules —
+  for your own Svelte compiler to compile, client and server alike (the
+  hooks it depends on ship `.svelte.js` rune modules the same way). Svelte's
   compiled output targets its internal runtime, which is not a stable API
   across versions, so a precompiled build would pin you to one. Any
   Svelte-aware bundler setup resolves it (Vite with
@@ -174,7 +175,7 @@ The root: owns open/close state, renders no DOM. Accepts the core
 
 ### `Dialog.Trigger`
 
-Opens the dialog; focus returns here on close.
+Toggles the dialog; focus returns here on close.
 
 | Prop       | Type                        | Default | Description                           |
 | ---------- | --------------------------- | ------- | ------------------------------------- |
