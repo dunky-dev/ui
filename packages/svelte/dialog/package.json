@@ -38,7 +38,7 @@
   "dependencies": {
     "@dunky.dev/dialog": "workspace:*",
     "@dunky.dev/dom-dialog": "workspace:*",
-    "@dunky.dev/svelte-state-machine": "^0.1.0",
+    "@dunky.dev/svelte-state-machine": "^0.3.0",
     "@dunky.dev/svelte-use-focus-trap": "workspace:*",
     "@dunky.dev/svelte-use-scroll-lock": "workspace:*"
   },
