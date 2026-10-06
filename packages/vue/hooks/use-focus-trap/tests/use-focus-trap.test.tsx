@@ -3,7 +3,7 @@
 // behavior itself is covered in the util's own tests.
 import { KeepAlive, defineComponent, nextTick, ref, type PropType } from 'vue'
 import { cleanup, render, screen } from '@testing-library/vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest'
 import { useFocusTrap } from '@dunky.dev/vue-use-focus-trap'
 
 const Trap = defineComponent({
@@ -28,6 +28,16 @@ const tab = (target: Element): boolean =>
     new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }),
   )
 
+// The trap listens on the document: a Tab pressed off the document (on a
+// detached or cached container) reaches no listener either way, so a check
+// that the trap let go presses it on the page.
+const outsideButton = (): HTMLButtonElement => {
+  const outside = document.createElement('button')
+  document.body.append(outside)
+  onTestFinished(() => outside.remove())
+  return outside
+}
+
 // Auto-cleanup needs vitest globals; this repo runs with globals: false.
 afterEach(cleanup)
 
@@ -39,12 +49,9 @@ describe('useFocusTrap', () => {
     expect(tab(screen.getByTestId('container'))).toBe(false)
     expect(document.activeElement).toBe(screen.getByText('first'))
 
-    const container = screen.getByTestId('container')
-    screen.getByText('last').focus()
+    const outside = outsideButton()
     unmount()
-    // The listener is gone with the unmount — a Tab on the detached container
-    // is no longer intercepted.
-    expect(tab(container)).toBe(true)
+    expect(tab(outside)).toBe(true)
   })
 
   it('forwards enabled() to the trap without re-binding', () => {
@@ -60,10 +67,7 @@ describe('useFocusTrap', () => {
     const shown = ref(true)
     render(() => <KeepAlive>{shown.value ? <Trap /> : null}</KeepAlive>)
     const container = screen.getByTestId('container')
-    // The cached container is off the document; a Tab there would reach no
-    // listener either way — press it on the page instead.
-    const outside = document.createElement('button')
-    document.body.append(outside)
+    const outside = outsideButton()
 
     shown.value = false
     await nextTick()
@@ -72,7 +76,6 @@ describe('useFocusTrap', () => {
     shown.value = true
     await nextTick()
     expect(tab(container)).toBe(false)
-    outside.remove()
   })
 
   it('stays unarmed when mounted into a deactivated KeepAlive view, and arms once it returns', async () => {
@@ -85,14 +88,11 @@ describe('useFocusTrap', () => {
 
     loaded.value = true // mounts the trap into the cached view
     await nextTick()
-    const outside = document.createElement('button')
-    document.body.append(outside)
-    expect(tab(outside)).toBe(true)
+    expect(tab(outsideButton())).toBe(true)
 
     shown.value = true
     await nextTick()
     expect(tab(screen.getByTestId('container'))).toBe(false)
-    outside.remove()
   })
 
   it("takes a component's ref as its root element", () => {
@@ -116,5 +116,23 @@ describe('useFocusTrap', () => {
     screen.getByText('last').focus()
     expect(tab(screen.getByTestId('container'))).toBe(false)
     expect(document.activeElement).toBe(screen.getByText('first'))
+  })
+
+  // An iframe's elements belong to another realm, which `instanceof` misses.
+  it('traps within an element from another document', () => {
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    onTestFinished(() => frame.remove())
+    const frameDocument = frame.contentDocument as Document
+    const container = frameDocument.createElement('div')
+    container.append(frameDocument.createElement('button'))
+    frameDocument.body.append(container)
+    render(
+      defineComponent(() => {
+        useFocusTrap(container)
+        return () => null
+      }),
+    )
+    expect(tab(container)).toBe(false)
   })
 })

@@ -1057,17 +1057,20 @@ describe('Dialog', () => {
       expect(document.body.style.overflowY).not.toBe('hidden')
     })
 
-    it('an animated Content rendered with the root hides only itself through its exit', async () => {
+    it('an animated layer rendered with the root hides only itself through its exit', async () => {
       const { container } = await renderSettled(() => (
         <Dialog defaultOpen animated>
           <Dialog.Trigger>Trigger</Dialog.Trigger>
-          <Dialog.Content aria-label='Inline'>content</Dialog.Content>
+          <Dialog.Viewport data-testid='viewport'>
+            <Dialog.Content aria-label='Inline'>content</Dialog.Content>
+          </Dialog.Viewport>
         </Dialog>
       ))
       await pressEscape()
-      const dialog = screen.getByRole('dialog', { hidden: true })
-      expect(dialog.getAttribute('data-state')).toBe('closing')
-      expect(dialog.hasAttribute('inert')).toBe(true)
+      expect(screen.getByRole('dialog', { hidden: true }).getAttribute('data-state')).toBe(
+        'closing',
+      )
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(true)
       expect(container.hasAttribute('inert')).toBe(false)
       expect(screen.getByText('Trigger').closest('[inert]')).toBeNull()
     })

@@ -133,12 +133,15 @@ function placeByDepth(depth: number, place: () => void): void {
   pendingPlacements.push({ depth, place })
 }
 
-// A template ref on a component holds its instance; the element is its `$el`.
+// A template ref on a component holds its instance; the element is its `$el`
+// (a text or comment node for a fragment root). Duck-typed: an element from
+// another realm — an iframe's document — fails `instanceof HTMLElement`.
 function toElement(
   target: HTMLElement | ComponentPublicInstance | null | undefined,
 ): HTMLElement | null {
-  const element = target instanceof HTMLElement ? target : target?.$el
-  return element instanceof HTMLElement ? element : null
+  if (typeof target !== 'object' || target === null) return null
+  const element = ('$el' in target ? target.$el : target) as Node | null
+  return element?.nodeType === Node.ELEMENT_NODE ? (element as HTMLElement) : null
 }
 
 // =============================================================================
@@ -183,6 +186,7 @@ const DialogRoot = defineComponent<DialogProps, DialogEmits>(
     }
     const { api, machine } = useDialog(() => ({ ...props, ...callbacks }))
     const backdropRef = shallowRef<HTMLElement | null>(null)
+    const viewportRef = shallowRef<HTMLElement | null>(null)
 
     provide(DialogContextKey, {
       api,
@@ -191,6 +195,7 @@ const DialogRoot = defineComponent<DialogProps, DialogEmits>(
       container: () => null,
       portalled: false,
       backdropRef,
+      viewportRef,
     })
 
     // The guard lives on the root — it concerns the dialog's openness, not any
@@ -334,7 +339,13 @@ export const Portal = defineComponent(
       )
     }
   },
-  { name: 'DialogPortal', inheritAttrs: false, props: ['container'] },
+  {
+    name: 'DialogPortal',
+    inheritAttrs: false,
+    // Typed at runtime too: a selector — Teleport's own idiom — would place
+    // the layer yet leave the scroll lock nothing to resolve, so Vue warns.
+    props: { container: { type: Object as PropType<HTMLElement | null> } },
+  },
 ) as DialogComponent<DialogPortalProps>
 
 // =============================================================================
@@ -375,7 +386,7 @@ export interface DialogViewportProps extends HTMLAttributes {}
 
 export const Viewport = defineComponent(
   (_props: DialogViewportProps, { attrs, slots }) => {
-    const { api, machine } = useDialogContext()
+    const { api, machine, viewportRef } = useDialogContext()
     return () => {
       const { onClick, ...bindings } = normalize(api.value.parts.viewport) as {
         onClick?: (event: MouseEvent) => void
@@ -388,7 +399,7 @@ export const Viewport = defineComponent(
         },
       })
 
-      return h('div', merged, slots.default?.())
+      return h('div', { ...merged, ref: viewportRef }, slots.default?.())
     }
   },
   { name: 'DialogViewport', inheritAttrs: false },
@@ -418,7 +429,8 @@ export interface DialogContentProps extends HTMLAttributes {
 
 export const Content = defineComponent(
   (props: DialogContentProps, { attrs, slots }) => {
-    const { api, machine, depth, container, portalled, backdropRef } = useDialogContext()
+    const { api, machine, depth, container, portalled, backdropRef, viewportRef } =
+      useDialogContext()
     const contentRef = shallowRef<HTMLElement | null>(null)
 
     // The state the window's DOM shows, committed by the hooks that follow its
@@ -481,9 +493,10 @@ export const Content = defineComponent(
                   dismiss: () => machine.send({ type: 'close' }),
                 })
               : startExitWindow(content, {
-                  // Without a Portal the window sits in the page itself: the
-                  // exit hides the window, not its outermost ancestor.
-                  container: portalled ? container() : content.parentElement,
+                  // Without a Portal the layer sits in the page itself: the
+                  // exit hides the layer — its Viewport, or the window bare —
+                  // not the outermost ancestor.
+                  container: portalled ? container() : (viewportRef.value ?? content).parentElement,
                   backdrop: backdropRef.value,
                   onComplete: () => machine.send({ type: 'exit.complete' }),
                 })

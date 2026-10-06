@@ -20,6 +20,9 @@ export interface DialogContextValue {
   // parts: Content's stack entry excepts its own backdrop from the
   // containment so it stays pressable while its dialog is topmost.
   backdropRef: ShallowRef<HTMLElement | null>
+  // The rendered Viewport: without a Portal the layer sits in the page, and
+  // Content's exit window hides the layer from its Viewport down.
+  viewportRef: ShallowRef<HTMLElement | null>
 }
 
 export const DialogContextKey: InjectionKey<DialogContextValue> = Symbol('DialogContext')

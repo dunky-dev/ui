@@ -69,14 +69,14 @@ Vue-specific notes on top of the core contract:
   mounts. Swapping `container` while open re-creates the teleport on the new
   target rather than moving it, like the React and Solid portals — the open
   sequence runs again against the new placement. `container` takes an element,
-  not a selector — query it first. When scoped to a `container`, the scroll
-  lock applies to that container instead of the page, and the
-  backdrop/viewport must be positioned `absolute` (not `fixed`) so the overlay
-  pins to the container. Because an `absolute` overlay can't stay fixed inside
-  a scrolling element, a scoped container that needs a scrollable background
-  should be a non-scrolling positioned boundary wrapping an inner scroller —
-  portal into the boundary; the overlay fills its visible box and the backdrop
-  blocks the scroller behind it (see the `scoped` story).
+  not a selector — query it first; Vue warns when it gets a string. When
+  scoped to a `container`, the scroll lock applies to that container instead
+  of the page, and the backdrop/viewport must be positioned `absolute` (not
+  `fixed`) so the overlay pins to the container. Because an `absolute` overlay
+  can't stay fixed inside a scrolling element, a scoped container that needs a
+  scrollable background should be a non-scrolling positioned boundary wrapping
+  an inner scroller — portal into the boundary; the overlay fills its visible
+  box and the backdrop blocks the scroller behind it (see the `scoped` story).
 - **`Content`** renders a `<div>` carrying the `dialog` (or `alertdialog`)
   role, not the native `<dialog>` element. The dialog window is the initial
   focus target — focusable in script, out of the tab order — which needs
@@ -95,9 +95,12 @@ Vue-specific notes on top of the core contract:
   passes a getter: `:initial-focus="() => cancelButton"`. Script and TSX pass
   the ref itself.
 - **`Content` without a `Portal`** stays mounted while closed, so its DOM
-  work follows the dialog's state, not its mount: the scroll lock holds while
-  the dialog is open or closing, and the exit window hides the window
-  alone — it sits in the page, not in a container of its own.
+  work follows the dialog's state, not its mount — once the update that
+  renders the state has applied, as a React effect runs after commit, so a
+  stylesheet that hides a closed window is out of the way when focus moves
+  in. The scroll lock holds while the dialog is open or closing, and the exit
+  window hides the layer alone — its Viewport, or the window when it has
+  none — since it sits in the page, not in a container of its own.
 - **Element access**: every part renders exactly one root element, so a
   template ref on a part reaches it as `$el` (`contentPart.value.$el`). A
   non-modal Backdrop renders nothing, and the Portal renders no element of
@@ -136,15 +139,17 @@ Vue-specific notes on top of the core contract:
   re-enter. A nested dialog unmounted along with the parent it was opened from
   does come back, and so does one whose page reloaded in between — the entry
   remembers the dialog's place in the stack, not the instance that planted it.
-- **`<KeepAlive>`**: a deactivated dialog's machine is paused by the
-  adapter, as React's `<Activity>` pauses its effects, so its DOM work pauses
-  too: the Portal parks the layers back in place, inside the cached view and
-  off the document — Vue would otherwise leave teleported content painted
-  over the next view — and the history guard, focus trap, and scroll lock
-  release. Reactivation brings the same layers back, their content's state
-  intact, and runs the open sequence again. A dialog mounted into a view
-  that is already deactivated — async data resolving after the user left —
-  holds still the same way until the view returns.
+- **`<KeepAlive>`**: a deactivated dialog's machine is paused by the adapter,
+  as React's `<Activity>` pauses its effects, so its DOM work pauses too: the
+  Portal parks the layers back in place, inside the cached view and off the
+  document — Vue would otherwise leave teleported content painted over the
+  next view — and the history guard, focus trap, and scroll lock release.
+  Reactivation brings the same layers back, their content's state intact, and
+  runs the open sequence again — a nested stack outermost first, as it first
+  opened, so each layer's close still returns focus to the one beneath. A
+  dialog mounted into a view that is already deactivated — async data
+  resolving after the user left — holds still the same way until the view
+  returns.
 - **Server rendering** touches no DOM: the root and its Trigger render, the
   document-level work starts on mount, and the base id comes from `useId`, so
   the hydrated parts carry the ids the server rendered. `useId` counts per

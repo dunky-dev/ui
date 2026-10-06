@@ -30,12 +30,15 @@ function inDeactivatedView(instance: InstanceNode | null): boolean {
   return false
 }
 
-// A template ref on a component holds its instance; the element is its `$el`.
+// A template ref on a component holds its instance; the element is its `$el`
+// (a text or comment node for a fragment root). Duck-typed: an element from
+// another realm — an iframe's document — fails `instanceof HTMLElement`.
 function toElement(
   target: HTMLElement | ComponentPublicInstance | null | undefined,
 ): HTMLElement | null {
-  const element = target instanceof HTMLElement ? target : target?.$el
-  return element instanceof HTMLElement ? element : null
+  if (typeof target !== 'object' || target === null) return null
+  const element = ('$el' in target ? target.$el : target) as Node | null
+  return element?.nodeType === Node.ELEMENT_NODE ? (element as HTMLElement) : null
 }
 
 /**

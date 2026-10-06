@@ -30,11 +30,12 @@ Vue-specific notes on top of the DOM contract:
 - The lock holds while the component is mounted and `locked` resolves true;
   unmounting or turning `locked` off releases it, and so does a `<KeepAlive>`
   deactivation — reactivation locks again, as React's `<Activity>` runs an
-  effect's cleanup; mounted into a view that is already deactivated, it
-  waits for the view's return. Both parameters accept a
-  `MaybeRefOrGetter` — a plain value, a ref, or a getter, a component
-  counting as its root element (`$el`) — so the lock tracks reactive state: a `target` change releases the old container and
-  locks the new one.
+  effect's cleanup; mounted into a view that is already deactivated, it waits
+  for the view's return. Both parameters accept a `MaybeRefOrGetter` — a plain
+  value, a ref, or a getter, a component counting as its root element (`$el`)
+  — so the lock tracks reactive state: a `target` change releases the old
+  container and locks the new one. `$el` itself isn't reactive: a component
+  that swaps its root element needs a ref on the element instead.
 - An omitted `target` means the page body. A target that resolves to
   `null` or `undefined` — a template ref before its element renders — means
   "no target yet" and locks nothing; the lock engages once the element
