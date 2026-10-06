@@ -12,6 +12,7 @@ import {
   onMounted,
   onScopeDispose,
   onUnmounted,
+  onUpdated,
   provide,
   shallowRef,
   toValue,
@@ -113,6 +114,23 @@ function whileActive(effects: () => void): void {
   onActivated(start)
   onDeactivated(stop)
   onUnmounted(stop)
+}
+
+// <KeepAlive> runs a restored view's activated hooks children first, yet a
+// nested stack must reopen outermost first, as it first opened: each layer
+// joins the stack over the one beneath and takes focus from it. Placements
+// wait out the flush that re-enables the teleports, then run by depth.
+const pendingPlacements: Array<{ depth: number; place: () => void }> = []
+
+function placeByDepth(depth: number, place: () => void): void {
+  if (pendingPlacements.length === 0) {
+    void nextTick(() => {
+      const batch = pendingPlacements.splice(0)
+      batch.sort((a, b) => a.depth - b.depth)
+      for (const entry of batch) entry.place()
+    })
+  }
+  pendingPlacements.push({ depth, place })
 }
 
 // A template ref on a component holds its instance; the element is its `$el`.
@@ -385,6 +403,9 @@ export const Viewport = defineComponent(
  * dialog reads it. A component counts as its root element (`$el`). */
 type FocusTarget = MaybeRefOrGetter<HTMLElement | ComponentPublicInstance | null | undefined>
 
+// What the window's DOM shows: `closing` is an animated dialog's exit window.
+type WindowState = 'open' | 'closing' | 'closed'
+
 export interface DialogContentProps extends HTMLAttributes {
   /** The element to focus when the dialog opens — resolved at open time, so a
    * template ref that fills after setup works. @default the dialog window */
@@ -400,33 +421,48 @@ export const Content = defineComponent(
     const { api, machine, depth, container, portalled, backdropRef } = useDialogContext()
     const contentRef = shallowRef<HTMLElement | null>(null)
 
+    // The state the window's DOM shows, committed by the hooks that follow its
+    // render. The machine can run ahead of the DOM: a change made in a
+    // post-flush job (the adapter syncs a controlled `open` there) reaches a
+    // `post` watcher before the render it queued. The sequences must see what
+    // the state rendered — a stylesheet may hide a closed window — as a React
+    // effect runs after commit.
+    let rendered: WindowState = 'closed'
+    const shown = shallowRef<WindowState>('closed')
+
     // Whether the window is where it renders: back from a <KeepAlive> cache it
     // is still parked until the Portal re-enables its teleport, in the flush
     // that restores the view — so the sequences wait that flush out.
     const placed = shallowRef(true)
     const instance = getCurrentInstance()
     onMounted(() => {
+      shown.value = rendered
       placed.value = !inDeactivatedView(instance)
+    })
+    onUpdated(() => {
+      shown.value = rendered
     })
     onDeactivated(() => {
       placed.value = false
     })
     onActivated(() => {
-      void nextTick(() => {
+      placeByDepth(depth, () => {
         placed.value = true
       })
     })
 
-    // The machine's state is the edge, not mount/unmount: an animated dialog
+    // The rendered state is the edge, not mount/unmount: an animated dialog
     // stays mounted through `closing`, its exit window, and a Content rendered
-    // with the root (no Portal) is mounted while closed too. The sequences
-    // and their inverses are the DOM package's; this watcher only ties them
-    // to Vue's lifecycle. Released by hand: Vue 3.6 also runs a watcher's
-    // onCleanup when its source merely re-evaluates — on every api change.
+    // with the root (no Portal) is mounted while closed too. A portalled
+    // window never renders `closed` — it unmounts, and the scope's end
+    // releases it once the DOM is gone. The sequences and their inverses are
+    // the DOM package's; this watcher only ties them to Vue's lifecycle.
+    // Released by hand: Vue 3.6 also runs a watcher's onCleanup when its
+    // source merely re-evaluates.
     whileActive(() => {
       let release: (() => void) | undefined
       watch(
-        [() => (api.value.open ? 'open' : api.value.mounted ? 'closing' : 'closed'), placed],
+        [shown, placed],
         ([state, isPlaced]) => {
           release?.()
           release = undefined
@@ -452,10 +488,9 @@ export const Content = defineComponent(
                   onComplete: () => machine.send({ type: 'exit.complete' }),
                 })
         },
-        // `post`: the sequences must see the DOM the new state renders — a
-        // stylesheet may hide a closed window — as a React effect runs after
-        // commit.
-        { immediate: true, flush: 'post' },
+        // `sync`: both sources change only in the hooks above, which already
+        // run once the DOM is in place.
+        { immediate: true, flush: 'sync' },
       )
       onScopeDispose(() => release?.())
     })
@@ -477,12 +512,15 @@ export const Content = defineComponent(
     // A neutral element with the role, not <dialog>: the window carries
     // tabindex (forbidden on <dialog>), and this contract doesn't use
     // showModal() — see SPEC.md.
-    return () =>
-      h(
+    return () => {
+      const { open, mounted, parts } = api.value
+      rendered = open ? 'open' : mounted ? 'closing' : 'closed'
+      return h(
         'div',
-        { ...mergeProps(attrs, normalize(api.value.parts.content)), ref: contentRef },
+        { ...mergeProps(attrs, normalize(parts.content)), ref: contentRef },
         slots.default?.(),
       )
+    }
   },
   { name: 'DialogContent', inheritAttrs: false, props: ['initialFocus', 'restoreFocus'] },
 ) as DialogComponent<DialogContentProps>

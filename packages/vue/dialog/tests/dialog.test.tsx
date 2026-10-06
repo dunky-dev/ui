@@ -14,7 +14,7 @@ import {
 } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import { cleanup, fireEvent, render, screen } from '@testing-library/vue'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Dialog, type DialogEmits, type DialogProps } from '@dunky.dev/vue-dialog'
 
 // The root's props plus its emits' listener props (`onUpdate:open`, ...).
@@ -58,6 +58,19 @@ const openDialog = (): Promise<void> => press(screen.getByText('Trigger'))
 const afterFlushes = (): Promise<void> => new Promise(resolve => setTimeout(resolve))
 
 const pressEscape = (): Promise<void> => fireEvent.keyDown(document.body, { key: 'Escape' })
+
+// jsdom moves focus onto an inert element; a browser refuses. The tests on
+// which layer's teardown un-inerts the page first need the browser's rule.
+const refuseInertFocus = (): void => {
+  const focus = HTMLElement.prototype.focus
+  const spy = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+    this: HTMLElement,
+    options?: FocusOptions,
+  ) {
+    if (this.closest('[inert]') === null) focus.call(this, options)
+  })
+  onTestFinished(() => spy.mockRestore())
+}
 
 // Runtime-compiled templates resolve components by registered name, so the
 // dotted part names an SFC resolves from the `Dialog` import are registered
@@ -1006,23 +1019,26 @@ describe('Dialog', () => {
 
     // A Content rendered with the root (no Portal) stays mounted while closed,
     // and a stylesheet may hide it by its state — the open sequence has to
-    // wait for the update that renders it open, as a React effect does.
+    // wait for the update that renders it open, as a React effect does. A
+    // controlled open is the strict case: the adapter syncs it in a post-flush
+    // job, ahead of that render.
     it('an always-mounted Content takes focus once the update that opens it has rendered', async () => {
       const style = document.createElement('style')
       style.textContent = '[data-state="closed"][role="dialog"] { display: none; }'
       document.head.append(style)
+      onTestFinished(() => style.remove())
+      const open = ref(false)
       await renderSettled(() => (
-        <Dialog modal={false}>
-          <Dialog.Trigger>Trigger</Dialog.Trigger>
+        <Dialog open={open.value} modal={false}>
           <Dialog.Content aria-label='Inline'>
             <input aria-label='Name' />
           </Dialog.Content>
         </Dialog>
       ))
 
-      await openDialog()
+      open.value = true
+      await nextTick()
       expect(document.activeElement).toBe(screen.getByLabelText('Name'))
-      style.remove()
     })
 
     // The exit window is the `closing` state only: a Content rendered with
@@ -1056,9 +1072,12 @@ describe('Dialog', () => {
       expect(screen.getByText('Trigger').closest('[inert]')).toBeNull()
     })
 
-    // Cleanup after the DOM is gone, children first — as React's effects —
-    // or the parent would restore focus while the child still holds the page.
+    // Released after the DOM is gone, children first — as React's effects —
+    // or the parent would restore focus while the child still holds the page
+    // inert. A controlled close is the strict case: the adapter syncs it in a
+    // post-flush job, ahead of the render that unmounts the stack.
     it("closing a parent over an open child returns focus to the parent's trigger", async () => {
+      refuseInertFocus()
       const open = ref(false)
       await renderSettled(() => (
         <Dialog open={open.value}>
@@ -1173,6 +1192,10 @@ describe('Dialog', () => {
       const first = document.createElement('div')
       const second = document.createElement('div')
       document.body.append(first, second)
+      onTestFinished(() => {
+        first.remove()
+        second.remove()
+      })
       const container = ref(first)
 
       await renderSettled(() => (
@@ -1191,8 +1214,6 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(dialog) // the open edge ran again
       expect(first.style.overflowY).not.toBe('hidden')
       expect(second.style.overflowY).toBe('hidden')
-      first.remove()
-      second.remove()
     })
 
     // The adapter pauses a deactivated dialog's machine, as React's <Activity>
@@ -1233,6 +1254,45 @@ describe('Dialog', () => {
       expect(field.value).toBe('typed')
       expect(document.activeElement).toBe(field)
       expect(document.body.style.overflowY).toBe('hidden')
+    })
+
+    // <KeepAlive> restores a view's children first; the stack must come back
+    // as it first opened — outermost first, each layer taking focus from the
+    // one beneath — or the inner layer's close has nowhere to return focus.
+    it('a restored KeepAlive view reopens a nested stack outermost first', async () => {
+      refuseInertFocus()
+      const warn = vi.spyOn(console, 'warn')
+      onTestFinished(() => warn.mockRestore())
+      const shown = ref(true)
+      const Page = defineComponent(() => () => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Content aria-label='Outer'>
+              <input aria-label='Outer field' />
+              <Dialog defaultOpen>
+                <Dialog.Portal>
+                  <Dialog.Content aria-label='Inner'>
+                    <input aria-label='Inner field' />
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      const Elsewhere = defineComponent(() => () => <button type='button'>Elsewhere</button>)
+      await renderSettled(() => <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>)
+      await afterFlushes()
+
+      shown.value = false
+      await nextTick()
+      shown.value = true
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByLabelText('Inner field'))
+      expect(warn).not.toHaveBeenCalled()
+
+      await pressEscape()
+      expect(document.activeElement).toBe(screen.getByLabelText('Outer field'))
     })
 
     // Async data can mount a dialog into a cached view after the user left it.
@@ -1291,17 +1351,19 @@ describe('Dialog', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const error = vi.spyOn(console, 'error').mockImplementation(() => {})
       const app = createSSRApp(App)
+      onTestFinished(() => {
+        warn.mockRestore()
+        error.mockRestore()
+        app.unmount()
+        host.remove()
+      })
       app.mount(host)
       await nextTick()
       expect(warn).not.toHaveBeenCalled()
       expect(error).not.toHaveBeenCalled()
-      warn.mockRestore()
-      error.mockRestore()
 
       // The portal arrives after hydration, under the id the server announced.
       expect(screen.getByRole('dialog').id).toBe(serverControls)
-      app.unmount()
-      host.remove()
     })
   })
 })
