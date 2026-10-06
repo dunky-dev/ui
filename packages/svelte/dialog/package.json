@@ -50,6 +50,6 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "svelte": "^5.40.0"
+    "svelte": ">=5.20.0 <5.33.5 || ^5.34.5"
   }
 }

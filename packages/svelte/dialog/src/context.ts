@@ -1,4 +1,4 @@
-import { createContext } from 'svelte'
+import { getContext, hasContext, setContext } from 'svelte'
 import type { DialogApi, DialogMachine } from '@dunky.dev/dialog'
 
 export interface DialogContextValue {
@@ -17,17 +17,20 @@ export interface DialogContextValue {
   backdropRef: { current: HTMLDivElement | null }
 }
 
-const [getDialogContext, setDialogContext, hasDialogContext] = createContext<DialogContextValue>()
+// A private key rather than `createContext()`: its `has` arrived only in
+// Svelte 5.57, and the root needs a non-throwing lookup for its parent.
+const DIALOG_CONTEXT = Symbol('dialog')
 
-export { setDialogContext }
+export const setDialogContext = (context: DialogContextValue): DialogContextValue =>
+  setContext(DIALOG_CONTEXT, context)
 
 export const useDialogContext = (): DialogContextValue => {
-  if (!hasDialogContext()) {
+  if (!hasContext(DIALOG_CONTEXT)) {
     throw new Error('Dialog parts must be rendered within a <Dialog> root')
   }
-  return getDialogContext()
+  return getContext<DialogContextValue>(DIALOG_CONTEXT)
 }
 
 // The root's own lookup: an enclosing dialog makes this one nested.
 export const getParentDialogContext = (): DialogContextValue | null =>
-  hasDialogContext() ? getDialogContext() : null
+  hasContext(DIALOG_CONTEXT) ? getContext<DialogContextValue>(DIALOG_CONTEXT) : null

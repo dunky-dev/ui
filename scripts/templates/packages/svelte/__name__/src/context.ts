@@ -1,4 +1,4 @@
-import { createContext } from 'svelte'
+import { getContext, hasContext, setContext } from 'svelte'
 import type { __Name__Api, __Name__Machine } from '@dunky.dev/__name__'
 
 export interface __Name__ContextValue {
@@ -8,14 +8,16 @@ export interface __Name__ContextValue {
   machine: __Name__Machine
 }
 
-const [get__Name__Context, set__Name__Context, has__Name__Context] =
-  createContext<__Name__ContextValue>()
+// A private key rather than `createContext()`: its `has` arrived only in
+// Svelte 5.57, below the substrate's supported floor.
+const __camelName__Context = Symbol('__name__')
 
-export { set__Name__Context }
+export const set__Name__Context = (context: __Name__ContextValue): __Name__ContextValue =>
+  setContext(__camelName__Context, context)
 
 export const use__Name__Context = (): __Name__ContextValue => {
-  if (!has__Name__Context()) {
+  if (!hasContext(__camelName__Context)) {
     throw new Error('__Name__ parts must be rendered within a <__Name__> root')
   }
-  return get__Name__Context()
+  return getContext<__Name__ContextValue>(__camelName__Context)
 }

@@ -12,7 +12,7 @@ The Svelte implementation of the [core spec](../../core/dialog/SPEC.md).
 npm install @dunky.dev/svelte-dialog
 ```
 
-Peer: `svelte@^5.40.0`.
+Peer: `svelte` `>=5.20.0 <5.33.5 || ^5.34.5` — see [Svelte versions](#svelte-versions).
 
 ## Usage
 
@@ -127,6 +127,20 @@ Svelte-specific notes on top of the core contract:
   remembers the dialog's place in the stack, not the instance that planted it.
 - Everything ships headless, per the core contract's
   [Internals](../../core/dialog/SPEC.md#internals).
+
+## Svelte versions
+
+`svelte` `>=5.20.0 <5.33.5 || ^5.34.5` — one range for the dialog and its
+hooks, and measured: the suites run green on its edges (5.20.0, 5.33.4,
+5.34.5), on 5.40.0 and 5.56.10, and on 5.57.1.
+
+- **5.20** is where `$props.id()` arrived — the root's SSR-stable base id.
+  5.19 fails to compile the root.
+- **5.33.5–5.34.4** kept a spread's first non-delegated event handler
+  ([sveltejs/svelte#16180](https://github.com/sveltejs/svelte/pull/16180)).
+  Every part spreads your props with its bindings, so a re-rendered `onfocus`
+  would call a stale closure — the suite catches it on 5.34.0. The adapter,
+  `@dunky.dev/svelte-state-machine`, excludes the same releases.
 
 ## API
 

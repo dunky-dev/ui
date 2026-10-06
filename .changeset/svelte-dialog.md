@@ -2,12 +2,17 @@
 '@dunky.dev/svelte-dialog': minor
 ---
 
-New substrate: the Svelte binding for `@dunky.dev/dialog`, for Svelte 5 (peer
-`svelte@^5.40.0`). The same compound anatomy and behavior contract as the
-React and Solid bindings — one core machine, a new host — in Svelte's native
-shape: `<Dialog>` with its parts hanging off it (`<Dialog.Trigger>`,
-`<Dialog.Portal>`, `<Dialog.Content>`, ...), children as snippets, the core
-options as plain props, and `onOpenChange` as a callback prop.
+New substrate: the Svelte binding for `@dunky.dev/dialog`, for Svelte 5. The
+same compound anatomy and behavior contract as the React and Solid bindings —
+one core machine, a new host — in Svelte's native shape: `<Dialog>` with its
+parts hanging off it (`<Dialog.Trigger>`, `<Dialog.Portal>`,
+`<Dialog.Content>`, ...), children as snippets, the core options as plain
+props, and `onOpenChange` as a callback prop.
+
+The peer range, `svelte` `>=5.20.0 <5.33.5 || ^5.34.5`, is measured — the
+suite runs green on its edges: 5.20 is where `$props.id()` arrived (the
+SSR-stable base id), and 5.33.5–5.34.4 kept a spread's stale event handlers
+(sveltejs/svelte#16180), which every part's attribute spread would hit.
 
 ```svelte
 <script lang="ts">

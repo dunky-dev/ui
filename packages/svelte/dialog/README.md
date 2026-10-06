@@ -15,8 +15,8 @@ Svelte-specific surface: [SPEC.md](./SPEC.md).
 npm install @dunky.dev/svelte-dialog
 ```
 
-The components ship uncompiled, for your Svelte (`^5.40.0`) to compile — any
-Svelte-aware bundler setup picks them up.
+The components ship uncompiled, for your Svelte (`>=5.20.0 <5.33.5 || ^5.34.5`)
+to compile — any Svelte-aware bundler setup picks them up.
 
 ## Usage
 

@@ -5,6 +5,7 @@
 import { render, screen } from '@testing-library/svelte'
 import { describe, expect, it, vi } from 'vitest'
 import DefaultDialog from './fixtures/default-dialog.svelte'
+import HandlerDialog from './fixtures/handler-dialog.svelte'
 import { press, pressEscape } from './fixtures/interact'
 import PresenceDialog from './fixtures/presence-dialog.svelte'
 import RefDialog from './fixtures/ref-dialog.svelte'
@@ -109,6 +110,21 @@ describe('Dialog (Svelte)', () => {
       pressEscape()
       first.remove()
       second.remove()
+    })
+  })
+
+  describe('consumer props', () => {
+    // Every part spreads your props with its bindings; a handler swapped on
+    // re-render must reach the element, not stay the first one.
+    it('forwards the latest non-delegated handler after a re-render', async () => {
+      const first = vi.fn()
+      const second = vi.fn()
+      const { rerender } = render(HandlerDialog, { onfocus: first })
+      await rerender({ onfocus: second })
+
+      screen.getByText('Trigger').focus()
+      expect(first).not.toHaveBeenCalled()
+      expect(second).toHaveBeenCalledTimes(1)
     })
   })
 
