@@ -1,4 +1,4 @@
-import type { MaybeRefOrGetter } from 'vue'
+import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMachine } from '@dunky.dev/vue-state-machine'
 import { __camelName__Machine, __camelName__Connect } from '@dunky.dev/__name__'
 import type { __Name__Options } from '@dunky.dev/__name__'
@@ -11,5 +11,12 @@ import { __camelName__Effects } from './effects'
  * re-synced through the reactive getter, effects run after mount, api a ref.
  */
 export function use__Name__(options: MaybeRefOrGetter<__Name__Options>): __Name__ContextValue {
-  return useMachine(__camelName__Machine, __camelName__Connect, __camelName__Effects, options)
+  // A computed: the adapter reads the options from every effect's dependency
+  // getter, and the object is built once per change rather than per read.
+  return useMachine(
+    __camelName__Machine,
+    __camelName__Connect,
+    __camelName__Effects,
+    computed(() => toValue(options)),
+  )
 }
