@@ -139,6 +139,14 @@ Vue-specific notes on top of the core contract:
   re-enter. A nested dialog unmounted along with the parent it was opened from
   does come back, and so does one whose page reloaded in between — the entry
   remembers the dialog's place in the stack, not the instance that planted it.
+- **Dialogs that change together** — a wizard's Next closing one dialog and
+  opening the next in the same update, or a stack closing at once — run their
+  DOM sequences once the update has rendered, every close before any open, as
+  React's commit does: the dialog opened keeps the focus it took, the last
+  close returns focus to the trigger the hand-over started from, and an
+  exiting layer stays inert while others open or close around it, however the
+  dialogs are declared. Nested layers release innermost first and open
+  outermost first.
 - **`<KeepAlive>`**: a deactivated dialog's machine is paused by the adapter,
   as React's `<Activity>` pauses its effects, so its DOM work pauses too: the
   Portal parks the layers back in place, inside the cached view and off the

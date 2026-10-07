@@ -6,7 +6,6 @@ import {
   getCurrentInstance,
   h,
   inject,
-  nextTick,
   onActivated,
   onDeactivated,
   onMounted,
@@ -89,17 +88,16 @@ function inDeactivatedView(instance: InstanceNode | null): boolean {
 // Runs `effects` in a scope that lives while the component is mounted and its
 // view active. A <KeepAlive> deactivation ends it like an unmount — the
 // adapter pauses the machine the same way, as React's <Activity> runs its
-// effect cleanups. Released after the DOM is gone and children first, as
-// React runs cleanups after commit: a parent closing over an open child must
-// not restore focus into a layer that is still registered above it. Mounted
-// hooks never run during server rendering, so neither does this.
+// effect cleanups. Mounted hooks never run during server rendering, so
+// neither does this.
 function whileActive(effects: () => void): void {
   const instance = getCurrentInstance()
   let scope: EffectScope | undefined
   const start = (): void => {
     if (scope !== undefined) return
-    // Detached: the component scope stops before the DOM is removed, parent
-    // first — the release order above needs the unmounted hook instead.
+    // Detached, and ended in the unmounted hook — after the DOM is gone and
+    // children first, as React runs a removed subtree's cleanups — rather
+    // than with the component scope, which stops parent first, before.
     scope = effectScope(true)
     scope.run(effects)
   }
@@ -116,21 +114,65 @@ function whileActive(effects: () => void): void {
   onUnmounted(stop)
 }
 
-// <KeepAlive> runs a restored view's activated hooks children first, yet a
-// nested stack must reopen outermost first, as it first opened: each layer
-// joins the stack over the one beneath and takes focus from it. Placements
-// wait out the flush that re-enables the teleports, then run by depth.
-const pendingPlacements: Array<{ depth: number; place: () => void }> = []
+// What the window's DOM shows: `closing` is an animated dialog's exit window.
+type WindowState = 'open' | 'closing' | 'closed'
 
-function placeByDepth(depth: number, place: () => void): void {
-  if (pendingPlacements.length === 0) {
-    void nextTick(() => {
-      const batch = pendingPlacements.splice(0)
-      batch.sort((a, b) => a.depth - b.depth)
-      for (const entry of batch) entry.place()
-    })
+// One Content's DOM work for an update: undo the sequence it holds, then start
+// the one its DOM shows now.
+interface LayerCommit {
+  depth: number
+  // Whether `start` runs an open sequence, rather than an exit window.
+  opening: () => boolean
+  release: () => void
+  start: () => void
+}
+
+// Vue settles each component's hooks on its own, in component order, so a
+// dialog opening as another closes in the same update — a wizard's Next —
+// would run in declaration order, and the closer's restore take focus back
+// from the opener. The sequences run as React's commit runs them instead,
+// once the whole update has rendered: every release before any start.
+// Releases go innermost first, each layer's close restoring focus while the
+// one beneath still holds the stack. Exit windows start before open
+// sequences, so a new layer's containment can't take over an exiting layer's
+// hiding and strip it when that layer closes. Opens go outermost first, each
+// layer taking focus from the one beneath — as a nested stack first opens,
+// and as a restored <KeepAlive> view, whose hooks run children first, must
+// reopen.
+const pendingCommits = new Set<LayerCommit>()
+
+function commitAfterUpdate(commit: LayerCommit): void {
+  // Queued during Vue's flush, a microtask runs once the flush is done:
+  // before anything awaiting `nextTick()`, and before the browser paints.
+  if (pendingCommits.size === 0) queueMicrotask(flushCommits)
+  pendingCommits.add(commit)
+}
+
+function flushCommits(): void {
+  const batch = [...pendingCommits]
+  pendingCommits.clear()
+  // Every step runs even when one throws; the failures surface after.
+  const failures: unknown[] = []
+  const run = (step: () => void): void => {
+    try {
+      step()
+    } catch (error) {
+      failures.push(error)
+    }
   }
-  pendingPlacements.push({ depth, place })
+  batch.sort((a, b) => b.depth - a.depth)
+  for (const commit of batch) run(commit.release)
+  batch.sort((a, b) => a.depth - b.depth)
+  for (const commit of batch) {
+    if (!commit.opening()) run(commit.start)
+  }
+  for (const commit of batch) {
+    if (commit.opening()) run(commit.start)
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(failures, 'Dialog: several layer sequences threw')
+  }
+  if (failures.length === 1) throw failures[0]
 }
 
 // A template ref on a component holds its instance; the element is its `$el`
@@ -414,9 +456,6 @@ export const Viewport = defineComponent(
  * dialog reads it. A component counts as its root element (`$el`). */
 type FocusTarget = MaybeRefOrGetter<HTMLElement | ComponentPublicInstance | null | undefined>
 
-// What the window's DOM shows: `closing` is an animated dialog's exit window.
-type WindowState = 'open' | 'closing' | 'closed'
-
 export interface DialogContentProps extends HTMLAttributes {
   /** The element to focus when the dialog opens — resolved at open time, so a
    * template ref that fills after setup works. @default the dialog window */
@@ -433,56 +472,58 @@ export const Content = defineComponent(
       useDialogContext()
     const contentRef = shallowRef<HTMLElement | null>(null)
 
-    // The state the window's DOM shows, committed by the hooks that follow its
-    // render. The machine can run ahead of the DOM: a change made in a
-    // post-flush job (the adapter syncs a controlled `open` there) reaches a
-    // `post` watcher before the render it queued. The sequences must see what
-    // the state rendered — a stylesheet may hide a closed window — as a React
-    // effect runs after commit.
+    // The state the window's DOM shows, taken by the hooks that follow its
+    // render: the machine can run ahead of the DOM — the adapter syncs a
+    // controlled `open` in a post-flush job, before the render it causes —
+    // and the sequences must see what the state rendered (a stylesheet may
+    // hide a closed window), as a React effect runs after commit.
     let rendered: WindowState = 'closed'
-    const shown = shallowRef<WindowState>('closed')
+    let shown: WindowState = 'closed'
+    // Whether the view is live: a <KeepAlive> deactivation parks the layer.
+    let active = false
+    // The sequence the window holds, and what it stands for.
+    let applied: WindowState = 'closed'
+    let release: (() => void) | undefined
 
-    // Whether the window is where it renders: back from a <KeepAlive> cache it
-    // is still parked until the Portal re-enables its teleport, in the flush
-    // that restores the view — so the sequences wait that flush out.
-    const placed = shallowRef(true)
-    const instance = getCurrentInstance()
-    onMounted(() => {
-      shown.value = rendered
-      placed.value = !inDeactivatedView(instance)
-    })
-    onUpdated(() => {
-      shown.value = rendered
-    })
-    onDeactivated(() => {
-      placed.value = false
-    })
-    onActivated(() => {
-      placeByDepth(depth, () => {
-        placed.value = true
-      })
-    })
+    // The shown state is the edge, not mount/unmount: an animated dialog stays
+    // mounted through `closing`, its exit window, and a Content rendered with
+    // the root (no Portal) is mounted while closed too.
+    const target = (): WindowState => (active && contentRef.value !== null ? shown : 'closed')
 
-    // The rendered state is the edge, not mount/unmount: an animated dialog
-    // stays mounted through `closing`, its exit window, and a Content rendered
-    // with the root (no Portal) is mounted while closed too. A portalled
-    // window never renders `closed` — it unmounts, and the scope's end
-    // releases it once the DOM is gone. The sequences and their inverses are
-    // the DOM package's; this watcher only ties them to Vue's lifecycle.
-    // Released by hand: Vue 3.6 also runs a watcher's onCleanup when its
-    // source merely re-evaluates.
-    whileActive(() => {
-      let release: (() => void) | undefined
-      watch(
-        [shown, placed],
-        ([state, isPlaced]) => {
-          release?.()
-          release = undefined
+    const releaseApplied = (): void => {
+      const previous = release
+      release = undefined
+      applied = 'closed'
+      previous?.()
+    }
+
+    // The commit's steps run through a watcher, so an error in a sequence
+    // reaches the app's errorHandler like any other component error.
+    let step: (() => void) | undefined
+    const stepRequest = shallowRef(0)
+    watch(stepRequest, () => step?.(), { flush: 'sync' })
+    const runStep = (next: () => void): void => {
+      step = next
+      stepRequest.value++
+    }
+
+    // The sequences and their inverses are the DOM package's; the commit only
+    // ties them to Vue's lifecycle.
+    const commit: LayerCommit = {
+      depth,
+      opening: () => target() === 'open',
+      release: () =>
+        runStep(() => {
+          if (target() !== applied) releaseApplied()
+        }),
+      start: () =>
+        runStep(() => {
+          const next = target()
           const content = contentRef.value
-          if (content === null || !isPlaced || state === 'closed') return
-
+          if (next === applied || content === null) return
+          applied = next
           release =
-            state === 'open'
+            next === 'open'
               ? openDialogLayer(content, {
                   id: machine.context.id,
                   depth,
@@ -493,19 +534,46 @@ export const Content = defineComponent(
                   dismiss: () => machine.send({ type: 'close' }),
                 })
               : startExitWindow(content, {
-                  // Without a Portal the layer sits in the page itself: the
-                  // exit hides the layer — its Viewport, or the window bare —
-                  // not the outermost ancestor.
-                  container: portalled ? container() : (viewportRef.value ?? content).parentElement,
+                  container: container(),
                   backdrop: backdropRef.value,
+                  inPlace: !portalled,
+                  viewport: viewportRef.value,
                   onComplete: () => machine.send({ type: 'exit.complete' }),
                 })
-        },
-        // `sync`: both sources change only in the hooks above, which already
-        // run once the DOM is in place.
-        { immediate: true, flush: 'sync' },
-      )
-      onScopeDispose(() => release?.())
+        }),
+    }
+
+    const instance = getCurrentInstance()
+    const schedule = (): void => {
+      if (target() !== applied) commitAfterUpdate(commit)
+    }
+    onMounted(() => {
+      shown = rendered
+      active = !inDeactivatedView(instance)
+      schedule()
+    })
+    onUpdated(() => {
+      shown = rendered
+      schedule()
+    })
+    // Back from a <KeepAlive> cache, the window is parked until the Portal
+    // re-enables its teleport, in the flush that restores the view — which
+    // the commit waits out.
+    onActivated(() => {
+      active = true
+      schedule()
+    })
+    onDeactivated(() => {
+      active = false
+      schedule()
+    })
+    // A portalled window never shows `closed` — it unmounts, released at once
+    // after the DOM is gone and children first, as React runs a removed
+    // subtree's cleanups: a parent closing over an open child must not
+    // restore focus into a layer still registered above it.
+    onUnmounted(() => {
+      pendingCommits.delete(commit)
+      releaseApplied()
     })
 
     // The lock spans the dialog's occupancy — through `closing` too:

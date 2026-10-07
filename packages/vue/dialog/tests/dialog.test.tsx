@@ -72,6 +72,9 @@ const refuseInertFocus = (): void => {
   onTestFinished(() => spy.mockRestore())
 }
 
+// The view a <KeepAlive> switches to and back from.
+const Elsewhere = defineComponent(() => () => <button type='button'>Elsewhere</button>)
+
 // Runtime-compiled templates resolve components by registered name, so the
 // dotted part names an SFC resolves from the `Dialog` import are registered
 // as such — derived from the parts themselves, so none can be missed.
@@ -1093,6 +1096,161 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(trigger)
     })
 
+    // A step that closes one dialog and opens a sibling — a wizard's Next —
+    // runs every close before any open, as React's commit does: the opened
+    // dialog keeps the focus it took, an exiting one stays out of reach, and
+    // the last close returns focus to the trigger the hand-over started from,
+    // however the two are declared, animated, or modal.
+    describe('a hand-over between sibling dialogs', () => {
+      const cases = [false, true].flatMap(nextFirst =>
+        [false, true].flatMap(firstAnimated =>
+          [false, true].flatMap(nextAnimated =>
+            [true, false].map(nextModal => ({
+              name: [
+                nextFirst ? 'the next step declared first' : 'declared in step order',
+                firstAnimated ? 'an animated first step' : 'an instant first step',
+                nextAnimated ? 'an animated next step' : 'an instant next step',
+                nextModal ? 'modal' : 'non-modal',
+              ].join(', '),
+              nextFirst,
+              firstAnimated,
+              nextAnimated,
+              nextModal,
+            })),
+          ),
+        ),
+      )
+
+      const expectExitsInert = (): void => {
+        for (const exiting of document.querySelectorAll('[data-state="closing"][role="dialog"]')) {
+          expect(exiting.closest('[inert]')).not.toBeNull()
+        }
+      }
+
+      const expectHandedTo = (name: string): void => {
+        expect(screen.getByRole('dialog', { name }).contains(document.activeElement)).toBe(true)
+        expectExitsInert()
+      }
+
+      it.each(cases)('$name', async ({ nextFirst, firstAnimated, nextAnimated, nextModal }) => {
+        refuseInertFocus()
+        const first = ref(false)
+        const next = ref(false)
+        await renderSettled(() => {
+          const steps = [
+            <Dialog
+              key='first'
+              open={first.value}
+              animated={firstAnimated}
+              onEscapeKeyDown={() => (first.value = false)}
+            >
+              <Dialog.Trigger onClick={() => (first.value = true)}>Start</Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Content aria-label='First'>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      first.value = false
+                      next.value = true
+                    }}
+                  >
+                    Next
+                  </button>
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>,
+            <Dialog
+              key='next'
+              open={next.value}
+              animated={nextAnimated}
+              modal={nextModal}
+              onEscapeKeyDown={() => (next.value = false)}
+            >
+              <Dialog.Portal>
+                <Dialog.Content aria-label='Next'>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      next.value = false
+                      first.value = true
+                    }}
+                  >
+                    Back
+                  </button>
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>,
+          ]
+          return <div>{nextFirst ? steps.reverse() : steps}</div>
+        })
+        const trigger = screen.getByText('Start')
+        trigger.focus()
+        await press(trigger)
+        expectHandedTo('First')
+
+        await press(screen.getByText('Next'))
+        expectHandedTo('Next')
+        await press(screen.getByText('Back')) // reopens an animated first step mid-exit
+        expectHandedTo('First')
+        await press(screen.getByText('Next'))
+        expectHandedTo('Next')
+
+        await pressEscape() // closes the next step inside the first step's exit
+        expect(document.activeElement).toBe(trigger)
+        expectExitsInert()
+      })
+    })
+
+    // Two exits starting in one update — a stack-scoped Escape, or a stack
+    // closed at once — each hide their own layer once every release has run;
+    // run in turn, a release's containment undo strips the other's hiding.
+    const ExitingStack = (props: { outer?: boolean; inner?: boolean }) => (
+      <Dialog animated open={props.outer}>
+        <Dialog.Trigger>Trigger</Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Viewport data-testid='viewport'>
+            <Dialog.Content aria-label='Outer'>
+              <Dialog animated escapeScope='stack' open={props.inner}>
+                <Dialog.Trigger>Inner trigger</Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Backdrop data-testid='inner-backdrop' />
+                  <Dialog.Viewport data-testid='inner-viewport'>
+                    <Dialog.Content aria-label='Inner'>inner</Dialog.Content>
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    )
+
+    it('a stack-scoped Escape keeps every exiting layer inert', async () => {
+      await renderSettled(() => <ExitingStack />)
+      await openDialog()
+      await press(screen.getByText('Inner trigger'))
+
+      await pressEscape()
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('inner-viewport').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('inner-backdrop').hasAttribute('inert')).toBe(true)
+    })
+
+    // The controlled close is the strict case: the adapter syncs both in
+    // post-flush jobs, ahead of the renders they cause.
+    it('closing two controlled animated layers in one update keeps both inert', async () => {
+      const outer = ref(true)
+      const inner = ref(true)
+      await renderSettled(() => <ExitingStack outer={outer.value} inner={inner.value} />)
+      await afterFlushes() // the inner layer mounts with the outer's teleport, an update later
+
+      outer.value = false
+      inner.value = false
+      await nextTick()
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('inner-viewport').hasAttribute('inert')).toBe(true)
+    })
+
     // A template ref on a component holds its instance, not an element.
     it("initialFocus and restoreFocus take a component's ref as its element", async () => {
       const Action = defineComponent(() => () => <button type='button'>Action</button>)
@@ -1220,7 +1378,6 @@ describe('Dialog', () => {
           </Dialog.Portal>
         </Dialog>
       ))
-      const Elsewhere = defineComponent(() => () => <button type='button'>Elsewhere</button>)
       const { container } = await renderSettled(() => (
         <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>
       ))
@@ -1269,7 +1426,6 @@ describe('Dialog', () => {
           </Dialog.Portal>
         </Dialog>
       ))
-      const Elsewhere = defineComponent(() => () => <button type='button'>Elsewhere</button>)
       await renderSettled(() => <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>)
       await afterFlushes()
 
@@ -1300,7 +1456,6 @@ describe('Dialog', () => {
             <span>loading</span>
           ),
       )
-      const Elsewhere = defineComponent(() => () => <button type='button'>Elsewhere</button>)
       const before: unknown = window.history.state
       const { container } = await renderSettled(() => (
         <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>
