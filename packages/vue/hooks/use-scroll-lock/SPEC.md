@@ -46,6 +46,9 @@ Vue-specific notes on top of the DOM contract:
 - The DOM contract's shared per-container lock does the multi-holder
   arithmetic: several mounted lockers (nested modal layers) hold one lock,
   and the container restores when the last releases.
+- The deactivated-view walk and the `$el` unwrapping are local copies of the
+  dialog binding's, by design — see [its SPEC](../../dialog/SPEC.md)'s
+  `<KeepAlive>` note.
 
 ## API
 

@@ -32,7 +32,7 @@ import { Dialog } from '@dunky.dev/vue-dialog'
           <Dialog.Title>Delete file?</Dialog.Title>
           <Dialog.Description>This cannot be undone.</Dialog.Description>
           <button type="button">Delete</button>
-          <Dialog.Close>Cancel</Dialog.Close>
+          <Dialog.Close aria-label="Close">×</Dialog.Close>
         </Dialog.Content>
       </Dialog.Viewport>
     </Dialog.Portal>

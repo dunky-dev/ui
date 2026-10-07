@@ -44,6 +44,9 @@ Vue-specific notes on top of the DOM contract:
   view's activation before it has mounted (an async component under
   `<Suspense>`), it waits for its own mount. Mounted hooks never run during
   server rendering, so the trap touches no DOM there.
+- The deactivated-view walk and the `$el` unwrapping are local copies of the
+  dialog binding's, by design — see [its SPEC](../../dialog/SPEC.md)'s
+  `<KeepAlive>` note.
 - The options object is read on each Tab press, so inline `enabled` / `last`
   see the latest state without re-binding the listener — the per-press
   re-evaluation the DOM contract promises.

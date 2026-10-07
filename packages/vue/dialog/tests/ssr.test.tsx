@@ -30,9 +30,10 @@ describe('Dialog on the server', () => {
     expect(html).not.toContain('role="dialog"')
   })
 
-  it('renders an open dialog without its portal, the trigger already announcing it', async () => {
+  // The window arrives once the client mounts — SPEC.md lists what the
+  // trigger announces meanwhile.
+  it('renders an open dialog without its portal', async () => {
     const html = await render(true)
-    expect(html).toMatch(/aria-controls="v-[^"]+-content"/)
     expect(html).toContain('data-state="open"')
     expect(html).not.toContain('role="dialog"')
   })

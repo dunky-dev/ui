@@ -16,10 +16,13 @@ npm install @dunky.dev/vue-use-focus-trap
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
+import { isTopmostLayer } from '@dunky.dev/dom-overlay'
 import { useFocusTrap } from '@dunky.dev/vue-use-focus-trap'
 
+const props = defineProps<{ id: string }>()
 const panel = ref<HTMLElement | null>(null)
-useFocusTrap(panel, { enabled: () => isTopmost(panel.value) })
+// Only the overlay stack's topmost layer traps.
+useFocusTrap(panel, { enabled: () => isTopmostLayer(props.id) })
 </script>
 
 <template>

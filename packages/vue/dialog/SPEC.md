@@ -46,16 +46,17 @@ Vue-specific notes on top of the core contract:
   are `escape-key-down`, `interact-outside`, `back-navigation`, and
   `forward-navigation`. Listeners run synchronously, so `preventDefault()` on
   a payload still vetoes, per the core contract. `update:open` reports a
-  change, it never requests one: a controlled dialog — `v-model:open`
-  included — doesn't move on its own Trigger, Close, Escape, or outside
-  press. Wire the intent at its source: `@click` on the Trigger, a handler
-  on `escape-key-down`, your own action buttons. A wrapper that forwards its
-  own `defineModel('open')` through `v-model:open` makes the dialog
-  controlled the moment that model holds a value, with the same obligation.
-  The veto composes with plain listeners; a modifier listener
-  (`@click.capture`, `.once`) is a separate DOM listener the part's handler
-  doesn't consult. A listener that throws is caught by Vue's error handling,
-  so it can't veto.
+  change, it never requests one: a controlled dialog — `v-model:open` included
+  — doesn't move on its own Trigger, Close, Escape, or outside press. Wire the
+  intent at its source: `@click` on the Trigger, a handler on
+  `escape-key-down`, your own action buttons. A wrapper that forwards its own
+  `defineModel('open')` through `v-model:open` makes the dialog controlled the
+  moment that model holds a value, with the same obligation. A dismissal
+  listener that throws vetoes nothing by design, but Vue's error handling
+  decides what follows: with an `app.config.errorHandler`, or in a production
+  build, Vue reports the error and the dismissal proceeds; in development
+  without one, Vue rethrows it, which aborts the dismissal — the dialog stays
+  open there.
 - **Boolean props follow the core defaults when absent.** Vue casts an absent
   Boolean prop to `false`; this root declares its booleans without that cast,
   so `<Dialog>` is modal and uncontrolled, and a bare attribute
@@ -109,10 +110,12 @@ Vue-specific notes on top of the core contract:
   its own.
 - **Attributes** are merged, not inherited: each part merges what you pass
   through the adapter's `mergeProps`. Your listeners run before the part's
-  own, and `preventDefault()` in yours skips it; `class` and `style` merge;
-  the attributes the part owns (`id`, `role`, `aria-*`, `data-state`) win.
-  The root and the Portal render no element of their own and ignore extra
-  attributes.
+  own, and `preventDefault()` in yours skips it — a listener bound twice too,
+  and a `.capture` one, or a `.once` one bound from the first render, both of
+  which run first; a `.passive` listener can't prevent, so it can't veto.
+  `class` and `style` merge; the attributes the part owns (`id`, `role`,
+  `aria-*`, `data-state`) win. The root and the Portal render no element of
+  their own and ignore extra attributes.
 - **`Backdrop`** renders nothing when the dialog is non-modal (`:modal="false"`),
   per the core parts contract.
 - **Exit animation** (`animated`): style the exit on the parts'
@@ -160,12 +163,26 @@ Vue-specific notes on top of the core contract:
   dialog mounted into a view that is already deactivated — async data
   resolving after the user left — holds still the same way until the view
   returns, and a part that a restored view's activation reaches before it has
-  mounted (an async one under `<Suspense>`) starts with its own mount.
+  mounted (an async one under `<Suspense>`) starts with its own mount. The
+  binding walks the instance chain for a deactivated view itself, for the work
+  it owns — the Portal's parking, the window's sequences, the history guard —
+  as the adapter does for the machine and each hook for its own lifecycle.
+  That walk and the `$el` unwrapping are local copies here and in both hooks,
+  by design: a substrate hook imports only the DOM util it wraps, so the three
+  can't share a helper without a new package.
 - **Server rendering** touches no DOM: the root and its Trigger render, the
   document-level work starts on mount, and the base id comes from `useId`, so
   the hydrated parts carry the ids the server rendered. `useId` counts per
   app: with several Vue apps on one page, give each its own
-  `app.config.idPrefix` — dialogs share one layer stack, keyed by id.
+  `app.config.idPrefix` — dialogs share one layer stack, keyed by id. The
+  layers themselves arrive on the client, which leaves the server markup short
+  meanwhile: a `defaultOpen` dialog's Trigger already renders
+  `aria-expanded="true"` and an `aria-controls` naming a window not yet in the
+  document, and a Content rendered with the root (no Portal) carries no
+  `aria-labelledby` / `aria-describedby` until its Title and Description
+  mount. The React binding's server markup has the same gaps; leaving
+  `aria-controls` out until the window exists needs the core to track the
+  window's presence.
 - Everything ships headless, per the core contract's
   [Internals](../../core/dialog/SPEC.md#internals).
 
