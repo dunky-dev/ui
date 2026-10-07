@@ -361,6 +361,36 @@ describe('startExitWindow', () => {
     content.dispatchEvent(new Event('transitionend'))
     expect(onComplete).not.toHaveBeenCalled()
   })
+
+  // A layer rendered in place sits in the page's own branch: climbing to the
+  // outermost ancestor below the body would take the page out with it.
+  describe('in place', () => {
+    const mountInPlace = (withViewport: boolean): Record<string, HTMLElement> => {
+      const page = document.createElement('main')
+      const viewport = document.createElement('div')
+      const content = document.createElement('div')
+      page.append(withViewport ? viewport : content)
+      if (withViewport) viewport.append(content)
+      document.body.append(page)
+      return { page, viewport, content }
+    }
+
+    it('hides the layer from its viewport down, leaving the page around it live', () => {
+      const { page, viewport, content } = mountInPlace(true)
+      startExitWindow(content, { inPlace: true, viewport, onComplete: vi.fn() })
+
+      expect(viewport.hasAttribute('inert')).toBe(true)
+      expect(page.hasAttribute('inert')).toBe(false)
+    })
+
+    it('hides the content alone when the layer has no viewport', () => {
+      const { page, content } = mountInPlace(false)
+      startExitWindow(content, { inPlace: true, onComplete: vi.fn() })
+
+      expect(content.hasAttribute('inert')).toBe(true)
+      expect(page.hasAttribute('inert')).toBe(false)
+    })
+  })
 })
 
 describe('guardBackNavigation', () => {
