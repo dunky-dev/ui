@@ -159,7 +159,8 @@ Vue-specific notes on top of the core contract:
   opened, so each layer's close still returns focus to the one beneath. A
   dialog mounted into a view that is already deactivated — async data
   resolving after the user left — holds still the same way until the view
-  returns.
+  returns, and a part that a restored view's activation reaches before it has
+  mounted (an async one under `<Suspense>`) starts with its own mount.
 - **Server rendering** touches no DOM: the root and its Trigger render, the
   document-level work starts on mount, and the base id comes from `useId`, so
   the hydrated parts carry the ids the server rendered. `useId` counts per

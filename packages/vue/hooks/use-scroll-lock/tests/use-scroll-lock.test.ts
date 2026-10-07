@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The Vue lifecycle around @dunky.dev/dom-scroll-lock — the refcount/restore
 // behavior itself is covered in the util's own tests.
-import { KeepAlive, defineComponent, h, nextTick, ref } from 'vue'
+import { KeepAlive, Suspense, defineComponent, h, nextTick, ref } from 'vue'
 import { cleanup, render } from '@testing-library/vue'
 import { afterEach, describe, expect, it, onTestFinished } from 'vitest'
 import { useScrollLock } from '@dunky.dev/vue-use-scroll-lock'
@@ -101,6 +101,32 @@ describe('useScrollLock', () => {
 
     shown.value = true
     await nextTick()
+    expect(document.body.style.overflowY).toBe('hidden')
+  })
+
+  // A restored view's activation reaches every part it holds, mounted or
+  // not: an async one still pending under <Suspense> waits for its own mount.
+  it('holds nothing for an async component a restored view reaches before it mounts', async () => {
+    let resolve = (): void => {}
+    const pending = new Promise<void>(done => (resolve = done))
+    const Async = defineComponent({
+      async setup() {
+        useScrollLock()
+        await pending
+        return () => null
+      },
+    })
+    const shown = ref(true)
+    const Page = defineComponent(() => () => h(Suspense, null, { default: () => h(Async) }))
+    render(() => h(KeepAlive, null, () => (shown.value ? h(Page) : null)))
+    shown.value = false
+    await nextTick()
+    shown.value = true
+    await nextTick()
+    expect(document.body.style.overflowY).toBe('')
+
+    resolve()
+    await new Promise(settled => setTimeout(settled))
     expect(document.body.style.overflowY).toBe('hidden')
   })
 

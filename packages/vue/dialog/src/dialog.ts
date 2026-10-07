@@ -92,6 +92,7 @@ function inDeactivatedView(instance: InstanceNode | null): boolean {
 // neither does this.
 function whileActive(effects: () => void): void {
   const instance = getCurrentInstance()
+  let mounted = false
   let scope: EffectScope | undefined
   const start = (): void => {
     if (scope !== undefined) return
@@ -106,10 +107,15 @@ function whileActive(effects: () => void): void {
     scope = undefined
   }
   onMounted(() => {
+    mounted = true
     if (!inDeactivatedView(instance)) start()
   })
-  // Also fires on a kept-alive first mount, after `onMounted` already started.
-  onActivated(start)
+  // Also fires on a kept-alive first mount, after `onMounted` already
+  // started — and can reach a part that hasn't mounted yet (an async one
+  // under <Suspense>), which `onMounted` starts instead.
+  onActivated(() => {
+    if (mounted) start()
+  })
   onDeactivated(stop)
   onUnmounted(stop)
 }

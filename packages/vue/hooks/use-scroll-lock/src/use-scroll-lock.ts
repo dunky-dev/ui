@@ -85,11 +85,17 @@ export function useScrollLock(
     scope?.stop()
     scope = undefined
   }
+  let mounted = false
   onMounted(() => {
+    mounted = true
     if (!inDeactivatedView(instance)) hold()
   })
-  // Also fires on a kept-alive first mount, right after `onMounted`.
-  onActivated(hold)
+  // Also fires on a kept-alive first mount, right after `onMounted` — and can
+  // reach a component that hasn't mounted yet (an async one under
+  // <Suspense>), which `onMounted` starts instead.
+  onActivated(() => {
+    if (mounted) hold()
+  })
   onDeactivated(drop)
   onUnmounted(drop)
 }
