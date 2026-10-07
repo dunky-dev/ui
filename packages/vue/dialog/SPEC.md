@@ -57,9 +57,11 @@ Vue-specific notes on top of the core contract:
   doesn't consult. A listener that throws is caught by Vue's error handling,
   so it can't veto.
 - **Boolean props follow the core defaults when absent.** Vue casts an absent
-  Boolean prop to `false`; this root declares its booleans without that
-  cast, so `<Dialog>` is modal and uncontrolled, and a bare attribute
-  (`<Dialog default-open>`) switches the option on.
+  Boolean prop to `false`; this root declares its booleans without that cast,
+  so `<Dialog>` is modal and uncontrolled, and a bare attribute
+  (`<Dialog default-open>`) switches the option on. `open` reads `null` —
+  Vue's "no value" — as absent too: a bound `open` that holds `null` keeps
+  the dialog uncontrolled, where the core would take it as control.
 - **`Portal`** teleports the layers to `document.body`, or to a `container`
   element you supply. Nothing is kept mounted while closed; an `animated`
   dialog stays mounted through the core contract's `closing` state so its exit

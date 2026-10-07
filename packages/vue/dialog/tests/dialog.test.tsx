@@ -920,6 +920,27 @@ describe('Dialog', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
 
+    // `null` is Vue's "no value": a bound `open` holding it is absent — the
+    // core takes any other value, `null` included, as control.
+    it('a null open is absent: the dialog stays uncontrolled', async () => {
+      await renderSettled(
+        defineComponent({
+          components: dialogComponents,
+          template: `
+            <Dialog :open="null" default-open>
+              <Dialog.Portal>
+                <Dialog.Content aria-label="Settings">content</Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          `,
+        }),
+      )
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      await pressEscape()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
     it('v-model:open is the controlled contract — the dialog follows the bound value alone', async () => {
       const open = ref(false)
       await renderSettled(

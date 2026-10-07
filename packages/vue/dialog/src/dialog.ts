@@ -226,7 +226,13 @@ const DialogRoot = defineComponent<DialogProps, DialogEmits>(
       onBackNavigation: event => emit('backNavigation', event),
       onForwardNavigation: event => emit('forwardNavigation', event),
     }
-    const { api, machine } = useDialog(() => ({ ...props, ...callbacks }))
+    const { api, machine } = useDialog(() => ({
+      ...props,
+      // `null` is Vue's "no value": the core takes anything but `undefined`
+      // as control, so a bound `open` holding `null` reads as absent.
+      open: props.open ?? undefined,
+      ...callbacks,
+    }))
     const backdropRef = shallowRef<HTMLElement | null>(null)
     const viewportRef = shallowRef<HTMLElement | null>(null)
 
