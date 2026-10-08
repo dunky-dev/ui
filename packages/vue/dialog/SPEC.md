@@ -54,9 +54,9 @@ Vue-specific notes on top of the core contract:
   moment that model holds a value, with the same obligation. A dismissal
   listener that throws vetoes nothing by design, but Vue's error handling
   decides what follows: with an `app.config.errorHandler`, or in a production
-  build, Vue reports the error and the dismissal proceeds; in development
-  without one, Vue rethrows it, which aborts the dismissal — the dialog stays
-  open there.
+  build (unless `app.config.throwUnhandledErrorInProduction` is set, Vue
+  3.5+), Vue reports the error and the dismissal proceeds; otherwise Vue
+  rethrows it, which aborts the dismissal — the dialog stays open.
 - **Boolean props follow the core defaults when absent.** Vue casts an absent
   Boolean prop to `false`; this root declares its booleans without that cast,
   so `<Dialog>` is modal and uncontrolled, and a bare attribute
