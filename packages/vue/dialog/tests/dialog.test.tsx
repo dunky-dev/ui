@@ -1,0 +1,1702 @@
+// @vitest-environment jsdom
+// The Vue edge of the Dialog — behavior only; the machine's own contract is
+// covered in @dunky.dev/dialog's tests. Names mirror the React and Solid
+// suites; where they cite a core callback, this binding's emit carries it
+// (onOpenChange -> `update:open`, onEscapeKeyDown -> `escapeKeyDown`, ...).
+import {
+  KeepAlive,
+  Suspense,
+  createSSRApp,
+  defineComponent,
+  nextTick,
+  reactive,
+  ref,
+  type Component,
+  type EmitsToProps,
+} from 'vue'
+import { renderToString } from 'vue/server-renderer'
+import { cleanup, fireEvent, render, screen } from '@testing-library/vue'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { Dialog, type DialogEmits, type DialogProps } from '@dunky.dev/vue-dialog'
+// A second instance of the binding's module, as a page that bundles the
+// binding twice gets one: Vite loads a module once per distinct query.
+// @ts-expect-error -- TypeScript resolves no query imports
+import { Dialog as DialogCopy } from '../src/dialog.ts?copy'
+
+const CopiedDialog = DialogCopy as typeof Dialog
+
+// The root's props plus its emits' listener props (`onUpdate:open`, ...).
+type DialogAttrs = DialogProps & EmitsToProps<DialogEmits>
+
+const DefaultDialog = (props: DialogAttrs) => (
+  <Dialog {...props}>
+    <Dialog.Trigger>Trigger</Dialog.Trigger>
+    <Dialog.Portal>
+      <Dialog.Backdrop data-testid='backdrop' />
+      <Dialog.Viewport data-testid='viewport'>
+        <Dialog.Content>
+          <Dialog.Title>Title</Dialog.Title>
+          <Dialog.Description>Description</Dialog.Description>
+          <button type='button'>Action</button>
+          <Dialog.Close>Close</Dialog.Close>
+        </Dialog.Content>
+      </Dialog.Viewport>
+    </Dialog.Portal>
+  </Dialog>
+)
+
+// Vue batches re-renders into a microtask, and the Portal's teleport arrives
+// with the first update after mount — settle after every render and
+// interaction before reading the tree.
+const renderSettled = async (ui: Component): Promise<ReturnType<typeof render>> => {
+  const result = render(ui)
+  await nextTick()
+  return result
+}
+
+const press = async (element: HTMLElement): Promise<void> => {
+  element.click()
+  await nextTick()
+}
+
+const openDialog = (): Promise<void> => press(screen.getByText('Trigger'))
+
+// A macrotask: every flush a reactivation chains (restore, re-enable the
+// teleport, then the open sequence) has run.
+const afterFlushes = (): Promise<void> => new Promise(resolve => setTimeout(resolve))
+
+const pressEscape = (): Promise<void> => fireEvent.keyDown(document.body, { key: 'Escape' })
+
+// jsdom moves focus onto an inert element; a browser refuses. The tests on
+// which layer's teardown un-inerts the page first need the browser's rule.
+const refuseInertFocus = (): void => {
+  const focus = HTMLElement.prototype.focus
+  const spy = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+    this: HTMLElement,
+    options?: FocusOptions,
+  ) {
+    if (this.closest('[inert]') === null) focus.call(this, options)
+  })
+  onTestFinished(() => spy.mockRestore())
+}
+
+// The view a <KeepAlive> switches to and back from.
+const Elsewhere = defineComponent(() => () => <button type='button'>Elsewhere</button>)
+
+// Runtime-compiled templates resolve components by registered name, so the
+// dotted part names an SFC resolves from the `Dialog` import are registered
+// as such — derived from the parts themselves, so none can be missed.
+const dialogComponents: Record<string, Component> = { Dialog }
+for (const [name, part] of Object.entries(Dialog)) {
+  if (/^[A-Z]/.test(name)) dialogComponents[`Dialog.${name}`] = part as Component
+}
+
+// Auto-cleanup needs vitest globals; this repo runs with globals: false.
+// Unmounting a guarded dialog spends its history entry through a traversal,
+// asynchronous in jsdom, that would land in the next test — a failed test
+// leaves entries armed — so the teardown waits for history to settle back.
+// And each test starts on a plain entry: a guard entry an earlier test left
+// current would read as this test's own.
+beforeEach(() => {
+  if (window.history.state !== null) window.history.replaceState(null, '')
+})
+afterEach(async () => {
+  cleanup()
+  for (let task = 0; task < 10 && window.history.state !== null; task++) await afterFlushes()
+})
+
+describe('Dialog', () => {
+  describe('open / close', () => {
+    it('opens on trigger press and closes on close press', async () => {
+      await renderSettled(() => <DefaultDialog />)
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      await openDialog()
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      await press(screen.getByText('Close'))
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('renders open when defaultOpen', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('fires onOpenChange with the new value on open and close', async () => {
+      const onOpenChange = vi.fn()
+      await renderSettled(() => <DefaultDialog onUpdate:open={onOpenChange} />)
+
+      await openDialog()
+      expect(onOpenChange).toHaveBeenLastCalledWith(true)
+
+      await press(screen.getByText('Close'))
+      expect(onOpenChange).toHaveBeenLastCalledWith(false)
+    })
+  })
+
+  describe('escape key', () => {
+    it('closes on Escape', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      await pressEscape()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('stays open when closeOnEscape=false', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen closeOnEscape={false} />)
+      await pressEscape()
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('stays open when onEscapeKeyDown prevents default', async () => {
+      const onEscapeKeyDown = vi.fn(event => event.preventDefault())
+      await renderSettled(() => <DefaultDialog defaultOpen onEscapeKeyDown={onEscapeKeyDown} />)
+      await pressEscape()
+      expect(onEscapeKeyDown).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+  })
+
+  describe('outside interaction', () => {
+    it('closes on backdrop press', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      await press(screen.getByTestId('backdrop'))
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    // The backdrop is portalled alongside the viewport, outside the content's
+    // subtree — the containment walk must except it, or `inert` would swallow
+    // real pointer presses on it (jsdom's .click() bypasses hit-testing, so
+    // only the attributes can assert this).
+    it('keeps its own backdrop pressable while the page around it is inert', async () => {
+      const { container } = await renderSettled(() => <DefaultDialog defaultOpen />)
+      expect(container.hasAttribute('inert')).toBe(true)
+
+      const backdrop = screen.getByTestId('backdrop')
+      expect(backdrop.hasAttribute('aria-hidden')).toBe(false)
+      expect(backdrop.hasAttribute('inert')).toBe(false)
+    })
+
+    it('stays open when closeOnInteractOutside=false', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen closeOnInteractOutside={false} />)
+      await press(screen.getByTestId('backdrop'))
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('stays open when onInteractOutside prevents default', async () => {
+      const onInteractOutside = vi.fn(event => event?.preventDefault())
+      await renderSettled(() => <DefaultDialog defaultOpen onInteractOutside={onInteractOutside} />)
+      await press(screen.getByTestId('backdrop'))
+      expect(onInteractOutside).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('alertdialog does not dismiss on backdrop press by default', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen role='alertdialog' />)
+      await press(screen.getByTestId('backdrop'))
+      expect(screen.queryByRole('alertdialog')).not.toBeNull()
+    })
+
+    it('closes on a press on the viewport around the content', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      await press(screen.getByTestId('viewport'))
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('does not close when a press inside the content bubbles to the viewport', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      await press(screen.getByText('Action'))
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('renders no backdrop when modal=false', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen modal={false} />)
+      expect(screen.queryByTestId('backdrop')).toBeNull()
+    })
+  })
+
+  describe('controlled open', () => {
+    it('follows the open prop in both directions', async () => {
+      const open = ref(false)
+      await renderSettled(() => <DefaultDialog open={open.value} />)
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      open.value = true
+      await nextTick()
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      open.value = false
+      await nextTick()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('a dismissal neither closes nor fires onOpenChange — nothing changed', async () => {
+      const onOpenChange = vi.fn()
+      await renderSettled(() => <DefaultDialog open onUpdate:open={onOpenChange} />)
+      await pressEscape()
+      expect(onOpenChange).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    it('a trigger press neither opens nor fires onOpenChange', async () => {
+      const onOpenChange = vi.fn()
+      await renderSettled(() => <DefaultDialog open={false} onUpdate:open={onOpenChange} />)
+      await openDialog()
+      expect(onOpenChange).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('reports a prop-driven change through onOpenChange', async () => {
+      const onOpenChange = vi.fn()
+      const open = ref(false)
+      await renderSettled(() => <DefaultDialog open={open.value} onUpdate:open={onOpenChange} />)
+      open.value = true
+      await nextTick()
+      expect(onOpenChange).toHaveBeenLastCalledWith(true)
+      expect(onOpenChange).toHaveBeenCalledTimes(1)
+    })
+
+    // The controlled contract's consumer side: the dialog never moves on its
+    // own, so the consumer's own handlers on the parts and the dismissal
+    // callbacks are what drive the prop.
+    it('a controlled stack closes through handlers wired at the source', async () => {
+      const ControlledStack = defineComponent(() => {
+        const outerOpen = ref(true)
+        const innerOpen = ref(false)
+        return () => (
+          <Dialog
+            open={outerOpen.value}
+            onUpdate:open={open => (outerOpen.value = open)}
+            onEscapeKeyDown={() => (outerOpen.value = false)}
+          >
+            <Dialog.Portal>
+              <Dialog.Viewport>
+                <Dialog.Content>
+                  <Dialog.Title>Outer</Dialog.Title>
+                  <Dialog
+                    open={innerOpen.value}
+                    onUpdate:open={open => (innerOpen.value = open)}
+                    onEscapeKeyDown={() => (innerOpen.value = false)}
+                  >
+                    <Dialog.Trigger onClick={() => (innerOpen.value = true)}>
+                      Open inner
+                    </Dialog.Trigger>
+                    <Dialog.Portal>
+                      <Dialog.Viewport>
+                        <Dialog.Content>
+                          <Dialog.Title>Inner</Dialog.Title>
+                          <Dialog.Close onClick={() => (innerOpen.value = false)}>
+                            Close inner
+                          </Dialog.Close>
+                        </Dialog.Content>
+                      </Dialog.Viewport>
+                    </Dialog.Portal>
+                  </Dialog>
+                </Dialog.Content>
+              </Dialog.Viewport>
+            </Dialog.Portal>
+          </Dialog>
+        )
+      })
+
+      await renderSettled(ControlledStack)
+      await press(screen.getByText('Open inner'))
+      expect(screen.queryByText('Inner')).not.toBeNull()
+
+      await press(screen.getByText('Close inner'))
+      expect(screen.queryByText('Inner')).toBeNull()
+
+      await press(screen.getByText('Open inner'))
+      await pressEscape() // reaches the topmost layer only
+      expect(screen.queryByText('Inner')).toBeNull()
+      expect(screen.queryByText('Outer')).not.toBeNull()
+    })
+
+    it('dropping the open prop rewires the dialog uncontrolled where it stands', async () => {
+      const onOpenChange = vi.fn()
+      const open = ref<boolean | undefined>(true)
+      await renderSettled(() => <DefaultDialog open={open.value} onUpdate:open={onOpenChange} />)
+      open.value = undefined
+      await nextTick()
+      expect(screen.queryByRole('dialog')).not.toBeNull() // stays where it was
+
+      await pressEscape() // uncontrolled now: dismissal works again
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(onOpenChange).toHaveBeenLastCalledWith(false)
+    })
+  })
+
+  describe('aria wiring', () => {
+    it('trigger exposes the popup relationship', async () => {
+      await renderSettled(() => <DefaultDialog />)
+      const trigger = screen.getByText('Trigger')
+      expect(trigger.getAttribute('aria-haspopup')).toBe('dialog')
+      expect(trigger.getAttribute('aria-expanded')).toBe('false')
+
+      await openDialog()
+      expect(trigger.getAttribute('aria-expanded')).toBe('true')
+      expect(trigger.getAttribute('aria-controls')).toBe(screen.getByRole('dialog').id)
+    })
+
+    // The window takes initial focus, so it carries tabindex — which HTML
+    // forbids on <dialog>. Hence a neutral element with an explicit role.
+    it('renders the dialog window as a scripted focus target outside the tab order', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      const dialog = screen.getByRole('dialog')
+      expect(dialog.tagName).not.toBe('DIALOG')
+      expect(dialog.tabIndex).toBe(-1)
+    })
+
+    it('content is labelled by the Title and described by the Description', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      const dialog = screen.getByRole('dialog', { name: 'Title' })
+      expect(dialog.getAttribute('aria-modal')).toBe('true')
+
+      const describedBy = dialog.getAttribute('aria-describedby')
+      expect(describedBy).not.toBeNull()
+      expect(document.getElementById(describedBy as string)?.textContent).toBe('Description')
+    })
+
+    it('supports aria-label on Content when no Title is rendered', async () => {
+      await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Content aria-label='Settings'>content</Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      const dialog = screen.getByRole('dialog', { name: 'Settings' })
+      expect(dialog.hasAttribute('aria-labelledby')).toBe(false)
+      expect(dialog.hasAttribute('aria-describedby')).toBe(false)
+    })
+
+    it('omits aria-modal when modal=false', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen modal={false} />)
+      expect(screen.getByRole('dialog').hasAttribute('aria-modal')).toBe(false)
+    })
+  })
+
+  describe('focus management', () => {
+    it('moves focus into the dialog window on open and restores it on close', async () => {
+      await renderSettled(() => <DefaultDialog />)
+      const trigger = screen.getByText('Trigger')
+      trigger.focus()
+
+      await openDialog()
+      expect(document.activeElement).toBe(screen.getByRole('dialog'))
+
+      await pressEscape()
+      expect(document.activeElement).toBe(trigger)
+    })
+
+    it('falls back to restoreFocus when nothing meaningful held focus before opening', async () => {
+      const fallback = ref<HTMLButtonElement | null>(null)
+      await renderSettled(() => (
+        <>
+          <button type='button' ref={fallback}>
+            Fallback
+          </button>
+          <Dialog>
+            <Dialog.Trigger>Trigger</Dialog.Trigger>
+            <Dialog.Portal>
+              <Dialog.Content aria-label='Settings' restoreFocus={fallback}>
+                <Dialog.Close>Close</Dialog.Close>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog>
+        </>
+      ))
+      // A click without a focus move leaves the body focused — nothing
+      // meaningful for the close to restore to.
+      await openDialog()
+
+      await press(screen.getByText('Close'))
+      expect(document.activeElement).toBe(screen.getByText('Fallback'))
+    })
+
+    // jsdom does no layout, so the scroll jump can't be reproduced — assert the
+    // mechanism that prevents it: focus never scrolls the locked surface.
+    it('moves focus without scrolling the locked surface', async () => {
+      const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus')
+      onTestFinished(() => focusSpy.mockRestore())
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true })
+    })
+
+    it('moves focus to the first form field when the dialog contains one', async () => {
+      await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Content aria-label='Form'>
+              <button type='button'>Action</button>
+              <input aria-label='Name' />
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      expect(document.activeElement).toBe(screen.getByLabelText('Name'))
+    })
+
+    it('wraps Tab from the last focusable to the first', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      const dialog = screen.getByRole('dialog')
+
+      screen.getByText('Close').focus()
+      await fireEvent.keyDown(dialog, { key: 'Tab' })
+      expect(document.activeElement).toBe(screen.getByText('Action'))
+    })
+
+    it('wraps Shift+Tab from the first focusable to the last', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      const dialog = screen.getByRole('dialog')
+
+      screen.getByText('Action').focus()
+      await fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+      expect(document.activeElement).toBe(screen.getByText('Close'))
+    })
+
+    it('keeps Close last in the cycle even when it renders first', async () => {
+      // Close first in the DOM, then content. Tabbing FROM the dialog window
+      // (off-cycle, where focus lands on open) is the discriminating case: a
+      // pure forward cycle hides the wrap point, but entry from off-cycle
+      // reveals whether Close leads (bug) or trails (fixed).
+      await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Viewport>
+              <Dialog.Content>
+                <Dialog.Close>Close</Dialog.Close>
+                <button type='button'>Content</button>
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      const dialog = screen.getByRole('dialog')
+
+      dialog.focus() // the dialog window — where focus opens
+      await fireEvent.keyDown(dialog, { key: 'Tab' })
+      expect(document.activeElement).toBe(screen.getByText('Content')) // not Close
+
+      dialog.focus()
+      await fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+      expect(document.activeElement).toBe(screen.getByText('Close')) // last, backward
+    })
+
+    const InitialFocusDialog = defineComponent({
+      props: { disabled: Boolean },
+      setup(props) {
+        const initialFocus = ref<HTMLInputElement | null>(null)
+        return () => (
+          <Dialog defaultOpen>
+            <Dialog.Portal>
+              <Dialog.Viewport>
+                <Dialog.Content aria-label='Form' initialFocus={initialFocus}>
+                  <input ref={initialFocus} disabled={props.disabled} aria-label='Name' />
+                </Dialog.Content>
+              </Dialog.Viewport>
+            </Dialog.Portal>
+          </Dialog>
+        )
+      },
+    })
+
+    it('moves focus to the initialFocus element on open', async () => {
+      await renderSettled(() => <InitialFocusDialog />)
+      expect(document.activeElement).toBe(screen.getByLabelText('Name'))
+    })
+
+    it('falls back to the dialog panel when the initialFocus target cannot take focus', async () => {
+      await renderSettled(() => <InitialFocusDialog disabled />)
+      expect(document.activeElement).toBe(screen.getByRole('dialog'))
+    })
+  })
+
+  describe('scroll lock', () => {
+    it('locks body scroll while a modal dialog is open', async () => {
+      await renderSettled(() => <DefaultDialog />)
+      await openDialog()
+      expect(document.body.style.overflowY).toBe('hidden')
+
+      await pressEscape()
+      expect(document.body.style.overflowY).not.toBe('hidden')
+    })
+
+    it('does not lock scroll when modal=false', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen modal={false} />)
+      expect(document.body.style.overflowY).not.toBe('hidden')
+    })
+
+    it('locks the portal container, not the body, when scoped', async () => {
+      const panel = document.createElement('div')
+      document.body.append(panel)
+      onTestFinished(() => panel.remove())
+
+      await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal container={panel}>
+            <Dialog.Content aria-label='Scoped'>content</Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+
+      expect(panel.style.overflowY).toBe('hidden')
+      expect(document.body.style.overflowY).not.toBe('hidden')
+
+      await pressEscape()
+      expect(panel.style.overflowY).not.toBe('hidden')
+    })
+  })
+
+  describe('back navigation', () => {
+    // jsdom's history traversal is asynchronous — await the popstate itself.
+    const nextPop = (): Promise<void> =>
+      new Promise(resolve => {
+        window.addEventListener('popstate', () => resolve(), { once: true })
+      })
+
+    // The traversal, then the update it caused.
+    const traverse = async (go: () => void): Promise<void> => {
+      const pop = nextPop()
+      go()
+      await pop
+      await nextTick()
+    }
+
+    it('closes on the browser Back instead of navigating', async () => {
+      const before: unknown = window.history.state
+      await renderSettled(() => <DefaultDialog closeOnBack />)
+      await openDialog()
+      expect(window.history.state).not.toEqual(before) // the guard entry is planted
+
+      await traverse(() => window.history.back())
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(window.history.state).toEqual(before) // consumed by the press itself
+    })
+
+    it('closing any other way consumes the guard entry', async () => {
+      const before: unknown = window.history.state
+      await renderSettled(() => <DefaultDialog closeOnBack defaultOpen />)
+      expect(window.history.state).not.toEqual(before)
+
+      const pop = nextPop()
+      await pressEscape()
+      await pop
+      expect(window.history.state).toEqual(before) // no leftover to swallow a Back
+    })
+
+    it('plants no history entry without the flag', async () => {
+      const before: unknown = window.history.state
+      await renderSettled(() => <DefaultDialog defaultOpen />)
+      expect(window.history.state).toEqual(before)
+    })
+
+    it('the browser Forward reopens what Back closed, guarded again', async () => {
+      await renderSettled(() => <DefaultDialog closeOnBack defaultOpen />)
+
+      await traverse(() => window.history.back())
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      await traverse(() => window.history.forward())
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      // The reopened dialog is guarded again: the next Back closes it.
+      await traverse(() => window.history.back())
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('Forward does not reopen a dialog closed any other way', async () => {
+      await renderSettled(() => <DefaultDialog closeOnBack defaultOpen />)
+
+      const consume = nextPop() // the released guard consumes its entry
+      await pressEscape()
+      await consume
+
+      await traverse(() => window.history.forward())
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('onForwardNavigation preventDefault declines the reopen', async () => {
+      await renderSettled(() => (
+        <DefaultDialog
+          closeOnBack
+          defaultOpen
+          onForwardNavigation={event => event?.preventDefault?.()}
+        />
+      ))
+
+      await traverse(() => window.history.back())
+      await traverse(() => window.history.forward())
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    // The nested round-trip: closing the outer takes the inner's whole
+    // registration with it (unmounted with the content that held it), so the
+    // inner that comes back with the outer is a different machine. It reopens
+    // anyway — the entry it lost is still its own ground.
+    const NestedGuards = () => (
+      <Dialog defaultOpen closeOnBack>
+        <Dialog.Portal>
+          <Dialog.Viewport>
+            <Dialog.Content aria-label='outer'>
+              <Dialog closeOnBack>
+                <Dialog.Trigger>open inner</Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Viewport>
+                    <Dialog.Content aria-label='inner' />
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    )
+
+    const layers = (): string =>
+      `${screen.queryByLabelText('outer') ? 'O' : '-'}${screen.queryByLabelText('inner') ? 'I' : '-'}`
+
+    it('Back unwinds a nested stack one layer per press and Forward restores it the same way', async () => {
+      await renderSettled(NestedGuards)
+      await press(screen.getByText('open inner'))
+      expect(layers()).toBe('OI')
+
+      await traverse(() => window.history.back())
+      expect(layers()).toBe('O-')
+      await traverse(() => window.history.back())
+      expect(layers()).toBe('--')
+
+      await traverse(() => window.history.forward())
+      expect(layers()).toBe('O-')
+      await traverse(() => window.history.forward())
+      expect(layers()).toBe('OI')
+    })
+
+    // Both layers guarded and closed in one update — a "close all" affordance,
+    // or a route change that takes the whole stack with it.
+    const GuardedStack = (props: { open: boolean }) => (
+      <Dialog open={props.open} closeOnBack>
+        <Dialog.Portal>
+          <Dialog.Viewport>
+            <Dialog.Content aria-label='outer'>
+              <Dialog open={props.open} closeOnBack>
+                <Dialog.Portal>
+                  <Dialog.Viewport>
+                    <Dialog.Content aria-label='inner' />
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    )
+
+    it('closing a whole stack at once leaves no entry to swallow a later Back', async () => {
+      const before: unknown = window.history.state
+      const open = ref(true)
+      await renderSettled(() => <GuardedStack open={open.value} />)
+      // The inner layer mounts with the outer's teleport, one update later.
+      await nextTick()
+      expect(window.history.state).not.toEqual(before)
+
+      const consume = nextPop() // the chain spends the entries one pop at a time
+      open.value = false
+      await nextTick()
+      await consume
+      await nextPop()
+      expect(window.history.state).toEqual(before)
+    })
+
+    it('reopening through the trigger plants a fresh guard, truncating the spent entry', async () => {
+      await renderSettled(() => <DefaultDialog closeOnBack defaultOpen />)
+
+      await traverse(() => window.history.back())
+      expect(screen.queryByRole('dialog')).toBeNull()
+
+      await openDialog()
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      await traverse(() => window.history.back())
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
+  describe('exit animation', () => {
+    const fireTransitionEnd = async (element: Element): Promise<void> => {
+      element.dispatchEvent(new Event('transitionend', { bubbles: true }))
+      await nextTick()
+    }
+
+    it('stays mounted through the exit and unmounts when its transition ends', async () => {
+      await renderSettled(() => <DefaultDialog defaultOpen animated />)
+      await pressEscape()
+
+      // Mid-exit: still in the tree, styled by data-state, hidden from AT.
+      const dialog = screen.getByRole('dialog', { hidden: true })
+      expect(dialog.getAttribute('data-state')).toBe('closing')
+
+      await fireTransitionEnd(dialog)
+      expect(screen.queryByRole('dialog', { hidden: true })).toBeNull()
+    })
+
+    it('releases focus, containment, and interaction the moment the exit starts', async () => {
+      const { container } = await renderSettled(() => <DefaultDialog animated />)
+      const trigger = screen.getByText('Trigger')
+      trigger.focus()
+      await openDialog()
+      expect(container.hasAttribute('inert')).toBe(true)
+
+      await pressEscape()
+      // The page is live and focus is home before the visual finishes…
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(document.activeElement).toBe(trigger)
+      // …while the still-painting layer is out of the interaction instead.
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('backdrop').hasAttribute('inert')).toBe(true)
+    })
+
+    it('reopening mid-exit interrupts it and restores the layer', async () => {
+      await renderSettled(() => <DefaultDialog animated />)
+      await openDialog()
+      await pressEscape()
+      await openDialog()
+
+      const dialog = screen.getByRole('dialog')
+      expect(dialog.getAttribute('data-state')).toBe('open')
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(false)
+      expect(document.activeElement).toBe(dialog)
+
+      // The interrupted exit's end must not close the reopened dialog.
+      await fireTransitionEnd(dialog)
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+  })
+
+  describe('nesting', () => {
+    const NestedDialog = (props: DialogAttrs) => (
+      <Dialog defaultOpen {...props}>
+        <Dialog.Portal>
+          <Dialog.Backdrop data-testid='outer-backdrop' />
+          <Dialog.Viewport data-testid='outer-viewport'>
+            <Dialog.Content>
+              <Dialog.Title>Outer</Dialog.Title>
+              <Dialog defaultOpen>
+                <Dialog.Portal>
+                  <Dialog.Backdrop data-testid='inner-backdrop' />
+                  <Dialog.Viewport data-testid='inner-viewport'>
+                    <Dialog.Content>
+                      <Dialog.Title>Inner</Dialog.Title>
+                    </Dialog.Content>
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    )
+
+    // Each layer's teleport arrives one update after its root mounts, so a
+    // two-deep stack settles on the second update.
+    const renderStack = async (ui: Component): Promise<ReturnType<typeof render>> => {
+      const result = await renderSettled(ui)
+      await nextTick()
+      return result
+    }
+
+    it('Escape dismisses the topmost dialog only, one layer per press', async () => {
+      await renderStack(() => <NestedDialog />)
+      expect(screen.queryByText('Outer')).not.toBeNull()
+      expect(screen.queryByText('Inner')).not.toBeNull()
+
+      await pressEscape()
+      expect(screen.queryByText('Inner')).toBeNull()
+      expect(screen.queryByText('Outer')).not.toBeNull()
+
+      await pressEscape()
+      expect(screen.queryByText('Outer')).toBeNull()
+    })
+
+    it('a stack-scoped Escape on the topmost dialog unwinds every layer', async () => {
+      await renderStack(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Viewport>
+              <Dialog.Content>
+                <Dialog.Title>Outer</Dialog.Title>
+                <Dialog defaultOpen escapeScope='stack'>
+                  <Dialog.Portal>
+                    <Dialog.Viewport>
+                      <Dialog.Content>
+                        <Dialog.Title>Inner</Dialog.Title>
+                      </Dialog.Content>
+                    </Dialog.Viewport>
+                  </Dialog.Portal>
+                </Dialog>
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+
+      await pressEscape()
+      expect(screen.queryByText('Inner')).toBeNull()
+      expect(screen.queryByText('Outer')).toBeNull()
+    })
+
+    it('hides the dialog beneath the topmost from assistive tech and makes it inert', async () => {
+      await renderStack(() => <NestedDialog />)
+      const outer = screen.getByTestId('outer-viewport')
+      expect(outer.getAttribute('aria-hidden')).toBe('true')
+      expect(outer.hasAttribute('inert')).toBe(true)
+
+      const inner = screen.getByTestId('inner-viewport')
+      expect(inner.hasAttribute('aria-hidden')).toBe(false)
+      expect(inner.hasAttribute('inert')).toBe(false)
+    })
+
+    it("hides the lower dialog's backdrop but never the topmost's own", async () => {
+      await renderStack(() => <NestedDialog />)
+      expect(screen.getByTestId('outer-backdrop').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('inner-backdrop').hasAttribute('inert')).toBe(false)
+
+      await pressEscape() // the outer dialog is topmost again — its backdrop re-excepted
+      expect(screen.getByTestId('outer-backdrop').hasAttribute('inert')).toBe(false)
+    })
+
+    it('restores the layer beneath once the top dialog closes', async () => {
+      await renderStack(() => <NestedDialog />)
+      expect(screen.getByTestId('outer-viewport').getAttribute('aria-hidden')).toBe('true')
+
+      await pressEscape() // close the inner dialog
+      const outer = screen.getByTestId('outer-viewport')
+      expect(outer.hasAttribute('aria-hidden')).toBe(false)
+      expect(outer.hasAttribute('inert')).toBe(false)
+    })
+
+    it('ignores an outside press on a lower layer — only the topmost dismisses', async () => {
+      await renderStack(() => <NestedDialog />)
+      await press(screen.getByTestId('outer-viewport'))
+      expect(screen.queryByText('Outer')).not.toBeNull()
+      expect(screen.queryByText('Inner')).not.toBeNull()
+
+      await press(screen.getByTestId('inner-viewport'))
+      expect(screen.queryByText('Inner')).toBeNull()
+      expect(screen.queryByText('Outer')).not.toBeNull()
+    })
+
+    it('cleans up containment and scroll lock when the parent closes over an open child', async () => {
+      const open = ref<boolean | undefined>(true)
+      const { container } = await renderStack(() => <NestedDialog open={open.value} />)
+      expect(screen.queryByText('Inner')).not.toBeNull()
+      expect(container.hasAttribute('inert')).toBe(true)
+
+      open.value = false
+      await nextTick()
+      expect(screen.queryByText('Outer')).toBeNull()
+      expect(screen.queryByText('Inner')).toBeNull()
+      expect(document.body.style.overflowY).not.toBe('hidden')
+      expect(container.hasAttribute('aria-hidden')).toBe(false)
+      expect(container.hasAttribute('inert')).toBe(false)
+    })
+  })
+
+  // What only a Vue host can get wrong: prop casting, the template idioms,
+  // the emit channel, the lifecycle order, and server rendering.
+  describe('vue bindings', () => {
+    it('a bare template attribute switches an option on; an absent one keeps the core default', async () => {
+      // Vue casts an absent Boolean prop to `false` unless it declares a
+      // default — that would make every dialog controlled-closed and non-modal.
+      await renderSettled(
+        defineComponent({
+          components: dialogComponents,
+          template: `
+            <Dialog default-open>
+              <Dialog.Portal>
+                <Dialog.Content aria-label="Settings">content</Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          `,
+        }),
+      )
+      const dialog = screen.getByRole('dialog') // `default-open` alone opened it
+      expect(dialog.getAttribute('aria-modal')).toBe('true') // `modal` absent: modal
+
+      await pressEscape() // `open` absent: uncontrolled, so Escape closes it
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    // `null` is Vue's "no value": a bound `open` holding it is absent — the
+    // core takes any other value, `null` included, as control.
+    it('a null open is absent: the dialog stays uncontrolled', async () => {
+      await renderSettled(
+        defineComponent({
+          components: dialogComponents,
+          template: `
+            <Dialog :open="null" default-open>
+              <Dialog.Portal>
+                <Dialog.Content aria-label="Settings">content</Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          `,
+        }),
+      )
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      await pressEscape()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('v-model:open is the controlled contract — the dialog follows the bound value alone', async () => {
+      const open = ref(false)
+      await renderSettled(
+        defineComponent({
+          components: dialogComponents,
+          setup: () => ({ open }),
+          template: `
+            <Dialog v-model:open="open">
+              <Dialog.Trigger @click="open = true">Trigger</Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Content aria-label="Settings">
+                  <button type="button" @click="open = false">Done</button>
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          `,
+        }),
+      )
+
+      await openDialog() // the consumer's handler sets the model
+      expect(open.value).toBe(true)
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      await pressEscape() // controlled: an unwired dismissal changes nothing
+      expect(open.value).toBe(true)
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+
+      await press(screen.getByText('Done'))
+      expect(open.value).toBe(false)
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('a kebab-case template listener receives a dismissal emit and can veto it', async () => {
+      const vetoed: string[] = []
+      await renderSettled(
+        defineComponent({
+          components: dialogComponents,
+          setup: () => ({
+            veto: (kind: string, event?: { preventDefault?: () => void }) => {
+              vetoed.push(kind)
+              event?.preventDefault?.()
+            },
+          }),
+          template: `
+            <Dialog
+              default-open
+              @escape-key-down="veto('escape', $event)"
+              @interact-outside="veto('outside', $event)"
+            >
+              <Dialog.Portal>
+                <Dialog.Backdrop data-testid="backdrop" />
+                <Dialog.Content aria-label="Settings">content</Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          `,
+        }),
+      )
+
+      await pressEscape()
+      await press(screen.getByTestId('backdrop'))
+      expect(vetoed).toEqual(['escape', 'outside'])
+      expect(screen.queryByRole('dialog')).not.toBeNull()
+    })
+
+    // A template unwraps a ref at render time — before the element mounts —
+    // so it passes a getter, read when the dialog opens.
+    it('a template passes initialFocus as a getter, resolved once the element has mounted', async () => {
+      await renderSettled(
+        defineComponent({
+          components: dialogComponents,
+          setup: () => ({ name: ref<HTMLInputElement | null>(null) }),
+          template: `
+            <Dialog default-open>
+              <Dialog.Portal>
+                <Dialog.Content aria-label="Form" :initial-focus="() => name">
+                  <input aria-label="Email" />
+                  <input ref="name" aria-label="Name" />
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          `,
+        }),
+      )
+      expect(document.activeElement).toBe(screen.getByLabelText('Name'))
+    })
+
+    // A Content rendered with the root (no Portal) stays mounted while closed,
+    // and a stylesheet may hide it by its state — the open sequence has to
+    // wait for the update that renders it open, as a React effect does. A
+    // controlled open is the strict case: the adapter syncs it in a post-flush
+    // job, ahead of that render.
+    it('an always-mounted Content takes focus once the update that opens it has rendered', async () => {
+      const style = document.createElement('style')
+      style.textContent = '[data-state="closed"][role="dialog"] { display: none; }'
+      document.head.append(style)
+      onTestFinished(() => style.remove())
+      const open = ref(false)
+      await renderSettled(() => (
+        <Dialog open={open.value} modal={false}>
+          <Dialog.Content aria-label='Inline'>
+            <input aria-label='Name' />
+          </Dialog.Content>
+        </Dialog>
+      ))
+
+      open.value = true
+      await nextTick()
+      expect(document.activeElement).toBe(screen.getByLabelText('Name'))
+    })
+
+    // The exit window is the `closing` state only: a Content rendered with
+    // the root is also mounted while plainly closed, and must leave the page
+    // alone then.
+    it('a closed Content rendered with the root leaves the page live', async () => {
+      const { container } = await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Trigger>Trigger</Dialog.Trigger>
+          <Dialog.Content aria-label='Inline'>content</Dialog.Content>
+        </Dialog>
+      ))
+      await pressEscape()
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(container.hasAttribute('aria-hidden')).toBe(false)
+      expect(document.body.style.overflowY).not.toBe('hidden')
+    })
+
+    it('an animated layer rendered with the root hides only itself through its exit', async () => {
+      const { container } = await renderSettled(() => (
+        <Dialog defaultOpen animated>
+          <Dialog.Trigger>Trigger</Dialog.Trigger>
+          <Dialog.Viewport data-testid='viewport'>
+            <Dialog.Content aria-label='Inline'>content</Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog>
+      ))
+      await pressEscape()
+      expect(screen.getByRole('dialog', { hidden: true }).getAttribute('data-state')).toBe(
+        'closing',
+      )
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(true)
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(screen.getByText('Trigger').closest('[inert]')).toBeNull()
+    })
+
+    // Released after the DOM is gone, children first — as React's effects —
+    // or the parent would restore focus while the child still holds the page
+    // inert. A controlled close is the strict case: the adapter syncs it in a
+    // post-flush job, ahead of the render that unmounts the stack.
+    it("closing a parent over an open child returns focus to the parent's trigger", async () => {
+      refuseInertFocus()
+      const open = ref(false)
+      await renderSettled(() => (
+        <Dialog open={open.value}>
+          <Dialog.Trigger>Trigger</Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Content aria-label='Outer'>
+              <Dialog defaultOpen>
+                <Dialog.Portal>
+                  <Dialog.Content aria-label='Inner'>inner</Dialog.Content>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      const trigger = screen.getByText('Trigger')
+      trigger.focus()
+      open.value = true
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Inner' }))
+
+      open.value = false
+      await afterFlushes()
+      expect(document.activeElement).toBe(trigger)
+    })
+
+    // A step that closes one dialog and opens a sibling — a wizard's Next —
+    // runs every close before any open, as React's commit does: the opened
+    // dialog keeps the focus it took, an exiting one stays out of reach, and
+    // the last close returns focus to the trigger the hand-over started from,
+    // however the two are declared, animated, or modal.
+    describe('a hand-over between sibling dialogs', () => {
+      const cases = [false, true].flatMap(nextFirst =>
+        [false, true].flatMap(firstAnimated =>
+          [false, true].flatMap(nextAnimated =>
+            [true, false].map(nextModal => ({
+              name: [
+                nextFirst ? 'the next step declared first' : 'declared in step order',
+                firstAnimated ? 'an animated first step' : 'an instant first step',
+                nextAnimated ? 'an animated next step' : 'an instant next step',
+                nextModal ? 'modal' : 'non-modal',
+              ].join(', '),
+              nextFirst,
+              firstAnimated,
+              nextAnimated,
+              nextModal,
+            })),
+          ),
+        ),
+      )
+
+      const expectExitsInert = (): void => {
+        for (const exiting of document.querySelectorAll('[data-state="closing"][role="dialog"]')) {
+          expect(exiting.closest('[inert]')).not.toBeNull()
+        }
+      }
+
+      const expectHandedTo = (name: string): void => {
+        expect(screen.getByRole('dialog', { name }).contains(document.activeElement)).toBe(true)
+        expectExitsInert()
+      }
+
+      it.each(cases)('$name', async ({ nextFirst, firstAnimated, nextAnimated, nextModal }) => {
+        refuseInertFocus()
+        const first = ref(false)
+        const next = ref(false)
+        await renderSettled(() => {
+          const steps = [
+            <Dialog
+              key='first'
+              open={first.value}
+              animated={firstAnimated}
+              onEscapeKeyDown={() => (first.value = false)}
+            >
+              <Dialog.Trigger onClick={() => (first.value = true)}>Start</Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Content aria-label='First'>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      first.value = false
+                      next.value = true
+                    }}
+                  >
+                    Next
+                  </button>
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>,
+            <Dialog
+              key='next'
+              open={next.value}
+              animated={nextAnimated}
+              modal={nextModal}
+              onEscapeKeyDown={() => (next.value = false)}
+            >
+              <Dialog.Portal>
+                <Dialog.Content aria-label='Next'>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      next.value = false
+                      first.value = true
+                    }}
+                  >
+                    Back
+                  </button>
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>,
+          ]
+          return <div>{nextFirst ? steps.reverse() : steps}</div>
+        })
+        const trigger = screen.getByText('Start')
+        trigger.focus()
+        await press(trigger)
+        expectHandedTo('First')
+
+        await press(screen.getByText('Next'))
+        expectHandedTo('Next')
+        await press(screen.getByText('Back')) // reopens an animated first step mid-exit
+        expectHandedTo('First')
+        await press(screen.getByText('Next'))
+        expectHandedTo('Next')
+
+        await pressEscape() // closes the next step inside the first step's exit
+        expect(document.activeElement).toBe(trigger)
+        expectExitsInert()
+      })
+    })
+
+    // Two exits starting in one update — a stack-scoped Escape, or a stack
+    // closed at once — each hide their own layer once every release has run;
+    // run in turn, a release's containment undo strips the other's hiding.
+    const ExitingStack = (props: { outer?: boolean; inner?: boolean }) => (
+      <Dialog animated open={props.outer}>
+        <Dialog.Trigger>Trigger</Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Viewport data-testid='viewport'>
+            <Dialog.Content aria-label='Outer'>
+              <Dialog animated escapeScope='stack' open={props.inner}>
+                <Dialog.Trigger>Inner trigger</Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Backdrop data-testid='inner-backdrop' />
+                  <Dialog.Viewport data-testid='inner-viewport'>
+                    <Dialog.Content aria-label='Inner'>inner</Dialog.Content>
+                  </Dialog.Viewport>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog>
+    )
+
+    it('a stack-scoped Escape keeps every exiting layer inert', async () => {
+      await renderSettled(() => <ExitingStack />)
+      await openDialog()
+      await press(screen.getByText('Inner trigger'))
+
+      await pressEscape()
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('inner-viewport').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('inner-backdrop').hasAttribute('inert')).toBe(true)
+    })
+
+    // The controlled close is the strict case: the adapter syncs both in
+    // post-flush jobs, ahead of the renders they cause.
+    it('closing two controlled animated layers in one update keeps both inert', async () => {
+      const outer = ref(true)
+      const inner = ref(true)
+      await renderSettled(() => <ExitingStack outer={outer.value} inner={inner.value} />)
+      await afterFlushes() // the inner layer mounts with the outer's teleport, an update later
+
+      outer.value = false
+      inner.value = false
+      await nextTick()
+      expect(screen.getByTestId('viewport').hasAttribute('inert')).toBe(true)
+      expect(screen.getByTestId('inner-viewport').hasAttribute('inert')).toBe(true)
+    })
+
+    // One dialog closes as a sibling reopens mid-exit, in one update: the
+    // closing one releases while the reopening one is still out of reach, so
+    // its restore can't land inside the layer about to take over.
+    it("a sibling's close never restores focus into a layer reopening in the same update", async () => {
+      refuseInertFocus()
+      const open = reactive({ a: false, b: false })
+      const sibling = (name: 'a' | 'b', next: 'a' | 'b') => (
+        <Dialog
+          key={name}
+          open={open[name]}
+          animated
+          modal={false}
+          onEscapeKeyDown={() => (open[name] = false)}
+        >
+          <Dialog.Trigger onClick={() => (open[name] = true)}>{`${name} trigger`}</Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Content aria-label={name}>
+              <button
+                type='button'
+                onClick={() => {
+                  open[name] = false
+                  open[next] = true
+                }}
+              >
+                {`to ${next}`}
+              </button>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      )
+      await renderSettled(() => <div>{[sibling('a', 'b'), sibling('b', 'a')]}</div>)
+      await press(screen.getByText('b trigger'))
+      await press(screen.getByText('a trigger')) // a's focus home is now b's window
+      // b exits, reopens, and exits again: opened after a, it would release
+      // first by stack order alone.
+      await press(screen.getByText('to a'))
+      await press(screen.getByText('b trigger'))
+      await press(screen.getByText('to a'))
+      const trigger = screen.getByText('a trigger')
+      trigger.focus()
+
+      await press(screen.getByText('to b')) // a closes as b reopens mid-exit
+      expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'b' }))
+      await pressEscape()
+      expect(document.activeElement).toBe(trigger)
+    })
+
+    // A page can bundle the binding twice — a micro-frontend, a monorepo —
+    // and both copies' dialogs must still change in one pass.
+    it('a hand-over between dialogs from two copies of the binding keeps the focus it hands over', async () => {
+      const open = reactive({ first: false, next: false })
+      await renderSettled(() => (
+        <div>
+          <CopiedDialog open={open.next} modal={false}>
+            <CopiedDialog.Portal>
+              <CopiedDialog.Content aria-label='Next'>
+                <input aria-label='Next field' />
+              </CopiedDialog.Content>
+            </CopiedDialog.Portal>
+          </CopiedDialog>
+          <Dialog open={open.first} animated>
+            <Dialog.Trigger onClick={() => (open.first = true)}>Start</Dialog.Trigger>
+            <Dialog.Portal>
+              <Dialog.Content aria-label='First'>
+                <button
+                  type='button'
+                  onClick={() => {
+                    open.first = false
+                    open.next = true
+                  }}
+                >
+                  Next
+                </button>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog>
+        </div>
+      ))
+      const trigger = screen.getByText('Start')
+      trigger.focus()
+      await press(trigger)
+
+      await press(screen.getByText('Next'))
+      expect(document.activeElement).toBe(screen.getByLabelText('Next field'))
+    })
+
+    // A template ref on a component holds its instance, not an element.
+    it("initialFocus and restoreFocus take a component's ref as its element", async () => {
+      const Action = defineComponent(() => () => <button type='button'>Action</button>)
+      const action = ref<InstanceType<typeof Action> | null>(null)
+      const trigger = ref<InstanceType<typeof Dialog.Trigger> | null>(null)
+      await renderSettled(() => (
+        <Dialog>
+          <Dialog.Trigger ref={trigger}>Trigger</Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Content aria-label='Settings' initialFocus={action} restoreFocus={trigger}>
+              <Action ref={action} />
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      await openDialog() // a click leaves focus on the body: the fallback applies
+      expect(document.activeElement).toBe(screen.getByText('Action'))
+
+      await pressEscape()
+      expect(document.activeElement).toBe(screen.getByText('Trigger'))
+    })
+
+    // Children mount before their parent, so a Title rendered with the root
+    // (no Portal) reports itself before the root starts the machine.
+    it('a Title mounted before the root starts its machine still labels the dialog', async () => {
+      await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Content>
+            <Dialog.Title>Inline</Dialog.Title>
+          </Dialog.Content>
+        </Dialog>
+      ))
+      expect(screen.queryByRole('dialog', { name: 'Inline' })).not.toBeNull()
+    })
+
+    it('drops the labelling reference when the Title unmounts while open', async () => {
+      const titled = ref(true)
+      await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Content aria-label='Fallback'>
+              {titled.value && <Dialog.Title>Title</Dialog.Title>}
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      expect(screen.getByRole('dialog').hasAttribute('aria-labelledby')).toBe(true)
+
+      titled.value = false
+      await nextTick()
+      expect(screen.getByRole('dialog').hasAttribute('aria-labelledby')).toBe(false)
+    })
+
+    // Every part renders exactly one root element, so a component ref is
+    // the consumer's handle on it.
+    it("a part's template ref reaches its element as $el", async () => {
+      const content = ref<InstanceType<typeof Dialog.Content> | null>(null)
+      await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Content ref={content} aria-label='Settings'>
+              content
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      expect(content.value?.$el).toBe(screen.getByRole('dialog'))
+    })
+
+    it('derives the part ids from the id prop, and from useId when it is absent or undefined', async () => {
+      await renderSettled(() => (
+        <>
+          <DefaultDialog id='settings' defaultOpen modal={false} />
+          <DefaultDialog id={undefined} defaultOpen modal={false} />
+          <DefaultDialog defaultOpen modal={false} />
+        </>
+      ))
+      const ids = screen.getAllByRole('dialog').map(dialog => dialog.id)
+      expect(ids[0]).toBe('settings-content')
+      // Not the core's bare `dialog` fallback: each generated id is distinct.
+      for (const id of ids.slice(1)) expect(id).toMatch(/^v-.+-content$/)
+      expect(new Set(ids).size).toBe(3)
+    })
+
+    it('swapping the portal container while open re-creates the layer on the new target', async () => {
+      const first = document.createElement('div')
+      const second = document.createElement('div')
+      document.body.append(first, second)
+      onTestFinished(() => {
+        first.remove()
+        second.remove()
+      })
+      const container = ref(first)
+
+      await renderSettled(() => (
+        <Dialog defaultOpen>
+          <Dialog.Portal container={container.value}>
+            <Dialog.Content aria-label='Scoped'>content</Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      expect(first.contains(screen.getByRole('dialog'))).toBe(true)
+
+      container.value = second
+      await nextTick()
+      const dialog = screen.getByRole('dialog')
+      expect(second.contains(dialog)).toBe(true)
+      expect(document.activeElement).toBe(dialog) // the open edge ran again
+      expect(first.style.overflowY).not.toBe('hidden')
+      expect(second.style.overflowY).toBe('hidden')
+    })
+
+    // The adapter pauses a deactivated dialog's machine, as React's <Activity>
+    // does — so its layers can't stay painted, holding the page, meanwhile.
+    it('a KeepAlive deactivation parks the layers and releases the page; reactivation restores both, state intact', async () => {
+      const shown = ref(true)
+      const Page = defineComponent(() => () => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Viewport>
+              <Dialog.Content aria-label='Form'>
+                <input aria-label='Name' />
+              </Dialog.Content>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      const { container } = await renderSettled(() => (
+        <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>
+      ))
+      const field = screen.getByLabelText('Name') as HTMLInputElement
+      field.value = 'typed'
+
+      shown.value = false
+      await nextTick()
+      expect(field.isConnected).toBe(false) // parked with the cached view
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(document.body.style.overflowY).not.toBe('hidden')
+      const elsewhere = screen.getByText('Elsewhere')
+      elsewhere.focus()
+      const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+      expect(elsewhere.dispatchEvent(tab)).toBe(true) // the trap let go
+
+      shown.value = true
+      await afterFlushes() // the open sequence waits out the flush that re-enables the teleport
+      expect(screen.getByLabelText('Name')).toBe(field)
+      expect(field.value).toBe('typed')
+      expect(document.activeElement).toBe(field)
+      expect(document.body.style.overflowY).toBe('hidden')
+    })
+
+    // <KeepAlive> restores a view's children first; the stack must come back
+    // as it first opened — outermost first, each layer taking focus from the
+    // one beneath — or the inner layer's close has nowhere to return focus.
+    it('a restored KeepAlive view reopens a nested stack outermost first', async () => {
+      refuseInertFocus()
+      const warn = vi.spyOn(console, 'warn')
+      onTestFinished(() => warn.mockRestore())
+      const shown = ref(true)
+      const Page = defineComponent(() => () => (
+        <Dialog defaultOpen>
+          <Dialog.Portal>
+            <Dialog.Content aria-label='Outer'>
+              <input aria-label='Outer field' />
+              <Dialog defaultOpen>
+                <Dialog.Portal>
+                  <Dialog.Content aria-label='Inner'>
+                    <input aria-label='Inner field' />
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ))
+      await renderSettled(() => <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>)
+      await afterFlushes()
+
+      shown.value = false
+      await nextTick()
+      shown.value = true
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByLabelText('Inner field'))
+      expect(warn).not.toHaveBeenCalled()
+
+      await pressEscape()
+      expect(document.activeElement).toBe(screen.getByLabelText('Outer field'))
+    })
+
+    // <KeepAlive> also runs same-depth siblings' activated hooks in reverse;
+    // the one opened last must still come back on top.
+    it('a restored KeepAlive view reopens sibling dialogs in the order they opened', async () => {
+      const open = reactive({ first: false, second: false })
+      const shown = ref(true)
+      const sibling = (name: 'first' | 'second') => (
+        <Dialog key={name} open={open[name]} modal={false}>
+          <Dialog.Portal>
+            <Dialog.Content aria-label={name}>
+              <input aria-label={`${name} field`} />
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      )
+      const Page = defineComponent(() => () => <div>{[sibling('first'), sibling('second')]}</div>)
+      await renderSettled(() => <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>)
+      open.first = true
+      await afterFlushes()
+      open.second = true
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByLabelText('second field'))
+
+      shown.value = false
+      await nextTick()
+      shown.value = true
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByLabelText('second field'))
+    })
+
+    // A restored view's activation reaches every part it holds, mounted or
+    // not: a dialog still pending beside an async sibling under <Suspense>
+    // starts with its own mount — no history entry or lock before it shows.
+    it('a dialog a restored view reaches before it mounts starts with its own mount, once', async () => {
+      let resolve = (): void => {}
+      const pending = new Promise<void>(done => (resolve = done))
+      const AsyncSibling = defineComponent({
+        async setup() {
+          await pending
+          return () => <span>loaded</span>
+        },
+      })
+      const shown = ref(true)
+      const Page = defineComponent(() => () => (
+        <Suspense>
+          <div>
+            <AsyncSibling />
+            <Dialog defaultOpen closeOnBack>
+              <Dialog.Portal>
+                <Dialog.Content aria-label='Beside'>
+                  <input aria-label='First' />
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          </div>
+        </Suspense>
+      ))
+      const pushes = vi.spyOn(window.history, 'pushState')
+      onTestFinished(() => pushes.mockRestore())
+      await renderSettled(() => <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>)
+      shown.value = false
+      await nextTick()
+      shown.value = true
+      await nextTick()
+      await nextTick()
+      expect(pushes).not.toHaveBeenCalled()
+      expect(document.body.style.overflowY).toBe('')
+
+      resolve()
+      await afterFlushes()
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByLabelText('First'))
+      expect(pushes).toHaveBeenCalledTimes(1)
+    })
+
+    // Async data can mount a dialog into a cached view after the user left it.
+    it('a dialog mounted into a deactivated KeepAlive view holds still until the view returns', async () => {
+      const shown = ref(true)
+      const loaded = ref(false)
+      const Page = defineComponent(
+        () => () =>
+          loaded.value ? (
+            <Dialog defaultOpen closeOnBack>
+              <Dialog.Portal>
+                <Dialog.Content aria-label='Late'>content</Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          ) : (
+            <span>loading</span>
+          ),
+      )
+      const before: unknown = window.history.state
+      const { container } = await renderSettled(() => (
+        <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>
+      ))
+      shown.value = false
+      await nextTick()
+
+      loaded.value = true
+      await nextTick()
+      await nextTick()
+      expect(screen.queryByRole('dialog', { hidden: true })).toBeNull()
+      expect(container.hasAttribute('inert')).toBe(false)
+      expect(document.body.style.overflowY).not.toBe('hidden')
+      expect(window.history.state).toEqual(before)
+
+      shown.value = true
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByRole('dialog'))
+      expect(document.body.style.overflowY).toBe('hidden')
+
+      // Unmounting releases the guard entry the activation planted.
+      const consume = new Promise(resolve =>
+        window.addEventListener('popstate', resolve, { once: true }),
+      )
+      cleanup()
+      await consume
+    })
+
+    it('hydrates server-rendered markup without a mismatch, keeping its ids', async () => {
+      const App = () => <DefaultDialog defaultOpen />
+      const html = await renderToString(createSSRApp(App))
+      const host = document.createElement('div')
+      host.innerHTML = html
+      document.body.append(host)
+      const serverControls = host.querySelector('button')?.getAttribute('aria-controls')
+
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const app = createSSRApp(App)
+      onTestFinished(() => {
+        warn.mockRestore()
+        error.mockRestore()
+        app.unmount()
+        host.remove()
+      })
+      app.mount(host)
+      await nextTick()
+      expect(warn).not.toHaveBeenCalled()
+      expect(error).not.toHaveBeenCalled()
+
+      // The portal arrives after hydration, under the id the server announced.
+      expect(screen.getByRole('dialog').id).toBe(serverControls)
+    })
+  })
+})

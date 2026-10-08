@@ -1,0 +1,748 @@
+import {
+  Teleport,
+  computed,
+  defineComponent,
+  effectScope,
+  getCurrentInstance,
+  h,
+  inject,
+  onActivated,
+  onDeactivated,
+  onMounted,
+  onScopeDispose,
+  onUnmounted,
+  onUpdated,
+  provide,
+  shallowRef,
+  toValue,
+  watch,
+  type ButtonHTMLAttributes,
+  type ComponentOptionsMixin,
+  type ComponentPublicInstance,
+  type DefineComponent,
+  type EffectScope,
+  type EmitsOptions,
+  type HTMLAttributes,
+  type MaybeRefOrGetter,
+  type PropType,
+} from 'vue'
+import { useFocusTrap } from '@dunky.dev/vue-use-focus-trap'
+import { useScrollLock } from '@dunky.dev/vue-use-scroll-lock'
+import type {
+  DialogCallbacks,
+  DialogEscapeScope,
+  DialogOptions,
+  DialogRole,
+} from '@dunky.dev/dialog'
+
+import {
+  acceptsBackdropPress,
+  acceptsViewportPress,
+  dialogTrapOptions,
+  guardBackNavigation,
+  openDialogLayer,
+  startExitWindow,
+  type BackNavigationGuard,
+} from '@dunky.dev/dom-dialog'
+import { mergeProps, normalize } from '@dunky.dev/vue-state-machine'
+import { DialogContextKey, useDialogContext } from './context'
+import { useDialog } from './use-dialog'
+
+// The options-carrying type an SFC gets: the function-signature
+// defineComponent infers a bare constructor, which tooling built around SFCs
+// (Storybook's Meta) rejects. The value is the same options object either
+// way, so each part's cast only names it — and gives the export the explicit
+// type --isolatedDeclarations needs.
+type DialogComponent<Props, Emits extends EmitsOptions = {}> = DefineComponent<
+  Props,
+  {},
+  {},
+  {},
+  {},
+  ComponentOptionsMixin,
+  ComponentOptionsMixin,
+  Emits
+>
+
+// Vue casts an absent Boolean prop to `false`; `default: undefined` keeps it
+// absent, so the core's defaults (`modal` true) and the controlled contract
+// (`open` absent = uncontrolled) hold.
+const booleanOption = { type: Boolean, default: undefined }
+
+// The instance fields the walk reads, structurally: Vue 3.6 types the chain
+// as its Vapor-aware generic instance.
+interface InstanceNode {
+  isDeactivated: boolean
+  parent: InstanceNode | null
+}
+
+// Whether the component sits in a deactivated <KeepAlive> view: async data
+// can mount a dialog into a cached view after the user left it.
+function inDeactivatedView(instance: InstanceNode | null): boolean {
+  for (let node = instance; node !== null; node = node.parent) {
+    if (node.isDeactivated) return true
+  }
+  return false
+}
+
+// Runs `effects` in a scope that lives while the component is mounted and its
+// view active. A <KeepAlive> deactivation ends it like an unmount — the
+// adapter pauses the machine the same way, as React's <Activity> runs its
+// effect cleanups. Mounted hooks never run during server rendering, so
+// neither does this.
+function whileActive(effects: () => void): void {
+  const instance = getCurrentInstance()
+  let mounted = false
+  let scope: EffectScope | undefined
+  const start = (): void => {
+    if (scope !== undefined) return
+    // Detached, and ended in the unmounted hook — after the DOM is gone and
+    // children first, as React runs a removed subtree's cleanups — rather
+    // than with the component scope, which stops parent first, before.
+    scope = effectScope(true)
+    scope.run(effects)
+  }
+  const stop = (): void => {
+    scope?.stop()
+    scope = undefined
+  }
+  onMounted(() => {
+    mounted = true
+    if (!inDeactivatedView(instance)) start()
+  })
+  // Also fires on a kept-alive first mount, after `onMounted` already
+  // started — and can reach a part that hasn't mounted yet (an async one
+  // under <Suspense>), which `onMounted` starts instead.
+  onActivated(() => {
+    if (mounted) start()
+  })
+  onDeactivated(stop)
+  onUnmounted(stop)
+}
+
+// What the window's DOM shows: `closing` is an animated dialog's exit window.
+type WindowState = 'open' | 'closing' | 'closed'
+
+// One Content's DOM work for an update: undo the sequence it holds, then start
+// the one its DOM shows now.
+interface LayerCommit {
+  depth: number
+  // The sequence the window holds now.
+  held: () => WindowState
+  // When its open sequence last ran, in page order (0: not yet).
+  openedAt: () => number
+  // Whether `start` runs an open sequence, rather than an exit window.
+  opening: () => boolean
+  release: () => void
+  start: () => void
+}
+
+// Vue settles each component's hooks on its own, in component order, so a
+// dialog opening as another closes in the same update — a wizard's Next —
+// would run in declaration order, and the closer's restore take focus back
+// from the opener. The sequences run as React's commit runs them instead,
+// once the whole update has rendered, in one pass: every release before any
+// start. Open layers release before exit windows lift, each innermost — at
+// one depth, latest opened — first: a close restores focus while the layer
+// beneath still holds the stack and a reopening layer is still out of reach.
+// Exit windows start before open sequences, so a new layer's containment
+// can't take over an exiting layer's hiding and strip it when that layer
+// closes. Opens go outermost — at one depth, earliest opened, a fresh one
+// last — first, each layer taking focus from the one beneath: as a stack
+// first opened, and as a restored <KeepAlive> view, whose hooks run in
+// reverse, must reopen.
+interface CommitQueue {
+  pending: Set<LayerCommit>
+  // Whether a pass is queued for the pending commits.
+  queued: boolean
+  // The page's open-sequence count, which stamps `openedAt`.
+  opened: number
+}
+
+// A page can bundle this binding twice (a micro-frontend, a monorepo), and
+// two module-level queues would run two passes — one copy's opens before the
+// other's closes. The queue rendezvous on a realm-global keyed by
+// `Symbol.for`, as dom-overlay's stack does; resolved lazily, so the module
+// keeps its `sideEffects: false` contract.
+const QUEUE_KEY = Symbol.for('@dunky.dev/vue-dialog#commit-queue')
+
+function getQueue(): CommitQueue {
+  const scope = globalThis as unknown as Record<symbol, CommitQueue | undefined>
+  let queue = scope[QUEUE_KEY]
+  if (queue === undefined) {
+    queue = { pending: new Set(), queued: false, opened: 0 }
+    scope[QUEUE_KEY] = queue
+  }
+  return queue
+}
+
+function commitAfterUpdate(commit: LayerCommit): void {
+  const queue = getQueue()
+  queue.pending.add(commit)
+  if (queue.queued) return
+  queue.queued = true
+  // Queued during Vue's flush, a microtask runs once the flush is done:
+  // before anything awaiting `nextTick()`, and before the browser paints.
+  queueMicrotask(flushCommits)
+}
+
+// A layer that never opened stacks above every one that has.
+const stackOrder = (commit: LayerCommit): number => commit.openedAt() || Number.POSITIVE_INFINITY
+
+function flushCommits(): void {
+  const queue = getQueue()
+  queue.queued = false
+  const batch = [...queue.pending]
+  queue.pending.clear()
+  // Every step runs even when one throws; the failures surface after.
+  const failures: unknown[] = []
+  const run = (step: () => void): void => {
+    try {
+      step()
+    } catch (error) {
+      failures.push(error)
+    }
+  }
+  batch.sort((a, b) => b.depth - a.depth || b.openedAt() - a.openedAt())
+  for (const commit of batch) {
+    if (commit.held() === 'open') run(commit.release)
+  }
+  for (const commit of batch) {
+    if (commit.held() === 'closing') run(commit.release)
+  }
+  batch.sort((a, b) => a.depth - b.depth || stackOrder(a) - stackOrder(b))
+  for (const commit of batch) {
+    if (!commit.opening()) run(commit.start)
+  }
+  for (const commit of batch) {
+    if (commit.opening()) run(commit.start)
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(failures, 'Dialog: several layer sequences threw')
+  }
+  if (failures.length === 1) throw failures[0]
+}
+
+// A template ref on a component holds its instance; the element is its `$el`
+// (a text or comment node for a fragment root). Duck-typed: an element from
+// another realm — an iframe's document — fails `instanceof HTMLElement`.
+function toElement(
+  target: HTMLElement | ComponentPublicInstance | null | undefined,
+): HTMLElement | null {
+  if (typeof target !== 'object' || target === null) return null
+  const element = ('$el' in target ? target.$el : target) as Node | null
+  return element?.nodeType === Node.ELEMENT_NODE ? (element as HTMLElement) : null
+}
+
+// =============================================================================
+// <Dialog> — root, owns the machine and renders no DOM
+// =============================================================================
+
+/** The core options; the core callbacks are the emits (`DialogEmits`). */
+export interface DialogProps extends Omit<DialogOptions, keyof DialogCallbacks> {}
+
+type Payload<Callback extends keyof DialogCallbacks> = Parameters<
+  NonNullable<DialogCallbacks[Callback]>
+>
+
+/** The core callbacks as emits, listeners called synchronously — so
+ * `preventDefault()` on a dismissal payload still vetoes it. */
+export type DialogEmits = {
+  /** Fired on every open/close transition with the new value; with the `open`
+   * prop it forms `v-model:open`. */
+  'update:open': (open: boolean) => void
+  /** Fired before an Escape dismissal; `preventDefault()` vetoes it. */
+  escapeKeyDown: (...event: Payload<'onEscapeKeyDown'>) => void
+  /** Fired before an outside-press dismissal; `preventDefault()` vetoes it. */
+  interactOutside: (...event: Payload<'onInteractOutside'>) => void
+  /** Fired before a back-navigation dismissal; `preventDefault()` vetoes it. */
+  backNavigation: (...event: Payload<'onBackNavigation'>) => void
+  /** Fired before a forward-navigation reopen; `preventDefault()` vetoes it. */
+  forwardNavigation: (...event: Payload<'onForwardNavigation'>) => void
+}
+
+const DialogRoot = defineComponent<DialogProps, DialogEmits>(
+  (props, { emit, slots }) => {
+    // Nesting derives from the parent dialog's context (null = top-level).
+    const depth = (inject(DialogContextKey, null)?.depth ?? 0) + 1
+    // Built once: a fresh forwarder per read would re-run the effects keyed on
+    // a callback (the Escape listener) on every prop change.
+    const callbacks: DialogCallbacks = {
+      onOpenChange: open => emit('update:open', open),
+      onEscapeKeyDown: event => emit('escapeKeyDown', event),
+      onInteractOutside: event => emit('interactOutside', event),
+      onBackNavigation: event => emit('backNavigation', event),
+      onForwardNavigation: event => emit('forwardNavigation', event),
+    }
+    const { api, machine } = useDialog(() => ({
+      ...props,
+      // `null` is Vue's "no value": the core takes anything but `undefined`
+      // as control, so a bound `open` holding `null` reads as absent.
+      open: props.open ?? undefined,
+      ...callbacks,
+    }))
+    const backdropRef = shallowRef<HTMLElement | null>(null)
+    const viewportRef = shallowRef<HTMLElement | null>(null)
+
+    provide(DialogContextKey, {
+      api,
+      machine,
+      depth,
+      container: () => null,
+      portalled: false,
+      backdropRef,
+      viewportRef,
+    })
+
+    // The guard lives on the root — it concerns the dialog's openness, not any
+    // rendered part. It spans more than the open state, so it can't be the
+    // watcher's cleanup: a Back-close leaves the registration parked for the
+    // Forward that may reopen it, and only the scope's end — an unmount or a
+    // deactivation — ends the episode outright.
+    if (machine.context.closeOnBack) {
+      let guard: BackNavigationGuard | null = null
+      whileActive(() => {
+        watch(
+          () => api.value.open,
+          open => {
+            guard ??= guardBackNavigation({
+              backNavigate: () => api.value.backNavigate(),
+              forwardNavigate: () => api.value.forwardNavigate(),
+              isOpen: () => machine.matches('open'),
+              depth,
+            })
+            guard.sync(open)
+          },
+          { immediate: true, flush: 'post' },
+        )
+        onScopeDispose(() => {
+          guard?.release()
+          guard = null
+        })
+      })
+    }
+
+    return () => slots.default?.()
+  },
+  {
+    name: 'Dialog',
+    // Renders no element of its own: an attribute would otherwise fall
+    // through to whichever single part happens to render.
+    inheritAttrs: false,
+    props: {
+      id: String,
+      open: booleanOption,
+      defaultOpen: booleanOption,
+      modal: booleanOption,
+      role: String as PropType<DialogRole>,
+      closeOnEscape: booleanOption,
+      escapeScope: String as PropType<DialogEscapeScope>,
+      closeOnInteractOutside: booleanOption,
+      closeOnBack: booleanOption,
+      animated: booleanOption,
+    },
+    emits: [
+      'update:open',
+      'escapeKeyDown',
+      'interactOutside',
+      'backNavigation',
+      'forwardNavigation',
+    ],
+  },
+) as DialogComponent<DialogProps, DialogEmits>
+
+// =============================================================================
+// <Dialog.Trigger> — toggles the dialog; focus returns here on close
+// =============================================================================
+
+export interface DialogTriggerProps extends ButtonHTMLAttributes {}
+
+export const Trigger = defineComponent(
+  (_props: DialogTriggerProps, { attrs, slots }) => {
+    const { api } = useDialogContext()
+    return () =>
+      h(
+        'button',
+        mergeProps({ type: 'button', ...attrs }, normalize(api.value.parts.trigger)),
+        slots.default?.(),
+      )
+  },
+  { name: 'DialogTrigger', inheritAttrs: false },
+) as DialogComponent<DialogTriggerProps>
+
+// =============================================================================
+// <Dialog.Portal> — teleports the layers out of the tree while open
+// =============================================================================
+
+export interface DialogPortalProps {
+  /** The element to portal into. @default document.body */
+  container?: HTMLElement | null
+}
+
+export const Portal = defineComponent(
+  (props: DialogPortalProps, { slots }) => {
+    const context = useDialogContext()
+    // Re-provide the context with the scoped container (null = page body) so
+    // Content locks the right scroll surface.
+    provide(DialogContextKey, {
+      ...context,
+      container: () => props.container ?? null,
+      portalled: true,
+    })
+
+    // The server has no document to teleport into, so it renders no portal —
+    // and the client's hydration pass must render the same: the teleport
+    // arrives with the first update after mount. While the view is
+    // deactivated by <KeepAlive>, the teleport is disabled: Vue parks the
+    // layers back in place, in the cached view and off the document, instead
+    // of leaving them painted over the next view — with their state intact.
+    const ready = shallowRef(false)
+    const active = shallowRef(true)
+    const instance = getCurrentInstance()
+    onMounted(() => {
+      ready.value = true
+      active.value = !inDeactivatedView(instance)
+    })
+    onActivated(() => {
+      active.value = true
+    })
+    onDeactivated(() => {
+      active.value = false
+    })
+
+    // `mounted`, not `open`: an animated dialog stays in the tree through
+    // `closing` so its exit visual can play before everything unmounts. A
+    // computed, so the portal re-renders when that flips, not on every change.
+    const mounted = computed(() => context.api.value.mounted)
+
+    // A container swap re-creates the teleport instead of moving it, like
+    // React's and Solid's portals: a moved window drops focus, and its
+    // containment was computed for the old placement.
+    let generation = 0
+    watch(
+      () => props.container ?? document.body,
+      () => {
+        generation++
+      },
+    )
+
+    return () => {
+      if (!ready.value || !mounted.value) return null
+      return h(
+        Teleport,
+        { key: generation, to: props.container ?? document.body, disabled: !active.value },
+        slots.default?.() ?? [],
+      )
+    }
+  },
+  {
+    name: 'DialogPortal',
+    inheritAttrs: false,
+    // Typed at runtime too: a selector — Teleport's own idiom — would place
+    // the layer yet leave the scroll lock nothing to resolve, so Vue warns.
+    props: { container: { type: Object as PropType<HTMLElement | null> } },
+  },
+) as DialogComponent<DialogPortalProps>
+
+// =============================================================================
+// <Dialog.Backdrop> — the layer behind the dialog window
+// =============================================================================
+
+export interface DialogBackdropProps extends HTMLAttributes {}
+
+export const Backdrop = defineComponent(
+  (_props: DialogBackdropProps, { attrs, slots }) => {
+    const { api, machine, backdropRef } = useDialogContext()
+    return () => {
+      // Only a modal dialog dims the page — non-modal coexists with it.
+      if (!machine.context.modal) return null
+
+      const { onClick, ...bindings } = normalize(api.value.parts.backdrop) as {
+        onClick?: (event: MouseEvent) => void
+      } & Record<string, unknown>
+
+      const merged = mergeProps(attrs, {
+        ...bindings,
+        onClick: (event: MouseEvent) => {
+          if (acceptsBackdropPress(machine.context.id)) onClick?.(event)
+        },
+      })
+
+      return h('div', { ...merged, ref: backdropRef }, slots.default?.())
+    }
+  },
+  { name: 'DialogBackdrop', inheritAttrs: false },
+) as DialogComponent<DialogBackdropProps>
+
+// =============================================================================
+// <Dialog.Viewport> — the positioning + scroll layer around the dialog window
+// =============================================================================
+
+export interface DialogViewportProps extends HTMLAttributes {}
+
+export const Viewport = defineComponent(
+  (_props: DialogViewportProps, { attrs, slots }) => {
+    const { api, machine, viewportRef } = useDialogContext()
+    return () => {
+      const { onClick, ...bindings } = normalize(api.value.parts.viewport) as {
+        onClick?: (event: MouseEvent) => void
+      } & Record<string, unknown>
+
+      const merged = mergeProps(attrs, {
+        ...bindings,
+        onClick: (event: MouseEvent) => {
+          if (acceptsViewportPress(machine.context.id, event)) onClick?.(event)
+        },
+      })
+
+      return h('div', { ...merged, ref: viewportRef }, slots.default?.())
+    }
+  },
+  { name: 'DialogViewport', inheritAttrs: false },
+) as DialogComponent<DialogViewportProps>
+
+// =============================================================================
+// <Dialog.Content> — the dialog window: focus moves in on open, restores on
+// close, traps while modal
+// =============================================================================
+
+/** An element, a component, a ref to either, or a getter — resolved when the
+ * dialog reads it. A component counts as its root element (`$el`). */
+type FocusTarget = MaybeRefOrGetter<HTMLElement | ComponentPublicInstance | null | undefined>
+
+export interface DialogContentProps extends HTMLAttributes {
+  /** The element to focus when the dialog opens — resolved at open time, so a
+   * template ref that fills after setup works. @default the dialog window */
+  initialFocus?: FocusTarget
+  /** Focused on close when nothing meaningful held focus before opening — it
+   * sat on the body (a pointer press leaves it there) or on an element since
+   * removed. Resolved at close time. Typically the dialog's trigger. */
+  restoreFocus?: FocusTarget
+}
+
+export const Content = defineComponent(
+  (props: DialogContentProps, { attrs, slots }) => {
+    const { api, machine, depth, container, portalled, backdropRef, viewportRef } =
+      useDialogContext()
+    const contentRef = shallowRef<HTMLElement | null>(null)
+
+    // The state the window's DOM shows, taken by the hooks that follow its
+    // render: the machine can run ahead of the DOM — the adapter syncs a
+    // controlled `open` in a post-flush job, before the render it causes —
+    // and the sequences must see what the state rendered (a stylesheet may
+    // hide a closed window), as a React effect runs after commit.
+    let rendered: WindowState = 'closed'
+    let shown: WindowState = 'closed'
+    // Whether the view is live: a <KeepAlive> deactivation parks the layer.
+    let active = false
+    // The sequence the window holds, and what it stands for.
+    let applied: WindowState = 'closed'
+    let release: (() => void) | undefined
+    let openedAt = 0
+
+    // The shown state is the edge, not mount/unmount: an animated dialog stays
+    // mounted through `closing`, its exit window, and a Content rendered with
+    // the root (no Portal) is mounted while closed too.
+    const target = (): WindowState => (active && contentRef.value !== null ? shown : 'closed')
+
+    const releaseApplied = (): void => {
+      const previous = release
+      release = undefined
+      applied = 'closed'
+      previous?.()
+    }
+
+    // The commit's steps run through a watcher, so an error in a sequence
+    // reaches the app's errorHandler like any other component error.
+    let step: (() => void) | undefined
+    const stepRequest = shallowRef(0)
+    watch(stepRequest, () => step?.(), { flush: 'sync' })
+    const runStep = (next: () => void): void => {
+      step = next
+      stepRequest.value++
+    }
+
+    // The sequences and their inverses are the DOM package's; the commit only
+    // ties them to Vue's lifecycle.
+    const commit: LayerCommit = {
+      depth,
+      held: () => applied,
+      openedAt: () => openedAt,
+      opening: () => target() === 'open',
+      release: () =>
+        runStep(() => {
+          if (target() !== applied) releaseApplied()
+        }),
+      start: () =>
+        runStep(() => {
+          const next = target()
+          const content = contentRef.value
+          if (next === applied || content === null) return
+          applied = next
+          if (next === 'open') openedAt = ++getQueue().opened
+          release =
+            next === 'open'
+              ? openDialogLayer(content, {
+                  id: machine.context.id,
+                  depth,
+                  modal: machine.context.modal,
+                  backdrop: () => backdropRef.value,
+                  initialFocus: toElement(toValue(props.initialFocus)),
+                  restoreFocus: () => toElement(toValue(props.restoreFocus)),
+                  dismiss: () => machine.send({ type: 'close' }),
+                })
+              : startExitWindow(content, {
+                  container: container(),
+                  backdrop: backdropRef.value,
+                  inPlace: !portalled,
+                  viewport: viewportRef.value,
+                  onComplete: () => machine.send({ type: 'exit.complete' }),
+                })
+        }),
+    }
+
+    const instance = getCurrentInstance()
+    const schedule = (): void => {
+      if (target() !== applied) commitAfterUpdate(commit)
+    }
+    onMounted(() => {
+      shown = rendered
+      active = !inDeactivatedView(instance)
+      schedule()
+    })
+    onUpdated(() => {
+      shown = rendered
+      schedule()
+    })
+    // Back from a <KeepAlive> cache, the window is parked until the Portal
+    // re-enables its teleport, in the flush that restores the view — which
+    // the commit waits out.
+    onActivated(() => {
+      active = true
+      schedule()
+    })
+    onDeactivated(() => {
+      active = false
+      schedule()
+    })
+    // A portalled window never shows `closed` — it unmounts, released at once
+    // after the DOM is gone and children first, as React runs a removed
+    // subtree's cleanups: a parent closing over an open child must not
+    // restore focus into a layer still registered above it.
+    onUnmounted(() => {
+      getQueue().pending.delete(commit)
+      releaseApplied()
+    })
+
+    // The lock spans the dialog's occupancy — through `closing` too:
+    // releasing it mid-exit would bring the scrollbar back and reflow the page
+    // under the still-painting layer. The context's `null` means "page body",
+    // which the hook needs named.
+    useScrollLock(
+      () => machine.context.modal && api.value.mounted,
+      () => container() ?? document.body,
+    )
+
+    useFocusTrap(
+      contentRef,
+      dialogTrapOptions(machine, () => api.value.ids.close),
+    )
+
+    // A neutral element with the role, not <dialog>: the window carries
+    // tabindex (forbidden on <dialog>), and this contract doesn't use
+    // showModal() — see SPEC.md.
+    return () => {
+      const { open, mounted, parts } = api.value
+      rendered = open ? 'open' : mounted ? 'closing' : 'closed'
+      return h(
+        'div',
+        { ...mergeProps(attrs, normalize(parts.content)), ref: contentRef },
+        slots.default?.(),
+      )
+    }
+  },
+  { name: 'DialogContent', inheritAttrs: false, props: ['initialFocus', 'restoreFocus'] },
+) as DialogComponent<DialogContentProps>
+
+// =============================================================================
+// <Dialog.Title> — the dialog's accessible name
+// =============================================================================
+
+export interface DialogTitleProps extends HTMLAttributes {}
+
+export const Title = defineComponent(
+  (_props: DialogTitleProps, { attrs, slots }) => {
+    const { api, machine } = useDialogContext()
+
+    // A part mounted with the root mounts before the root starts the machine
+    // (children mount first); the stopped machine still records it.
+    onMounted(() => machine.send({ type: 'part.presence', part: 'title', present: true }))
+    onUnmounted(() => machine.send({ type: 'part.presence', part: 'title', present: false }))
+
+    return () => h('h2', mergeProps(attrs, normalize(api.value.parts.title)), slots.default?.())
+  },
+  { name: 'DialogTitle', inheritAttrs: false },
+) as DialogComponent<DialogTitleProps>
+
+// =============================================================================
+// <Dialog.Description> — the dialog's accessible description
+// =============================================================================
+
+export interface DialogDescriptionProps extends HTMLAttributes {}
+
+export const Description = defineComponent(
+  (_props: DialogDescriptionProps, { attrs, slots }) => {
+    const { api, machine } = useDialogContext()
+
+    onMounted(() => machine.send({ type: 'part.presence', part: 'description', present: true }))
+    onUnmounted(() => machine.send({ type: 'part.presence', part: 'description', present: false }))
+
+    return () =>
+      h('div', mergeProps(attrs, normalize(api.value.parts.description)), slots.default?.())
+  },
+  { name: 'DialogDescription', inheritAttrs: false },
+) as DialogComponent<DialogDescriptionProps>
+
+// =============================================================================
+// <Dialog.Close> — the visible in-dialog close affordance
+// =============================================================================
+
+export interface DialogCloseProps extends ButtonHTMLAttributes {}
+
+export const Close = defineComponent(
+  (_props: DialogCloseProps, { attrs, slots }) => {
+    const { api } = useDialogContext()
+    return () =>
+      h(
+        'button',
+        mergeProps({ type: 'button', ...attrs }, normalize(api.value.parts.close)),
+        slots.default?.(),
+      )
+  },
+  { name: 'DialogClose', inheritAttrs: false },
+) as DialogComponent<DialogCloseProps>
+
+// Parts
+// -----------------------------------------------------------------------------
+
+export interface Parts {
+  Trigger: typeof Trigger
+  Portal: typeof Portal
+  Backdrop: typeof Backdrop
+  Viewport: typeof Viewport
+  Content: typeof Content
+  Title: typeof Title
+  Description: typeof Description
+  Close: typeof Close
+}
+
+export const Dialog: DialogComponent<DialogProps, DialogEmits> & Parts = Object.assign(DialogRoot, {
+  Trigger,
+  Portal,
+  Backdrop,
+  Viewport,
+  Content,
+  Title,
+  Description,
+  Close,
+})

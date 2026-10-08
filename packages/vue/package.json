@@ -1,0 +1,18 @@
+{
+  "name": "@dunky-dev/vue",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "storybook dev -p 6007 -c .storybook",
+    "build": "storybook build -c .storybook"
+  },
+  "devDependencies": {
+    "@storybook/vue3-vite": "^10.6.1",
+    "@vitejs/plugin-vue-jsx": "^5.1.6",
+    "storybook": "^10.6.1",
+    "vite": "^8.1.4",
+    "vue": "^3.5.43"
+  }
+}

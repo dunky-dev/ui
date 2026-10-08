@@ -103,6 +103,12 @@ and watched for the end of its visual, which the substrate forwards to the
 machine as `exit.complete`. The disposer undoes both — it is the reopen
 interrupt as much as the final unmount.
 
+What gets hidden is the layer: the content's outermost ancestor below the
+portal `container`. A layer rendered in place — without a portal — sits in the
+page's own branch instead, where that walk would take the page around it out
+too, so `inPlace` bounds the hiding to the layer itself: from its `viewport`
+down, or the content alone when it has none.
+
 ### Back navigation
 
 `guardBackNavigation` makes the host's Back a dismissal, and its Forward the
