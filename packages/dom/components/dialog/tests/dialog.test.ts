@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The DOM half of the Dialog, driven directly — no substrate, no framework.
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { machine, type Machine } from '@dunky.dev/state-machine'
 import { dialogMachine } from '@dunky.dev/dialog'
 import type {
@@ -33,10 +33,12 @@ const build = (options: DialogOptions = {}): DialogService => {
 // disposed after the test: the listener is document-level, so one left over
 // — a vetoing one above all — would answer the next test's Escape too.
 const armed: (() => void)[] = []
-const armEscape = (service: DialogService, props: DialogOptions = {}): (() => void) => {
-  const [effect] = domDialogEffects[
-    domDialogEffects.length - 1
-  ] as (typeof domDialogEffects)[number]
+const armEscape = (
+  service: DialogService,
+  props: DialogOptions = {},
+  effects = domDialogEffects,
+): (() => void) => {
+  const [effect] = effects[effects.length - 1] as (typeof effects)[number]
   const dispose = effect(service, props) ?? ((): void => {})
   armed.push(dispose)
   return dispose
@@ -45,9 +47,81 @@ const armEscape = (service: DialogService, props: DialogOptions = {}): (() => vo
 const pressEscape = (): boolean =>
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }))
 
+// A user's key press, as a browser delivers it: one listener at a time, with a
+// microtask checkpoint after each, where a binding flushes the close the
+// listener made. jsdom's dispatchEvent runs listeners back to back, so the
+// press drives the document's keydown listeners by hand, in the order added.
+const keydownListeners: EventListenerOrEventListenerObject[] = []
+const captureKeydownListeners = (): void => {
+  keydownListeners.length = 0
+  const add = document.addEventListener.bind(document)
+  const remove = document.removeEventListener.bind(document)
+  vi.spyOn(document, 'addEventListener').mockImplementation((type, listener, options) => {
+    if (type === 'keydown') keydownListeners.push(listener)
+    add(type, listener, options)
+  })
+  vi.spyOn(document, 'removeEventListener').mockImplementation((type, listener, options) => {
+    const index = keydownListeners.indexOf(listener)
+    if (type === 'keydown' && index !== -1) keydownListeners.splice(index, 1)
+    remove(type, listener, options)
+  })
+}
+
+const pressEscapeAsUser = async (): Promise<void> => {
+  const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })
+  for (const listener of keydownListeners.slice()) {
+    // A listener removed mid-press is skipped, as in a real dispatch.
+    if (!keydownListeners.includes(listener)) continue
+    if (typeof listener === 'function') listener(event)
+    else listener.handleEvent(event)
+    // The checkpoint drains every microtask, those queued while draining too
+    // (a re-render queuing the release); a task boundary is how a test gets
+    // that far.
+    await new Promise(resolve => setTimeout(resolve))
+  }
+}
+
 // The layer stack is a realm-global that outlives a test — every registration
 // has to be undone or the next test inherits a stale topmost.
 const registered: (() => void)[] = []
+
+// A dialog run the way a binding runs it: open, its window in the stack — and
+// out of it on the microtask after the machine leaves `open`, when the
+// framework flushes the change, never synchronously.
+const openLayer = (options: DialogOptions & { id: string }, depth: number): DialogService => {
+  const service = build({ defaultOpen: true, ...options })
+  const content = document.createElement('div')
+  document.body.append(content)
+  const release = registerLayer({
+    id: options.id,
+    depth,
+    element: content,
+    modal: true,
+    backdrop: () => null,
+    dismiss: () => service.send({ type: 'close' }),
+  })
+  registered.push(release)
+  const stop = service.subscribe(() => {
+    if (service.matches('open')) return
+    stop()
+    queueMicrotask(release)
+  })
+  return service
+}
+
+// A stack of dialogs, bottom first, whose Escape listeners are armed in
+// `order` — the order a browser runs them in.
+type ListenerOrder = 'top-first' | 'bottom-first'
+const openStack = (
+  order: ListenerOrder,
+  ...dialogs: Array<DialogOptions & { id: string }>
+): DialogService[] => {
+  const stack = dialogs.map((options, index) => openLayer(options, index + 1))
+  const arming = [...stack.keys()]
+  if (order === 'top-first') arming.reverse()
+  for (const index of arming) armEscape(stack[index], dialogs[index])
+  return stack
+}
 
 // A layer, mounted and registered, standing in for a rendered dialog window.
 const mountLayer = (id: string, depth: number, html = '', dismiss?: () => void): HTMLElement => {
@@ -88,29 +162,8 @@ describe('domDialogEffects — Escape', () => {
     expect(service.matches('open')).toBe(true)
   })
 
-  it('is ignored by a dialog that is not topmost — one layer per press', () => {
-    const service = build({ defaultOpen: true })
-    mountLayer('dlg', 1)
-    mountLayer('above', 2)
-    armEscape(service)
-
-    pressEscape()
-    expect(service.matches('open')).toBe(true)
-  })
-
-  // escapeScope: 'stack' — the receiving dialog gates and vetoes, then the
-  // layers beneath get a plain close, top-down.
-  it('unwinds the whole stack when the topmost dialog scopes Escape to it', () => {
-    const lower = build({ defaultOpen: true, id: 'lower' })
-    const upper = build({ defaultOpen: true, id: 'upper', escapeScope: 'stack' })
-    mountLayer('lower', 1, '', () => lower.send({ type: 'close' }))
-    mountLayer('upper', 2, '', () => upper.send({ type: 'close' }))
-    armEscape(upper)
-
-    pressEscape()
-    expect([upper.matches('open'), lower.matches('open')]).toEqual([false, false])
-  })
-
+  // escapeScope: 'stack' — the receiving dialog gates and vetoes, and only an
+  // Escape it allowed gives the layers beneath their plain close.
   it('leaves the stack alone when the topmost dialog vetoes its stack-scoped Escape', () => {
     const lower = build({ defaultOpen: true, id: 'lower' })
     const upper = build({ defaultOpen: true, id: 'upper', escapeScope: 'stack' })
@@ -120,6 +173,22 @@ describe('domDialogEffects — Escape', () => {
 
     pressEscape()
     expect([upper.matches('open'), lower.matches('open')]).toEqual([true, true])
+  })
+
+  // A popup library prevents the default of the Escape it closes on; the press
+  // was the popup's, so it never reaches the consumer's guard.
+  it('stands down for a press another handler already consumed', () => {
+    const onEscapeKeyDown = vi.fn()
+    const service = build({ defaultOpen: true })
+    mountLayer('dlg', 1)
+    const consume = (event: KeyboardEvent): void => event.preventDefault()
+    window.addEventListener('keydown', consume, true)
+    armed.push(() => window.removeEventListener('keydown', consume, true))
+    armEscape(service, { onEscapeKeyDown })
+
+    pressEscape()
+    expect(service.matches('open')).toBe(true)
+    expect(onEscapeKeyDown).not.toHaveBeenCalled()
   })
 
   it('detaches its listener on dispose', () => {
@@ -178,6 +247,110 @@ describe('domDialogEffects — Escape', () => {
 
     pressEscape()
     expect(service.matches('open')).toBe(false)
+  })
+})
+
+// One press, one answer — from the dialog topmost when it arrived, however
+// soon a closed dialog leaves the stack.
+describe('domDialogEffects — one answer per Escape press', () => {
+  beforeEach(captureKeydownListeners)
+
+  // Top-first from here on: the topmost dialog's listener runs first, so its
+  // close has flushed by the time the one beneath asks who is topmost.
+  it('closes only the topmost dialog — the one beneath never hears the press', async () => {
+    const lowerEscape = vi.fn()
+    const [lower, upper] = openStack(
+      'top-first',
+      { id: 'lower', onEscapeKeyDown: lowerEscape },
+      { id: 'upper' },
+    )
+
+    await pressEscapeAsUser()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([false, true])
+    expect(lowerEscape).not.toHaveBeenCalled()
+  })
+
+  // A confirm-then-close guard: it vetoes the dismissal and closes its dialog
+  // itself, which leaves the stack all the same.
+  it('ends a vetoed press at the topmost dialog', async () => {
+    const lowerEscape = vi.fn()
+    const [lower, upper] = openStack(
+      'top-first',
+      { id: 'lower', onEscapeKeyDown: lowerEscape },
+      {
+        id: 'upper',
+        onEscapeKeyDown: event => {
+          event.preventDefault?.()
+          upper.send({ type: 'close' })
+        },
+      },
+    )
+
+    await pressEscapeAsUser()
+    expect(lower.matches('open')).toBe(true)
+    expect(lowerEscape).not.toHaveBeenCalled()
+  })
+
+  // A controlled dialog only records the intent; it closes when its consumer
+  // echoes `open={false}` back — on the checkpoint, as a re-render would.
+  it('ends the press at a controlled topmost dialog, before its consumer follows', async () => {
+    const lowerEscape = vi.fn()
+    const [lower, upper] = openStack(
+      'top-first',
+      { id: 'lower', onEscapeKeyDown: lowerEscape },
+      {
+        id: 'upper',
+        open: true,
+        onEscapeKeyDown: () =>
+          queueMicrotask(() => upper.send({ type: 'controlled.sync', value: false })),
+      },
+    )
+
+    await pressEscapeAsUser()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([false, true])
+    expect(lowerEscape).not.toHaveBeenCalled()
+  })
+
+  // The layers beneath get a plain close, never the press itself.
+  it('unwinds a stack-scoped press through every layer, once', async () => {
+    const beneathEscape = vi.fn()
+    const stack = openStack(
+      'top-first',
+      { id: 'bottom', onEscapeKeyDown: beneathEscape },
+      { id: 'middle', onEscapeKeyDown: beneathEscape },
+      { id: 'top', escapeScope: 'stack' },
+    )
+
+    await pressEscapeAsUser()
+    expect(stack.map(dialog => dialog.matches('open'))).toEqual([false, false, false])
+    expect(beneathEscape).not.toHaveBeenCalled()
+  })
+
+  // Only the dialog that takes the press marks it: a lower dialog that hears
+  // it first, before anything closed, must leave it to the topmost.
+  it('leaves the press to the topmost dialog when the one beneath hears it first', async () => {
+    const [lower, upper] = openStack('bottom-first', { id: 'lower' }, { id: 'upper' })
+
+    await pressEscapeAsUser()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([false, true])
+  })
+})
+
+describe('domDialogEffects — a duplicate copy of the package', () => {
+  beforeEach(captureKeydownListeners)
+
+  // A monorepo or micro-frontend can load the package twice: a press one copy
+  // answered must count as answered for the other too.
+  it('honors a press another copy of the package already answered', async () => {
+    vi.resetModules()
+    const copy = await import('@dunky.dev/dom-dialog')
+    const lower = openLayer({ id: 'lower' }, 1)
+    const upper = openLayer({ id: 'upper' }, 2)
+    armEscape(upper)
+    armEscape(lower, {}, copy.domDialogEffects)
+
+    await pressEscapeAsUser()
+    expect([upper.matches('open'), lower.matches('open')]).toEqual([false, true])
   })
 })
 

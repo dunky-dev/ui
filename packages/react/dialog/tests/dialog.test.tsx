@@ -3,7 +3,7 @@
 // covered in @dunky.dev/dialog's tests.
 import { useRef, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Dialog, type DialogProps } from '@dunky.dev/react-dialog'
 
 const DefaultDialog = (props: DialogProps) => (
@@ -788,6 +788,39 @@ describe('Dialog', () => {
 
       act(pressEscape)
       expect(screen.queryByText('Outer')).toBeNull()
+    })
+
+    // A browser runs a microtask checkpoint after each listener of a user's
+    // key press, and React flushes there; act() per listener stands in for it.
+    // Mounted in one commit, the inner dialog's listener runs first (child
+    // effects run first), so the outer one's runs after the inner left the stack.
+    it('one Escape closes one layer even when React flushes between listeners', () => {
+      const add = document.addEventListener.bind(document)
+      const remove = document.removeEventListener.bind(document)
+      const wrappers = new Map<EventListenerOrEventListenerObject, EventListener>()
+      vi.spyOn(document, 'addEventListener').mockImplementation((type, listener, options) => {
+        if (type !== 'keydown') return add(type, listener, options)
+        const wrapper: EventListener = event =>
+          act(() =>
+            typeof listener === 'function' ? listener(event) : listener.handleEvent(event),
+          )
+        wrappers.set(listener, wrapper)
+        add(type, wrapper, options)
+      })
+      vi.spyOn(document, 'removeEventListener').mockImplementation((type, listener, options) =>
+        remove(type, wrappers.get(listener) ?? listener, options),
+      )
+      // After RTL's cleanup, which removes the wrapped listeners through the spy.
+      onTestFinished(() => {
+        vi.restoreAllMocks()
+      })
+
+      render(<NestedDialog />)
+      // Not fireEvent: it wraps the dispatch in act(), and a nested act()
+      // defers its flush to the outermost one.
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      expect(screen.queryByText('Inner')).toBeNull()
+      expect(screen.queryByText('Outer')).not.toBeNull()
     })
 
     it('a stack-scoped Escape on the topmost dialog unwinds every layer', () => {

@@ -44,6 +44,18 @@ answer wherever focus is. Only the topmost layer answers, and it offers the
 consumer's `onEscapeKeyDown` a veto through `preventDefault` before it moves
 the machine.
 
+A press is answered once, by the dialog that is topmost when it arrives. Each
+dialog has its own listener and asks the stack only when that listener runs —
+and a browser runs a microtask checkpoint between the listeners of a user's key
+press, where the binding flushes the close the previous listener made, so the
+dialog beneath may already be topmost. The dialog that takes a press therefore
+marks it answered, and every other dialog's listener stands down for it,
+whatever the answer turns out to be: a close, a veto, a `closeOnEscape` gate, or
+an intent a controlled consumer has yet to follow. A press whose default another
+handler already prevented — what popup libraries do with the Escape they close
+on — counts as answered too. Copies of this package loaded side by side share
+the mark, from this version on.
+
 A popup inside the dialog that never joined the stack — a listbox or menu from
 another library, a control whose popup is expanded — answers before the dialog
 while it holds focus: the listener stands down until focus is back in the
@@ -177,4 +189,6 @@ still in the window, and Tab is how such a popup is left.
 | Press gating takes a structural `{ target, currentTarget }`       | React's synthetic event and Solid's native one share only that shape; requiring either would drag a framework type into this layer.                                                                                                                             |
 | The back guard reports state instead of returning a disposer      | Its life spans a Back-close, so no host's "while open" scope fits it. Reporting the open state keeps the arm/park/release decision here rather than in each host.                                                                                               |
 | A stack-scoped Escape reads the stack before it moves the machine | Closing the layer releases it from the stack, and the answer to "what was beneath me" goes with it. Dismissing only after the machine actually left `open` is what makes a veto leave the stack standing.                                                       |
+| A press is marked answered when a dialog takes it, not on outcome | A controlled dialog's close lands only when its consumer re-renders — on the very checkpoint that lets the next listener in — so waiting for the outcome would hand that dialog's press to the one beneath.                                                     |
+| The mark is a realm-global `WeakSet`, not `preventDefault`        | The overlay store's idiom: duplicate copies of the package rendezvous on one record. `preventDefault` stays the consumer's veto, and the dialog has no reason to cancel the browser's own handling of the key.                                                  |
 | A returning dialog is recognized by its nesting depth, not its id | The auto-generated id does not survive the remount (React's `useId` mints a fresh one), and requiring an explicit id would make the reopen an opt-in. Depth is what genuinely survives — at the cost of the same-depth ambiguity, resolved by reopening nobody. |
