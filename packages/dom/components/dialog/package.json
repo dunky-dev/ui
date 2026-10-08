@@ -42,6 +42,6 @@
     "@dunky.dev/dom-overlay": "workspace:*"
   },
   "devDependencies": {
-    "@dunky.dev/state-machine": "^0.3.3"
+    "@dunky.dev/state-machine": "^0.3.4"
   }
 }
