@@ -5,6 +5,7 @@
 // (onOpenChange -> `update:open`, onEscapeKeyDown -> `escapeKeyDown`, ...).
 import {
   KeepAlive,
+  Suspense,
   createSSRApp,
   defineComponent,
   nextTick,
@@ -1581,6 +1582,51 @@ describe('Dialog', () => {
       shown.value = true
       await afterFlushes()
       expect(document.activeElement).toBe(screen.getByLabelText('second field'))
+    })
+
+    // A restored view's activation reaches every part it holds, mounted or
+    // not: a dialog still pending beside an async sibling under <Suspense>
+    // starts with its own mount — no history entry or lock before it shows.
+    it('a dialog a restored view reaches before it mounts starts with its own mount, once', async () => {
+      let resolve = (): void => {}
+      const pending = new Promise<void>(done => (resolve = done))
+      const AsyncSibling = defineComponent({
+        async setup() {
+          await pending
+          return () => <span>loaded</span>
+        },
+      })
+      const shown = ref(true)
+      const Page = defineComponent(() => () => (
+        <Suspense>
+          <div>
+            <AsyncSibling />
+            <Dialog defaultOpen closeOnBack>
+              <Dialog.Portal>
+                <Dialog.Content aria-label='Beside'>
+                  <input aria-label='First' />
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog>
+          </div>
+        </Suspense>
+      ))
+      const pushes = vi.spyOn(window.history, 'pushState')
+      onTestFinished(() => pushes.mockRestore())
+      await renderSettled(() => <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>)
+      shown.value = false
+      await nextTick()
+      shown.value = true
+      await nextTick()
+      await nextTick()
+      expect(pushes).not.toHaveBeenCalled()
+      expect(document.body.style.overflowY).toBe('')
+
+      resolve()
+      await afterFlushes()
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByLabelText('First'))
+      expect(pushes).toHaveBeenCalledTimes(1)
     })
 
     // Async data can mount a dialog into a cached view after the user left it.

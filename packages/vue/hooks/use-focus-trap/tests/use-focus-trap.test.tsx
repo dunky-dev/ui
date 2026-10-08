@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The Vue lifecycle around @dunky.dev/dom-focus-trap — the wrap/no-op/enabled
 // behavior itself is covered in the util's own tests.
-import { KeepAlive, defineComponent, nextTick, ref, type PropType } from 'vue'
+import { KeepAlive, Suspense, defineComponent, nextTick, ref, type PropType } from 'vue'
 import { cleanup, render, screen } from '@testing-library/vue'
 import { afterEach, describe, expect, it, onTestFinished } from 'vitest'
 import { useFocusTrap } from '@dunky.dev/vue-use-focus-trap'
@@ -93,6 +93,40 @@ describe('useFocusTrap', () => {
     shown.value = true
     await nextTick()
     expect(tab(screen.getByTestId('container'))).toBe(false)
+  })
+
+  // A restored view's activation reaches every part it holds, mounted or
+  // not: an async one still pending under <Suspense> arms with its own mount.
+  it('stays unarmed for an async component a restored view reaches before it mounts', async () => {
+    let resolve = (): void => {}
+    const pending = new Promise<void>(done => (resolve = done))
+    const container = document.createElement('div')
+    container.append(document.createElement('button'))
+    document.body.append(container)
+    onTestFinished(() => container.remove())
+    const Async = defineComponent({
+      async setup() {
+        useFocusTrap(container)
+        await pending
+        return () => null
+      },
+    })
+    const shown = ref(true)
+    const Page = defineComponent(() => () => (
+      <Suspense>
+        <Async />
+      </Suspense>
+    ))
+    render(() => <KeepAlive>{shown.value ? <Page /> : null}</KeepAlive>)
+    shown.value = false
+    await nextTick()
+    shown.value = true
+    await nextTick()
+    expect(tab(outsideButton())).toBe(true)
+
+    resolve()
+    await new Promise(settled => setTimeout(settled))
+    expect(tab(container)).toBe(false)
   })
 
   it("takes a component's ref as its root element", () => {
