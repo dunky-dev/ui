@@ -1,0 +1,23 @@
+{
+  "name": "@dunky-dev/svelte",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "storybook dev -p 6009 -c .storybook",
+    "build": "storybook build -c .storybook",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json --output human --fail-on-warnings"
+  },
+  "devDependencies": {
+    "@storybook/addon-svelte-csf": "^5.1.5",
+    "@storybook/svelte-vite": "^10.6.1",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@testing-library/svelte": "^5.4.2",
+    "storybook": "^10.6.1",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.4"
+  }
+}

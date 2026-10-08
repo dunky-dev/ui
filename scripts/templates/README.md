@@ -42,4 +42,5 @@ lands at `packages/native/__name__/`. To add one (say, a native driver group):
 2. That's it — the script discovers the created packages from the copied
    `package.json` files and wires them automatically. A package with
    `"private": true` is added to tsconfig `paths` but skipped in the tsdown
-   publish set.
+   publish set, and so is one whose `build` script isn't `tsdown` — the
+   Svelte packages build with `@sveltejs/package` (see `ARCHITECTURE.md`).

@@ -1,0 +1,55 @@
+{
+  "name": "@dunky.dev/svelte-dialog",
+  "version": "0.0.0",
+  "description": "Svelte binding for @dunky.dev/dialog.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dunky-dev/ui.git",
+    "directory": "packages/svelte/dialog"
+  },
+  "files": [
+    "dist",
+    "src",
+    "SPEC.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "svelte": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "svelte": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "svelte-package -i src && publint"
+  },
+  "dependencies": {
+    "@dunky.dev/dialog": "workspace:*",
+    "@dunky.dev/dom-dialog": "workspace:*",
+    "@dunky.dev/svelte-state-machine": "^0.3.0",
+    "@dunky.dev/svelte-use-focus-trap": "workspace:*",
+    "@dunky.dev/svelte-use-scroll-lock": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/package": "^3.0.0",
+    "@testing-library/svelte": "^5.4.2",
+    "publint": "^0.3.21",
+    "svelte": "^5.57.1",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "svelte": ">=5.20.0 <5.33.5 || ^5.34.5"
+  }
+}

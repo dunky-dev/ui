@@ -1,0 +1,15 @@
+{
+  // .svelte files need svelte-check (tsc can't read them), so packages/svelte
+  // typechecks as its own project — the root tsconfig excludes it and
+  // `pnpm typecheck` runs this one through svelte-check. `paths` is inherited
+  // from the root file.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // Svelte's own types for `.svelte` imports and the runes globals.
+    "types": ["@types/node", "svelte"],
+    // Svelte 5 type-only imports must be marked so the compiler can drop them.
+    "verbatimModuleSyntax": true
+  },
+  "include": ["."],
+  "exclude": ["**/node_modules", "**/dist", "**/.svelte-kit"]
+}
