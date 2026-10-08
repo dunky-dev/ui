@@ -8,6 +8,7 @@ import {
   createSSRApp,
   defineComponent,
   nextTick,
+  reactive,
   ref,
   type Component,
   type EmitsToProps,
@@ -16,6 +17,12 @@ import { renderToString } from 'vue/server-renderer'
 import { cleanup, fireEvent, render, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Dialog, type DialogEmits, type DialogProps } from '@dunky.dev/vue-dialog'
+// A second instance of the binding's module, as a page that bundles the
+// binding twice gets one: Vite loads a module once per distinct query.
+// @ts-expect-error -- TypeScript resolves no query imports
+import { Dialog as DialogCopy } from '../src/dialog.ts?copy'
+
+const CopiedDialog = DialogCopy as typeof Dialog
 
 // The root's props plus its emits' listener props (`onUpdate:open`, ...).
 type DialogAttrs = DialogProps & EmitsToProps<DialogEmits>
@@ -1272,6 +1279,92 @@ describe('Dialog', () => {
       expect(screen.getByTestId('inner-viewport').hasAttribute('inert')).toBe(true)
     })
 
+    // One dialog closes as a sibling reopens mid-exit, in one update: the
+    // closing one releases while the reopening one is still out of reach, so
+    // its restore can't land inside the layer about to take over.
+    it("a sibling's close never restores focus into a layer reopening in the same update", async () => {
+      refuseInertFocus()
+      const open = reactive({ a: false, b: false })
+      const sibling = (name: 'a' | 'b', next: 'a' | 'b') => (
+        <Dialog
+          key={name}
+          open={open[name]}
+          animated
+          modal={false}
+          onEscapeKeyDown={() => (open[name] = false)}
+        >
+          <Dialog.Trigger onClick={() => (open[name] = true)}>{`${name} trigger`}</Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Content aria-label={name}>
+              <button
+                type='button'
+                onClick={() => {
+                  open[name] = false
+                  open[next] = true
+                }}
+              >
+                {`to ${next}`}
+              </button>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      )
+      await renderSettled(() => <div>{[sibling('a', 'b'), sibling('b', 'a')]}</div>)
+      await press(screen.getByText('b trigger'))
+      await press(screen.getByText('a trigger')) // a's focus home is now b's window
+      // b exits, reopens, and exits again: opened after a, it would release
+      // first by stack order alone.
+      await press(screen.getByText('to a'))
+      await press(screen.getByText('b trigger'))
+      await press(screen.getByText('to a'))
+      const trigger = screen.getByText('a trigger')
+      trigger.focus()
+
+      await press(screen.getByText('to b')) // a closes as b reopens mid-exit
+      expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'b' }))
+      await pressEscape()
+      expect(document.activeElement).toBe(trigger)
+    })
+
+    // A page can bundle the binding twice — a micro-frontend, a monorepo —
+    // and both copies' dialogs must still change in one pass.
+    it('a hand-over between dialogs from two copies of the binding keeps the focus it hands over', async () => {
+      const open = reactive({ first: false, next: false })
+      await renderSettled(() => (
+        <div>
+          <CopiedDialog open={open.next} modal={false}>
+            <CopiedDialog.Portal>
+              <CopiedDialog.Content aria-label='Next'>
+                <input aria-label='Next field' />
+              </CopiedDialog.Content>
+            </CopiedDialog.Portal>
+          </CopiedDialog>
+          <Dialog open={open.first} animated>
+            <Dialog.Trigger onClick={() => (open.first = true)}>Start</Dialog.Trigger>
+            <Dialog.Portal>
+              <Dialog.Content aria-label='First'>
+                <button
+                  type='button'
+                  onClick={() => {
+                    open.first = false
+                    open.next = true
+                  }}
+                >
+                  Next
+                </button>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog>
+        </div>
+      ))
+      const trigger = screen.getByText('Start')
+      trigger.focus()
+      await press(trigger)
+
+      await press(screen.getByText('Next'))
+      expect(document.activeElement).toBe(screen.getByLabelText('Next field'))
+    })
+
     // A template ref on a component holds its instance, not an element.
     it("initialFocus and restoreFocus take a component's ref as its element", async () => {
       const Action = defineComponent(() => () => <button type='button'>Action</button>)
@@ -1459,6 +1552,35 @@ describe('Dialog', () => {
 
       await pressEscape()
       expect(document.activeElement).toBe(screen.getByLabelText('Outer field'))
+    })
+
+    // <KeepAlive> also runs same-depth siblings' activated hooks in reverse;
+    // the one opened last must still come back on top.
+    it('a restored KeepAlive view reopens sibling dialogs in the order they opened', async () => {
+      const open = reactive({ first: false, second: false })
+      const shown = ref(true)
+      const sibling = (name: 'first' | 'second') => (
+        <Dialog key={name} open={open[name]} modal={false}>
+          <Dialog.Portal>
+            <Dialog.Content aria-label={name}>
+              <input aria-label={`${name} field`} />
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      )
+      const Page = defineComponent(() => () => <div>{[sibling('first'), sibling('second')]}</div>)
+      await renderSettled(() => <KeepAlive>{shown.value ? <Page /> : <Elsewhere />}</KeepAlive>)
+      open.first = true
+      await afterFlushes()
+      open.second = true
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByLabelText('second field'))
+
+      shown.value = false
+      await nextTick()
+      shown.value = true
+      await afterFlushes()
+      expect(document.activeElement).toBe(screen.getByLabelText('second field'))
     })
 
     // Async data can mount a dialog into a cached view after the user left it.

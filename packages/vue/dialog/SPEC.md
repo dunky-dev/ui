@@ -150,8 +150,12 @@ Vue-specific notes on top of the core contract:
   React's commit does: the dialog opened keeps the focus it took, the last
   close returns focus to the trigger the hand-over started from, and an
   exiting layer stays inert while others open or close around it, however the
-  dialogs are declared. Nested layers release innermost first and open
-  outermost first.
+  dialogs are declared. A closing dialog releases before a reopening one lifts
+  its exit window, so its restore never lands in the layer about to take over.
+  Nested layers release innermost first and open outermost first; at one depth
+  the stack order holds — the latest opened releases first, and a restored
+  `<KeepAlive>` view reopens siblings in the order they opened. A page that
+  bundles the binding twice still runs one pass.
 - **`<KeepAlive>`**: a deactivated dialog's machine is paused by the adapter,
   as React's `<Activity>` pauses its effects, so its DOM work pauses too: the
   Portal parks the layers back in place, inside the cached view and off the

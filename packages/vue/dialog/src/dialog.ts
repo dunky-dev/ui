@@ -127,6 +127,10 @@ type WindowState = 'open' | 'closing' | 'closed'
 // the one its DOM shows now.
 interface LayerCommit {
   depth: number
+  // The sequence the window holds now.
+  held: () => WindowState
+  // When its open sequence last ran, in page order (0: not yet).
+  openedAt: () => number
   // Whether `start` runs an open sequence, rather than an exit window.
   opening: () => boolean
   release: () => void
@@ -137,26 +141,59 @@ interface LayerCommit {
 // dialog opening as another closes in the same update — a wizard's Next —
 // would run in declaration order, and the closer's restore take focus back
 // from the opener. The sequences run as React's commit runs them instead,
-// once the whole update has rendered: every release before any start.
-// Releases go innermost first, each layer's close restoring focus while the
-// one beneath still holds the stack. Exit windows start before open
-// sequences, so a new layer's containment can't take over an exiting layer's
-// hiding and strip it when that layer closes. Opens go outermost first, each
-// layer taking focus from the one beneath — as a nested stack first opens,
-// and as a restored <KeepAlive> view, whose hooks run children first, must
-// reopen.
-const pendingCommits = new Set<LayerCommit>()
-
-function commitAfterUpdate(commit: LayerCommit): void {
-  // Queued during Vue's flush, a microtask runs once the flush is done:
-  // before anything awaiting `nextTick()`, and before the browser paints.
-  if (pendingCommits.size === 0) queueMicrotask(flushCommits)
-  pendingCommits.add(commit)
+// once the whole update has rendered, in one pass: every release before any
+// start. Open layers release before exit windows lift, each innermost — at
+// one depth, latest opened — first: a close restores focus while the layer
+// beneath still holds the stack and a reopening layer is still out of reach.
+// Exit windows start before open sequences, so a new layer's containment
+// can't take over an exiting layer's hiding and strip it when that layer
+// closes. Opens go outermost — at one depth, earliest opened, a fresh one
+// last — first, each layer taking focus from the one beneath: as a stack
+// first opened, and as a restored <KeepAlive> view, whose hooks run in
+// reverse, must reopen.
+interface CommitQueue {
+  pending: Set<LayerCommit>
+  // Whether a pass is queued for the pending commits.
+  queued: boolean
+  // The page's open-sequence count, which stamps `openedAt`.
+  opened: number
 }
 
+// A page can bundle this binding twice (a micro-frontend, a monorepo), and
+// two module-level queues would run two passes — one copy's opens before the
+// other's closes. The queue rendezvous on a realm-global keyed by
+// `Symbol.for`, as dom-overlay's stack does; resolved lazily, so the module
+// keeps its `sideEffects: false` contract.
+const QUEUE_KEY = Symbol.for('@dunky.dev/vue-dialog#commit-queue')
+
+function getQueue(): CommitQueue {
+  const scope = globalThis as unknown as Record<symbol, CommitQueue | undefined>
+  let queue = scope[QUEUE_KEY]
+  if (queue === undefined) {
+    queue = { pending: new Set(), queued: false, opened: 0 }
+    scope[QUEUE_KEY] = queue
+  }
+  return queue
+}
+
+function commitAfterUpdate(commit: LayerCommit): void {
+  const queue = getQueue()
+  queue.pending.add(commit)
+  if (queue.queued) return
+  queue.queued = true
+  // Queued during Vue's flush, a microtask runs once the flush is done:
+  // before anything awaiting `nextTick()`, and before the browser paints.
+  queueMicrotask(flushCommits)
+}
+
+// A layer that never opened stacks above every one that has.
+const stackOrder = (commit: LayerCommit): number => commit.openedAt() || Number.POSITIVE_INFINITY
+
 function flushCommits(): void {
-  const batch = [...pendingCommits]
-  pendingCommits.clear()
+  const queue = getQueue()
+  queue.queued = false
+  const batch = [...queue.pending]
+  queue.pending.clear()
   // Every step runs even when one throws; the failures surface after.
   const failures: unknown[] = []
   const run = (step: () => void): void => {
@@ -166,9 +203,14 @@ function flushCommits(): void {
       failures.push(error)
     }
   }
-  batch.sort((a, b) => b.depth - a.depth)
-  for (const commit of batch) run(commit.release)
-  batch.sort((a, b) => a.depth - b.depth)
+  batch.sort((a, b) => b.depth - a.depth || b.openedAt() - a.openedAt())
+  for (const commit of batch) {
+    if (commit.held() === 'open') run(commit.release)
+  }
+  for (const commit of batch) {
+    if (commit.held() === 'closing') run(commit.release)
+  }
+  batch.sort((a, b) => a.depth - b.depth || stackOrder(a) - stackOrder(b))
   for (const commit of batch) {
     if (!commit.opening()) run(commit.start)
   }
@@ -496,6 +538,7 @@ export const Content = defineComponent(
     // The sequence the window holds, and what it stands for.
     let applied: WindowState = 'closed'
     let release: (() => void) | undefined
+    let openedAt = 0
 
     // The shown state is the edge, not mount/unmount: an animated dialog stays
     // mounted through `closing`, its exit window, and a Content rendered with
@@ -523,6 +566,8 @@ export const Content = defineComponent(
     // ties them to Vue's lifecycle.
     const commit: LayerCommit = {
       depth,
+      held: () => applied,
+      openedAt: () => openedAt,
       opening: () => target() === 'open',
       release: () =>
         runStep(() => {
@@ -534,6 +579,7 @@ export const Content = defineComponent(
           const content = contentRef.value
           if (next === applied || content === null) return
           applied = next
+          if (next === 'open') openedAt = ++getQueue().opened
           release =
             next === 'open'
               ? openDialogLayer(content, {
@@ -584,7 +630,7 @@ export const Content = defineComponent(
     // subtree's cleanups: a parent closing over an open child must not
     // restore focus into a layer still registered above it.
     onUnmounted(() => {
-      pendingCommits.delete(commit)
+      getQueue().pending.delete(commit)
       releaseApplied()
     })
 
