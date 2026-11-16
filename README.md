@@ -17,28 +17,31 @@ host environment puts it on screen. Add a substrate and every primitive shows
 up there with the same behavior and the same a11y.
 
 ```
-                         +---------------------------+
-                         |        core/<name>        |    the behavior
-                         |  states . events . a11y   |    framework-free, no DOM
-                         +-------------+-------------+
-                                       |
-                         connect() -> logical bindings
-                       (onPress, role, data-state, ...)
-                                       |
-                               +-------+---------------------------------+
-                               v                                         |
-+--------------+  +------------------------+                             |
-| dom/utils/*  |  | dom/components/<name>  |                             |
-| focus-trap,  +->|  document listeners,   |    the DOM half, shared     |
-| overlay, ... |  |  focus/stack sequence  |    by every DOM host        |
-+--------------+  +------------+-----------+                             |
-                               |                                         |
-     +------------+------------+------------+------------+               |
-     v            v            v            v            v               v
-+---------+  +---------+  +---------+  +---------+  +---------+     +---------+
-|  react  |  |  solid  |  |   vue   |  |  svelte |  |  others |     |  native |
-+---------+  +---------+  +---------+  +---------+  +---------+     +---------+
-                         render + host lifecycle only
+             +-------------------------+           +-------------------------+
+             |       core/<name>       |           |        utilities        |
+             |                         |           |                         |
+             |    state machine per    |           |  focus-trap, viewport,  |
+             |    primitive: states,   |           |   scroll-spy, overlay,  |
+             |       events, a11y      |           |     scroll-lock, ...    |
+             +------------+------------+           +------------+------------+
+                          |                                     |
+                          +------------------+------------------+
+                                             |
+                       agnostic: no env assumptions, no framework
+                                             |
+                          +------------------+------------------+
+                          v                                     v
+                   +-------------+   platform-specific   +-------------+
+                   |     dom     | implementation of the |    native   |
+                   +------+------+ agnostic core + utils +------+------+
+                          |                                     |
+    +----------+----------+----------+----------+               |
+    v          v          v          v          v               v
++--------+ +--------+ +--------+ +--------+ +--------+   +--------------+
+| react  | | solid  | |  vue   | | svelte | | others |   | react-native |
++--------+ +--------+ +--------+ +--------+ +--------+   +--------------+
+              substrates: glue code, thin connectors to each host
+
 ```
 
 The engine that runs the core machines lives in its own repo:
