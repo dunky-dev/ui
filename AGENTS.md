@@ -56,8 +56,9 @@ architecture:
   (`@dunky.dev/state-machine` + `@dunky.dev/state-machine-bindings`), and the
   machine utils under `core/utils`. A machine util imports only the runtime;
   a DOM util imports nothing from this repo except a smaller DOM util (a
-  predicate two utils must agree on, never a peer that imports it back); a DOM
-  component imports its core counterpart and the DOM utils, never a framework;
+  predicate two utils must agree on, never a peer that imports it back) and
+  the core util it extends for the DOM (`dom-overlay` builds on `overlay`); a
+  DOM component imports its core counterpart and the DOM utils, never a framework;
   a substrate hook imports only the DOM util it wraps.
 - **DOM behavior is written once too.** Logic that is DOM-specific but not
   framework-specific — a document listener, an ordered focus/stack sequence —

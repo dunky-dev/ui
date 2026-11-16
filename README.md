@@ -55,6 +55,11 @@ renders, not how machines execute.
 
 - **`core/`** — the behavior. One package per primitive: a framework-free
   state machine. No DOM, no framework. Published as `@dunky.dev/<name>`.
+- **`core/utils/`** — agnostic utilities shared across primitives: the logic
+  every host needs but no host owns (controlled/uncontrolled state, the
+  overlay-layer stack). No env assumptions, no framework. A platform layer
+  extends them for its host (`dom/utils/overlay` builds on `core/utils/overlay`).
+  Published as `@dunky.dev/<name>`.
 - **`dom/utils/`** — framework-free DOM utilities shared across primitives
   and substrates (focus trap, scroll lock, overlay stacking). Published as
   `@dunky.dev/dom-<name>`.
@@ -66,7 +71,7 @@ renders, not how machines execute.
   `solid/`, `native/`) that wires the machine to real elements. Published as
   `@dunky.dev/<substrate>-<name>` (e.g. `@dunky.dev/react-dialog`).
 
-The dependency direction is one-way: `substrate -> dom -> core`. A binding
+The layers build one way: `core -> dom -> substrate`. A binding
 adds no behavior of its own — if a decision is needed, it moves into the core
 machine so every substrate inherits it. The deep reference is
 [ARCHITECTURE.md](./ARCHITECTURE.md).

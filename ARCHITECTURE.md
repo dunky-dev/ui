@@ -19,8 +19,9 @@ inside it.
 packages/
 |
 +- core/                  substrate-free behavior, one package per primitive
-|  +- utils/              machine utilities shared across primitives
+|  +- utils/              agnostic utilities shared across primitives
 |  |  +- controllable/    @dunky.dev/controllable
+|  |  +- overlay/         @dunky.dev/overlay
 |  |  +- ...
 |  +- dialog/             @dunky.dev/dialog
 |  +- tooltip/            @dunky.dev/tooltip
@@ -70,11 +71,15 @@ framework-free. The split matters as substrates multiply: React and Solid
 differ in how they schedule an effect, not in what the effect does, so the
 what is written once and each binding contributes only its lifecycle.
 
-Machine logic that several primitives need — the controlled/uncontrolled
-machinery (`@dunky.dev/controllable`) — lives the same way under
-`core/utils/`: substrate-free helpers a core machine composes into its
-transition table, so every primitive encodes the same contract instead of
-hand-rolling it.
+Agnostic logic that several primitives need lives the same way under
+`core/utils/`: no env assumptions, no framework. The controlled/uncontrolled
+machinery (`@dunky.dev/controllable`) is a helper a core machine composes into
+its transition table, so every primitive encodes the same contract instead of
+hand-rolling it. The overlay-layer stack (`@dunky.dev/overlay`) tracks the open
+layers and resolves the topmost one, so every overlay primitive agrees on who
+owns Escape and the focus trap. A platform util extends an agnostic one for its
+host: `@dunky.dev/dom-overlay` adds the DOM element and containment on top of
+`@dunky.dev/overlay`.
 
 Each substrate directory is itself a private workspace package
 (`@dunky-dev/<substrate>`) that owns the substrate's infrastructure — the dev
@@ -85,32 +90,50 @@ level down. Internal infra uses the `@dunky-dev` scope; published packages use
 ## Layers and dependency direction
 
 ```
-+-----------------------------------------------------------+
-|  machine runtime           @dunky.dev/state-machine        |
-|                            (external dependency)           |
-+-----------------------------------------------------------+
-       |
-       v
-+-----------------------------------------------------------+
-|  core primitive            packages/core/<name>            |
-|                            @dunky.dev/<name>               |
-|                                                            |
-|  the behavior: states, transitions, guards, callback       |
-|  ordering — no DOM, no framework, no host assumptions      |
-+-----------------------------------------------------------+
-       |
-       v
-+-----------------------------------------------------------+
-|  substrate binding         packages/<substrate>/<name>     |
-|                            @dunky.dev/<substrate>-<name>   |
-|                                                            |
-|  owns the host wiring: element/listener lifecycle,         |
-|  translating host events into machine events, re-syncing   |
-|  options each render so fresh callbacks land               |
-+-----------------------------------------------------------+
-       |
-       v
-  consumer code
++-------------------------------------------------------------+
+|  machine runtime     @dunky.dev/state-machine               |
+|                      (external dependency)                  |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|  core primitive      packages/core/<name>                   |
+|                      @dunky.dev/<name>                      |
+|  agnostic utils      packages/core/utils/<name>             |
+|                      @dunky.dev/<name>                      |
+|                                                             |
+|  the behavior: states, transitions, guards, callback        |
+|  ordering, plus the logic every host shares (controlled     |
+|  state, the overlay stack) - no DOM, no framework, no env   |
+|  assumptions                                                +----+
++-------------------------------------------------------------+    |
+                              |                                    |
+                              v                                    | native
++-------------------------------------------------------------+    |
+|  DOM component       packages/dom/components/<name>         |    |
+|                      @dunky.dev/dom-<name>                  |    |
+|  DOM utils           packages/dom/utils/<name>              |    |
+|                      @dunky.dev/dom-<name>                  |    |
+|                                                             |    |
+|  the platform-specific implementation of the agnostic       |    |
+|  core and utils: document listeners, focus/stack            |    |
+|  sequences, focus trap, scroll lock - no framework          |    |
++-------------------------------------------------------------+    |
+                              |                                    |
+                              v                                    |
++-------------------------------------------------------------+    |
+|  substrate binding   packages/<substrate>/<name>            <----+
+|                      @dunky.dev/<substrate>-<name>          |
+|  substrate hooks     packages/<substrate>/hooks/use-<util>  |
+|                      @dunky.dev/<substrate>-use-<util>      |
+|                                                             |
+|  owns the host wiring: element/listener lifecycle,          |
+|  translating host events into machine events, re-syncing    |
+|  options each render so fresh callbacks land                |
++-------------------------------------------------------------+
+                              |
+                              v
+                         consumer code
 ```
 
 The rules, stated as imports:
@@ -119,13 +142,15 @@ The rules, stated as imports:
   state-machine adapter, its own hooks, the DOM utils, and — for a DOM
   substrate — its primitive's `dom/components` package. Nothing else from this
   repo.
-- A core package imports only the state-machine runtime and the agnostic
-  bindings vocabulary.
+- A core package imports only the state-machine runtime, the agnostic
+  bindings vocabulary, and the agnostic utils under `core/utils/`. An agnostic
+  util imports at most the state-machine runtime.
 - A DOM util imports nothing from this repo except another DOM util — and only
-  a smaller one, never a peer that would import it back. A shared predicate
-  (`isRendered`) is one package so its callers can't drift; the direction of
-  such an edge is a design decision, recorded in the importing package's
-  `SPEC.md`. A substrate hook imports only the DOM util it wraps.
+  a smaller one, never a peer that would import it back — and the agnostic
+  util it extends for the DOM. A shared predicate (`isRendered`) is one
+  package so its callers can't drift; the direction of such an edge is a
+  design decision, recorded in the importing package's `SPEC.md`. A substrate
+  hook imports only the DOM util it wraps.
 - A `dom/components` package imports its core counterpart and the DOM utils —
   never a framework, and never another primitive.
 - Primitives are independent of each other. If two need to share logic, that
