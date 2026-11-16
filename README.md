@@ -17,31 +17,28 @@ host environment puts it on screen. Add a substrate and every primitive shows
 up there with the same behavior and the same a11y.
 
 ```
-                +---------------------------+
-                |       core/<name>         |    the behavior
-                |  states . events . a11y   |    framework-free, no DOM
-                +-------------+-------------+
-                              |
-               connect() -> logical bindings
-               (onPress, role, data-state, ...)
-                              |
-             +----------------+----------------+
-             |                                 |
-             v                                 |
- +------------------------+                    |
- | dom/components/<name>  |   the DOM half     |
- |  document listeners,   |   shared by every  |
- |  focus/stack sequence  |   DOM host         |
- +-----+------------+-----+                    |
-       |            ^                          |
-       |            |  dom/utils/*             |
-       |            |  focus-trap, overlay,    |
-       |            |  scroll-lock, ...        |
-       v                                       v
- +-----------+  +-----------+           +-----------+
- |   react   |  |   solid   |           |  native   |
- +-----------+  +-----------+           +-----------+
-             render + host lifecycle only
+                         +---------------------------+
+                         |        core/<name>        |    the behavior
+                         |  states . events . a11y   |    framework-free, no DOM
+                         +-------------+-------------+
+                                       |
+                         connect() -> logical bindings
+                       (onPress, role, data-state, ...)
+                                       |
+                               +-------+---------------------------------+
+                               v                                         |
++--------------+  +------------------------+                             |
+| dom/utils/*  |  | dom/components/<name>  |                             |
+| focus-trap,  +->|  document listeners,   |    the DOM half, shared     |
+| overlay, ... |  |  focus/stack sequence  |    by every DOM host        |
++--------------+  +------------+-----------+                             |
+                               |                                         |
+     +------------+------------+------------+------------+               |
+     v            v            v            v            v               v
++---------+  +---------+  +---------+  +---------+  +---------+     +---------+
+|  react  |  |  solid  |  |   vue   |  |  svelte |  |  others |     |  native |
++---------+  +---------+  +---------+  +---------+  +---------+     +---------+
+                         render + host lifecycle only
 ```
 
 The engine that runs the core machines lives in its own repo:
