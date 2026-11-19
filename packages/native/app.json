@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "updates": { "enabled": false },
     "ios": { "supportsTablet": true, "bundleIdentifier": "dev.dunky.ui" },
     "android": { "package": "dev.dunky.ui" }
   }

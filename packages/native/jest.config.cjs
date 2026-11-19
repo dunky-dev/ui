@@ -12,10 +12,22 @@ const transformIgnorePatterns = expoPreset.transformIgnorePatterns.map(pattern =
   pattern.replace('/node_modules/(?!(.pnpm|', '/node_modules/(?!(.pnpm|@dunky\\.dev|'),
 )
 
+// jest-expo turns the nearest tsconfig's `paths` into moduleNameMapper entries
+// relative to `<rootDir>` — which for this package points nowhere, and which
+// tsconfig is "nearest" depends on the cwd (the repo root's has the workspace
+// paths, this package's has none). The @dunky.dev packages resolve through the
+// workspace links and the resolver below instead, so drop the mapping.
+const moduleNameMapper = Object.fromEntries(
+  Object.entries(expoPreset.moduleNameMapper ?? {}).filter(
+    ([pattern]) => !pattern.startsWith('^@dunky\\.dev/'),
+  ),
+)
+
 module.exports = {
   ...expoPreset,
   rootDir: '.',
   testMatch: ['<rootDir>/*/tests/**/*.test.@(ts|tsx)'],
+  moduleNameMapper,
   // Establish React 19's act environment for the whole run (appended to
   // jest-expo's own setup, not replacing it).
   setupFiles: [...(expoPreset.setupFiles ?? []), '<rootDir>/jest-setup.cjs'],

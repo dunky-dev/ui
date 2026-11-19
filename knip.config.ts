@@ -28,6 +28,21 @@ const config: KnipConfig = {
       // The babel presets are referenced as strings in tsdown.config.ts.
       ignoreDependencies: ['babel-preset-solid', '@babel/preset-typescript'],
     },
+    'packages/native': {
+      // The Expo shell: `userInterfaceStyle` is honored from the manifest on
+      // iOS; the Android half would need the expo-system-ui native module,
+      // which a stories harness has no use for. `@expo/vector-icons` is a
+      // moduleNameMapper target inside jest-expo's own preset, not ours.
+      ignoreDependencies: ['expo-system-ui', '@expo/vector-icons'],
+      // babel-preset-expo ships inside `expo`; babel-jest is jest-expo's
+      // transform, resolved from the preset. Neither is ours to list.
+      ignoreUnresolved: ['babel-preset-expo', 'babel-jest'],
+    },
+    // The on-device Storybook reaches the stories through the generated,
+    // gitignored storybook.requires.ts (see .rnstorybook/index.ts).
+    'packages/native/*': {
+      entry: ['stories/*.stories.tsx'],
+    },
   },
 }
 
