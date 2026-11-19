@@ -1,5 +1,122 @@
 # @dunky.dev/dom-dialog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#63](https://github.com/dunky-dev/ui/pull/63) [`942d4db`](https://github.com/dunky-dev/ui/commit/942d4dbb4c36ba01a7abc0593a744256afc29ea3) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `acceptsBackdropPress` / `acceptsViewportPress` are replaced by
+  `gateBackdropPress(id, bindings)` / `gateViewportPress(id, bindings)`. The
+  predicates left every DOM substrate writing the same `onClick` wrapper around
+  them by hand — destructure the press out of the part's normalized bindings,
+  re-wrap it behind the check — which is exactly the kind of shared DOM behavior
+  this package exists to hold. The gate now takes the normalized bindings and
+  returns them with the press gated; a substrate just passes the result to its
+  `mergeProps`:
+
+  ```tsx
+  <div
+    {...mergeProps(props, gateBackdropPress(machine.context.id, normalize(api.parts.backdrop)))}
+  />
+  ```
+
+  The gating rules are unchanged: only the topmost dialog of a stack answers an
+  outside press, and a viewport press must have started on the viewport itself
+  rather than bubbled up from the content. React and Solid dialogs use the gates
+  internally — no consumer-facing change there.
+
+- [#53](https://github.com/dunky-dev/ui/pull/53) [`2cc4a1b`](https://github.com/dunky-dev/ui/commit/2cc4a1b00966526497da15b4123060a2b2c104f0) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `Dialog.Content` gains `restoreFocus` — the close-side counterpart to
+  `initialFocus`. Closing still returns focus to whatever held it before the
+  dialog opened; `restoreFocus` names where it goes when that holder can't
+  meaningfully take focus back: focus sat on the body (a pointer press can
+  leave it there), or on an element removed from the document since.
+  Typically the dialog's trigger.
+
+  ```tsx
+  // React — a ref, read at close time
+  <Dialog.Content restoreFocus={triggerRef}>…</Dialog.Content>
+
+  // Solid — an element or accessor, resolved at close time
+  <Dialog.Content restoreFocus={() => trigger}>…</Dialog.Content>
+  ```
+
+  Before, those two cases silently dropped focus: restoring to the body goes
+  nowhere, and focusing a disconnected element is a no-op, leaving focus
+  stranded on the closing layer. The element focused before opening still
+  always wins when it is meaningful — the fallback never overrides it. At the
+  DOM layer, `openDialogLayer` takes `restoreFocus?: () => HTMLElement | null`,
+  resolved at close.
+
+### Patch Changes
+
+- [#57](https://github.com/dunky-dev/ui/pull/57) [`da982c0`](https://github.com/dunky-dev/ui/commit/da982c0520c64d092be9aa87b4fc5b70a2852842) Thanks [@ivanbanov](https://github.com/ivanbanov)! - A popup opened inside the dialog owns Tab and Escape while it holds focus.
+
+  A select menu, a popover, a menu, or a combobox list inside a modal dialog —
+  from any library, as long as it carries ARIA popup semantics — is not a layer
+  the stack knows, so the dialog kept treating itself as topmost: its
+  capture-phase Escape closed the dialog together with the popup, and its focus
+  trap cancelled Tab inside the popup and pulled focus back into the window. Both
+  now stand down while such a popup holds focus and resume once focus is back in
+  the window, so one Escape closes the popup and the next reaches the dialog. A
+  control whose popup is expanded (a combobox input) hands over Escape only; Tab
+  is how its popup is left, so the trap keeps it.
+
+- [#50](https://github.com/dunky-dev/ui/pull/50) [`bbb04da`](https://github.com/dunky-dev/ui/commit/bbb04da6397f5e9a1641cbea9e2eb0c082c2965c) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Focus candidates barred by an ancestor are excluded: controls disabled through
+  `fieldset[disabled]` and anything inside `[inert]`.
+
+  `FOCUSABLE_SELECTOR` and the form-field selector gate on an element's own
+  attributes (`input:not([disabled])`), but both bars also arrive from
+  ancestors, so a barred control satisfied the selector while a browser refuses
+  to focus it — silently.
+
+  In the focus trap that was a hard dead end: the Tab keydown is already
+  `preventDefault()`-ed when focus is stepped by hand, so every press recomputed
+  the same refused target and focus never moved again. The cycle now only holds
+  what a browser would actually focus, keeping the native exception that
+  controls in a disabled fieldset's first `legend` stay enabled.
+
+  In the initial-focus chain it was the quieter failure mode: the barred field
+  won the draw, `focus()` no-opped, and focus fell to the overlay window even
+  when a viable field came later. Every candidate — designated element and form
+  fields alike — is now also filtered for these bars.
+
+  Both use the new `isFocusable` from `@dunky.dev/dom-element`, beside the
+  `isRendered` filter they already shared.
+
+- [#50](https://github.com/dunky-dev/ui/pull/50) [`bfbe863`](https://github.com/dunky-dev/ui/commit/bfbe86307b07bfc8d55207c70cfdc328693e5814) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Initial focus now skips a candidate that didn't render.
+
+  `getInitialFocus` filtered `[disabled]` and `[type="hidden"]` but never asked
+  whether the element actually rendered. A field inside a collapsed section
+  satisfied the selector and won the draw; `focus()` on it did nothing — and said
+  nothing — so focus fell back to the dialog window, with the fallback's warning
+  unable to fire, because from its point of view the fallback had succeeded. The
+  overlay opened on its window instead of the field: degraded, not broken, and
+  silent.
+
+  A designated `initialFocus` that hadn't rendered was worse. It went straight to
+  the window and skipped the form-field step entirely, contradicting the
+  documented "when one is set **and can take focus**". So `getInitialFocus` now
+  takes the designated element as a second argument and resolves the whole chain
+  in one call, filtering every step rather than just the last:
+
+  ```ts
+  // designated -> first form field -> the overlay window itself
+  getInitialFocus(content, designatedElement).focus({ preventScroll: true })
+  ```
+
+  Callers that were writing `initialFocus ?? getInitialFocus(content)` should
+  pass the designated element in instead — the `??` is what spent it on a
+  candidate that couldn't take focus. `@dunky.dev/dom-dialog` does this for every
+  DOM substrate already, so a dialog's `initialFocus` inherits the fix without a
+  change on the consumer's side.
+
+  The predicate is `isRendered` from `@dunky.dev/dom-element`, shared with the
+  focus trap so the two can't disagree on what counts as rendered.
+
+- Updated dependencies [[`bbb04da`](https://github.com/dunky-dev/ui/commit/bbb04da6397f5e9a1641cbea9e2eb0c082c2965c), [`bfbe863`](https://github.com/dunky-dev/ui/commit/bfbe86307b07bfc8d55207c70cfdc328693e5814), [`51f3bf7`](https://github.com/dunky-dev/ui/commit/51f3bf7c2abf308edf050eef78e36ecd4054d702), [`f5becd4`](https://github.com/dunky-dev/ui/commit/f5becd4f5e08e0fbf0930e65961c92e281f9e463), [`5bdb000`](https://github.com/dunky-dev/ui/commit/5bdb0006d435f4e25d905a868619f5483a9098d0), [`bfbe863`](https://github.com/dunky-dev/ui/commit/bfbe86307b07bfc8d55207c70cfdc328693e5814), [`da982c0`](https://github.com/dunky-dev/ui/commit/da982c0520c64d092be9aa87b4fc5b70a2852842), [`772a7df`](https://github.com/dunky-dev/ui/commit/772a7dfe18a58d070c1872b48ef8e6acec180723)]:
+  - @dunky.dev/dom-focus-trap@0.1.3
+  - @dunky.dev/dom-overlay@0.3.0
+  - @dunky.dev/browser-navigation@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes

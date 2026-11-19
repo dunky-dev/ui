@@ -1,5 +1,14 @@
 # @dunky.dev/overlay
 
+## 0.2.1
+
+### Patch Changes
+
+- [#63](https://github.com/dunky-dev/ui/pull/63) [`5bdb000`](https://github.com/dunky-dev/ui/commit/5bdb0006d435f4e25d905a868619f5483a9098d0) Thanks [@ivanbanov](https://github.com/ivanbanov)! - Internal cleanup: `below(id)` now derives "the layers beneath" from the same
+  `ordered()` ranking the rest of the stack uses — everything after the layer in
+  topmost-first order — instead of carrying a second copy of the depth/open-order
+  comparison. One ranking rule, written once. No behavior change.
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,5 +1,57 @@
 # @dunky.dev/react-dialog
 
+## 0.5.0
+
+### Minor Changes
+
+- [#53](https://github.com/dunky-dev/ui/pull/53) [`2cc4a1b`](https://github.com/dunky-dev/ui/commit/2cc4a1b00966526497da15b4123060a2b2c104f0) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `Dialog.Content` gains `restoreFocus` — the close-side counterpart to
+  `initialFocus`. Closing still returns focus to whatever held it before the
+  dialog opened; `restoreFocus` names where it goes when that holder can't
+  meaningfully take focus back: focus sat on the body (a pointer press can
+  leave it there), or on an element removed from the document since.
+  Typically the dialog's trigger.
+
+  ```tsx
+  // React — a ref, read at close time
+  <Dialog.Content restoreFocus={triggerRef}>…</Dialog.Content>
+
+  // Solid — an element or accessor, resolved at close time
+  <Dialog.Content restoreFocus={() => trigger}>…</Dialog.Content>
+  ```
+
+  Before, those two cases silently dropped focus: restoring to the body goes
+  nowhere, and focusing a disconnected element is a no-op, leaving focus
+  stranded on the closing layer. The element focused before opening still
+  always wins when it is meaningful — the fallback never overrides it. At the
+  DOM layer, `openDialogLayer` takes `restoreFocus?: () => HTMLElement | null`,
+  resolved at close.
+
+### Patch Changes
+
+- [#63](https://github.com/dunky-dev/ui/pull/63) [`942d4db`](https://github.com/dunky-dev/ui/commit/942d4dbb4c36ba01a7abc0593a744256afc29ea3) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `acceptsBackdropPress` / `acceptsViewportPress` are replaced by
+  `gateBackdropPress(id, bindings)` / `gateViewportPress(id, bindings)`. The
+  predicates left every DOM substrate writing the same `onClick` wrapper around
+  them by hand — destructure the press out of the part's normalized bindings,
+  re-wrap it behind the check — which is exactly the kind of shared DOM behavior
+  this package exists to hold. The gate now takes the normalized bindings and
+  returns them with the press gated; a substrate just passes the result to its
+  `mergeProps`:
+
+  ```tsx
+  <div
+    {...mergeProps(props, gateBackdropPress(machine.context.id, normalize(api.parts.backdrop)))}
+  />
+  ```
+
+  The gating rules are unchanged: only the topmost dialog of a stack answers an
+  outside press, and a viewport press must have started on the viewport itself
+  rather than bubbled up from the content. React and Solid dialogs use the gates
+  internally — no consumer-facing change there.
+
+- Updated dependencies [[`da982c0`](https://github.com/dunky-dev/ui/commit/da982c0520c64d092be9aa87b4fc5b70a2852842), [`942d4db`](https://github.com/dunky-dev/ui/commit/942d4dbb4c36ba01a7abc0593a744256afc29ea3), [`2cc4a1b`](https://github.com/dunky-dev/ui/commit/2cc4a1b00966526497da15b4123060a2b2c104f0), [`bbb04da`](https://github.com/dunky-dev/ui/commit/bbb04da6397f5e9a1641cbea9e2eb0c082c2965c), [`bfbe863`](https://github.com/dunky-dev/ui/commit/bfbe86307b07bfc8d55207c70cfdc328693e5814)]:
+  - @dunky.dev/dom-dialog@0.3.0
+  - @dunky.dev/react-use-focus-trap@0.1.3
+
 ## 0.4.0
 
 ### Minor Changes
