@@ -17,31 +17,31 @@ host environment puts it on screen. Add a substrate and every primitive shows
 up there with the same behavior and the same a11y.
 
 ```
-                +---------------------------+
-                |       core/<name>         |    the behavior
-                |  states . events . a11y   |    framework-free, no DOM
-                +-------------+-------------+
-                              |
-               connect() -> logical bindings
-               (onPress, role, data-state, ...)
-                              |
-             +----------------+-----------------------+
-             |                                        |
-             v                                        |
- +------------------------+                           |
- | dom/components/<name>  |   the DOM half            |
- |  document listeners,   |   shared by every         |
- |  focus/stack sequence  |   DOM host                |
- +-----+------------+-----+                           |
-       |            ^                                 |
-       |            |  dom/utils/*                    |
-       |            |  focus-trap, overlay,           |
-       |            |  scroll-lock, ...               |
-       v                                              v
- +-----------+  +-----------+  +-----------+    +-----------+
- |   react   |  |   solid   |  |  svelte   |    |  native   |
- +-----------+  +-----------+  +-----------+    +-----------+
-                  render + host lifecycle only
+             +-------------------------+           +-------------------------+
+             |       core/<name>       |           |        utilities        |
+             |                         |           |                         |
+             |    state machine per    |           |  focus-trap, viewport,  |
+             |    primitive: states,   |           |   scroll-spy, overlay,  |
+             |       events, a11y      |           |     scroll-lock, ...    |
+             +------------+------------+           +------------+------------+
+                          |                                     |
+                          +------------------+------------------+
+                                             |
+                       agnostic: no env assumptions, no framework
+                                             |
+                          +------------------+------------------+
+                          v                                     v
+                   +-------------+   platform-specific   +-------------+
+                   |     dom     | implementation of the |    native   |
+                   +------+------+ agnostic core + utils +------+------+
+                          |                                     |
+    +----------+----------+----------+----------+               |
+    v          v          v          v          v               v
++--------+ +--------+ +--------+ +--------+ +--------+   +--------------+
+| react  | | solid  | |  vue   | | svelte | | others |   | react-native |
++--------+ +--------+ +--------+ +--------+ +--------+   +--------------+
+              substrates: glue code, thin connectors to each host
+
 ```
 
 The engine that runs the core machines lives in its own repo:
@@ -55,6 +55,11 @@ renders, not how machines execute.
 
 - **`core/`** — the behavior. One package per primitive: a framework-free
   state machine. No DOM, no framework. Published as `@dunky.dev/<name>`.
+- **`core/utils/`** — agnostic utilities shared across primitives: the logic
+  every host needs but no host owns (controlled/uncontrolled state, the
+  overlay-layer stack). No env assumptions, no framework. A platform layer
+  extends them for its host (`dom/utils/overlay` builds on `core/utils/overlay`).
+  Published as `@dunky.dev/<name>`.
 - **`dom/utils/`** — framework-free DOM utilities shared across primitives
   and substrates (focus trap, scroll lock, overlay stacking). Published as
   `@dunky.dev/dom-<name>`.
@@ -66,7 +71,7 @@ renders, not how machines execute.
   `solid/`, `svelte/`, `native/`) that wires the machine to real elements.
   Published as `@dunky.dev/<substrate>-<name>` (e.g. `@dunky.dev/react-dialog`).
 
-The dependency direction is one-way: `substrate -> dom -> core`. A binding
+The layers build one way: `core -> dom -> substrate`. A binding
 adds no behavior of its own — if a decision is needed, it moves into the core
 machine so every substrate inherits it. The deep reference is
 [ARCHITECTURE.md](./ARCHITECTURE.md).
