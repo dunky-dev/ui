@@ -1,5 +1,41 @@
 # @dunky.dev/browser-navigation
 
+## 0.2.1
+
+### Patch Changes
+
+- [#63](https://github.com/dunky-dev/ui/pull/63) [`51f3bf7`](https://github.com/dunky-dev/ui/commit/51f3bf7c2abf308edf050eef78e36ecd4054d702) Thanks [@ivanbanov](https://github.com/ivanbanov)! - The guard registry now anchors on a realm-global keyed by `Symbol.for`,
+  matching `@dunky.dev/dom-overlay` and `@dunky.dev/dom-scroll-lock`. A monorepo
+  or micro-frontend can load more than one copy of this module into the same
+  page; each copy previously kept its own registry and `popstate` listener while
+  all of them shared the one real session history, so a Back could be answered
+  by the wrong copy — a swallowed press, or an entry planted twice. Every
+  duplicate copy now rendezvouses on the same registry, and only one listener is
+  ever attached (the store remembers it — the browser's listener dedupe can't
+  span copies, since each copy's function has its own identity). Resolved lazily
+  on first use, so `sideEffects: false` still holds.
+
+- [#52](https://github.com/dunky-dev/ui/pull/52) [`f5becd4`](https://github.com/dunky-dev/ui/commit/f5becd4f5e08e0fbf0930e65961c92e281f9e463) Thanks [@ivanbanov](https://github.com/ivanbanov)! - `SPEC.md` (shipped with the package) gains a Scenarios section: 26 compact
+  traces of `interceptBackNavigation` and `watchSpentEntry` behavior, grouped
+  by one layer, release and consumption, forward/claims/reload, stacked
+  layers, and timing edges.
+
+  The behavior contract was already fully stated, but as one mechanism per
+  prose bullet — nothing let a reader replay a concrete flow end to end.
+  Each trace is a replayable episode in the module's own vocabulary (`arm`,
+  `release`, `Back`, `Forward`), e.g.:
+
+  ```
+  arm A -> arm B -> arm C -> Back -> release B -> Forward -> Forward
+    => the Back closes C; the first Forward soaks into B's abandoned entry;
+       the second asks C, which reopens only if it still can without B.
+  ```
+
+  Two outcomes the prose previously left implicit are now stated outright: a
+  deliberately released entry absorbs one Forward press (it can't be deleted,
+  only left to soak the traversal), and any re-plant — a new layer or a
+  veto's re-arm — truncates every parked Forward watch above it.
+
 ## 0.2.0
 
 ### Minor Changes

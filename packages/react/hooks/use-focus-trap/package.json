@@ -1,6 +1,6 @@
 {
   "name": "@dunky.dev/react-use-focus-trap",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "React binding for @dunky.dev/dom-focus-trap.",
   "license": "MIT",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@dunky.dev/dom-focus-trap",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Framework-free Tab/Shift+Tab containment for a DOM subtree.",
   "license": "MIT",
   "repository": {
