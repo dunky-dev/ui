@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { acceptsBackdropPress } from '@dunky.dev/dom-dialog'
+  import { gateBackdropPress } from '@dunky.dev/dom-dialog'
   import { mergeProps, normalize } from '@dunky.dev/svelte-state-machine'
   import { useDialogContext } from './context.js'
   import type { DialogBackdropProps } from './types.js'
@@ -8,17 +8,9 @@
 
   const dialog = useDialogContext()
 
-  const attrs = $derived.by(() => {
-    const { onclick, ...bindings } = normalize(dialog.api.parts.backdrop) as {
-      onclick?: (event: MouseEvent) => void
-    } & Record<string, unknown>
-    return mergeProps(rest, {
-      ...bindings,
-      onclick: (event: MouseEvent) => {
-        if (acceptsBackdropPress(dialog.machine.context.id)) onclick?.(event)
-      },
-    })
-  })
+  const attrs = $derived(
+    mergeProps(rest, gateBackdropPress(dialog.machine.context.id, normalize(dialog.api.parts.backdrop))),
+  )
 
   const bindElement = (element: HTMLDivElement | null): void => {
     ref = element
