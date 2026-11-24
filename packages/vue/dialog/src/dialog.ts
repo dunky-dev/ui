@@ -87,9 +87,8 @@ function inDeactivatedView(instance: InstanceNode | null): boolean {
 
 // Runs `effects` in a scope that lives while the component is mounted and its
 // view active. A <KeepAlive> deactivation ends it like an unmount — the
-// adapter pauses the machine the same way, as React's <Activity> runs its
-// effect cleanups. Mounted hooks never run during server rendering, so
-// neither does this.
+// adapter pauses the machine the same way. Mounted hooks never run during
+// server rendering, so neither does this.
 function whileActive(effects: () => void): void {
   const instance = getCurrentInstance()
   let mounted = false
@@ -97,8 +96,8 @@ function whileActive(effects: () => void): void {
   const start = (): void => {
     if (scope !== undefined) return
     // Detached, and ended in the unmounted hook — after the DOM is gone and
-    // children first, as React runs a removed subtree's cleanups — rather
-    // than with the component scope, which stops parent first, before.
+    // children first — rather than with the component scope, which stops
+    // parent first, before.
     scope = effectScope(true)
     scope.run(effects)
   }
@@ -140,9 +139,8 @@ interface LayerCommit {
 // Vue settles each component's hooks on its own, in component order, so a
 // dialog opening as another closes in the same update — a wizard's Next —
 // would run in declaration order, and the closer's restore take focus back
-// from the opener. The sequences run as React's commit runs them instead,
-// once the whole update has rendered, in one pass: every release before any
-// start. Open layers release before exit windows lift, each innermost — at
+// from the opener. The sequences run once the whole update has rendered
+// instead, in one pass: every release before any start. Open layers release before exit windows lift, each innermost — at
 // one depth, latest opened — first: a close restores focus while the layer
 // beneath still holds the stack and a reopening layer is still out of reach.
 // Exit windows start before open sequences, so a new layer's containment
@@ -415,9 +413,9 @@ export const Portal = defineComponent(
     // computed, so the portal re-renders when that flips, not on every change.
     const mounted = computed(() => context.api.value.mounted)
 
-    // A container swap re-creates the teleport instead of moving it, like
-    // React's and Solid's portals: a moved window drops focus, and its
-    // containment was computed for the old placement.
+    // A container swap re-creates the teleport instead of moving it: a moved
+    // window drops focus, and its containment was computed for the old
+    // placement.
     let generation = 0
     watch(
       () => props.container ?? document.body,
@@ -518,7 +516,7 @@ export const Content = defineComponent(
     // render: the machine can run ahead of the DOM — the adapter syncs a
     // controlled `open` in a post-flush job, before the render it causes —
     // and the sequences must see what the state rendered (a stylesheet may
-    // hide a closed window), as a React effect runs after commit.
+    // hide a closed window).
     let rendered: WindowState = 'closed'
     let shown: WindowState = 'closed'
     // Whether the view is live: a <KeepAlive> deactivation parks the layer.
@@ -614,9 +612,9 @@ export const Content = defineComponent(
       schedule()
     })
     // A portalled window never shows `closed` — it unmounts, released at once
-    // after the DOM is gone and children first, as React runs a removed
-    // subtree's cleanups: a parent closing over an open child must not
-    // restore focus into a layer still registered above it.
+    // after the DOM is gone and children first: a parent closing over an
+    // open child must not restore focus into a layer still registered above
+    // it.
     onUnmounted(() => {
       getQueue().pending.delete(commit)
       releaseApplied()

@@ -55,9 +55,8 @@ export function useScrollLock(
   target?: MaybeRefOrGetter<HTMLElement | ComponentPublicInstance | null | undefined>,
 ): void {
   // Held from mount — never during server rendering, where there is no body
-  // — and released after the DOM is gone, as React runs an effect's cleanup
-  // after commit. A <KeepAlive> deactivation releases it too, as React's
-  // <Activity> does. Released by hand: Vue 3.6 also runs a watcher's
+  // — and released after the DOM is gone. A <KeepAlive> deactivation
+  // releases it too. Released by hand: Vue 3.6 also runs a watcher's
   // onCleanup when its source merely re-evaluates.
   const instance = getCurrentInstance()
   let scope: EffectScope | undefined

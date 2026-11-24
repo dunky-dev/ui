@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The Vue edge of the Dialog — behavior only; the machine's own contract is
-// covered in @dunky.dev/dialog's tests. Names mirror the React and Solid
+// covered in @dunky.dev/dialog's tests. Names mirror the other substrates'
 // suites; where they cite a core callback, this binding's emit carries it
 // (onOpenChange -> `update:open`, onEscapeKeyDown -> `escapeKeyDown`, ...).
 import {
@@ -1037,9 +1037,9 @@ describe('Dialog', () => {
 
     // A Content rendered with the root (no Portal) stays mounted while closed,
     // and a stylesheet may hide it by its state — the open sequence has to
-    // wait for the update that renders it open, as a React effect does. A
-    // controlled open is the strict case: the adapter syncs it in a post-flush
-    // job, ahead of that render.
+    // wait for the update that renders it open. A controlled open is the
+    // strict case: the adapter syncs it in a post-flush job, ahead of that
+    // render.
     it('an always-mounted Content takes focus once the update that opens it has rendered', async () => {
       const style = document.createElement('style')
       style.textContent = '[data-state="closed"][role="dialog"] { display: none; }'
@@ -1093,10 +1093,10 @@ describe('Dialog', () => {
       expect(screen.getByText('Trigger').closest('[inert]')).toBeNull()
     })
 
-    // Released after the DOM is gone, children first — as React's effects —
-    // or the parent would restore focus while the child still holds the page
-    // inert. A controlled close is the strict case: the adapter syncs it in a
-    // post-flush job, ahead of the render that unmounts the stack.
+    // Released after the DOM is gone, children first, or the parent would
+    // restore focus while the child still holds the page inert. A controlled
+    // close is the strict case: the adapter syncs it in a post-flush job,
+    // ahead of the render that unmounts the stack.
     it("closing a parent over an open child returns focus to the parent's trigger", async () => {
       refuseInertFocus()
       const open = ref(false)
@@ -1126,8 +1126,8 @@ describe('Dialog', () => {
     })
 
     // A step that closes one dialog and opens a sibling — a wizard's Next —
-    // runs every close before any open, as React's commit does: the opened
-    // dialog keeps the focus it took, an exiting one stays out of reach, and
+    // runs every close before any open: the opened dialog keeps the focus
+    // it took, an exiting one stays out of reach, and
     // the last close returns focus to the trigger the hand-over started from,
     // however the two are declared, animated, or modal.
     describe('a hand-over between sibling dialogs', () => {
@@ -1478,8 +1478,8 @@ describe('Dialog', () => {
       expect(second.style.overflowY).toBe('hidden')
     })
 
-    // The adapter pauses a deactivated dialog's machine, as React's <Activity>
-    // does — so its layers can't stay painted, holding the page, meanwhile.
+    // The adapter pauses a deactivated dialog's machine, so its layers can't
+    // stay painted, holding the page, meanwhile.
     it('a KeepAlive deactivation parks the layers and releases the page; reactivation restores both, state intact', async () => {
       const shown = ref(true)
       const Page = defineComponent(() => () => (

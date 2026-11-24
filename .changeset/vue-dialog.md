@@ -4,9 +4,9 @@
 
 New substrate: the Vue binding for `@dunky.dev/dialog`, targeting Vue 3.5+
 (peer `vue@^3.5.0` — the base id comes from `useId`, so server-rendered ids
-survive hydration). The same compound anatomy and behavior contract as the
-React and Solid bindings — one core machine, a new host — delivered in Vue's
-native shape: the core options are props, the core callbacks are emits, and
+survive hydration). The same compound anatomy and behavior contract as every
+other binding — one core machine, a new host — delivered in Vue's native
+shape: the core options are props, the core callbacks are emits, and
 `v-model:open` binds the controlled pair. Listeners run synchronously, so
 `preventDefault()` on a dismissal payload still vetoes it. `update:open`
 reports a change, it never requests one: per the controlled contract a

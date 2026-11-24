@@ -29,8 +29,7 @@ Vue-specific notes on top of the DOM contract:
 
 - The lock holds while the component is mounted and `locked` resolves true;
   unmounting or turning `locked` off releases it, and so does a `<KeepAlive>`
-  deactivation — reactivation locks again, as React's `<Activity>` runs an
-  effect's cleanup; mounted into a view that is already deactivated, it waits
+  deactivation — reactivation locks again; mounted into a view that is already deactivated, it waits
   for the view's return, and reached by a restored view's activation before it
   has mounted (an async component under `<Suspense>`), it waits for its own
   mount. Both parameters accept a `MaybeRefOrGetter` — a plain value, a ref,

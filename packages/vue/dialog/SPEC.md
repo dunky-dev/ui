@@ -70,8 +70,8 @@ Vue-specific notes on top of the core contract:
   (there is no document to teleport into), and so neither does the client's
   hydration pass: the teleport arrives with the first update after the Portal
   mounts. Swapping `container` while open re-creates the teleport on the new
-  target rather than moving it, like the React and Solid portals — the open
-  sequence runs again against the new placement. `container` takes an element,
+  target rather than moving it — the open sequence runs again against the
+  new placement. `container` takes an element,
   not a selector — query it first; Vue warns when it gets a string. When
   scoped to a `container`, the scroll lock applies to that container instead
   of the page, and the backdrop/viewport must be positioned `absolute` (not
@@ -99,9 +99,8 @@ Vue-specific notes on top of the core contract:
   the ref itself.
 - **`Content` without a `Portal`** stays mounted while closed, so its DOM
   work follows the dialog's state, not its mount — once the update that
-  renders the state has applied, as a React effect runs after commit, so a
-  stylesheet that hides a closed window is out of the way when focus moves
-  in. The scroll lock holds while the dialog is open or closing, and the exit
+  renders the state has applied, so a stylesheet that hides a closed window
+  is out of the way when focus moves in. The scroll lock holds while the dialog is open or closing, and the exit
   window hides the layer alone — its Viewport, or the window when it has
   none — since it sits in the page, not in a container of its own.
 - **Element access**: every part renders exactly one root element, so a
@@ -146,9 +145,8 @@ Vue-specific notes on top of the core contract:
   remembers the dialog's place in the stack, not the instance that planted it.
 - **Dialogs that change together** — a wizard's Next closing one dialog and
   opening the next in the same update, or a stack closing at once — run their
-  DOM sequences once the update has rendered, every close before any open, as
-  React's commit does: the dialog opened keeps the focus it took, the last
-  close returns focus to the trigger the hand-over started from, and an
+  DOM sequences once the update has rendered, every close before any open:
+  the dialog opened keeps the focus it took, the last close returns focus to the trigger the hand-over started from, and an
   exiting layer stays inert while others open or close around it, however the
   dialogs are declared. A closing dialog releases before a reopening one lifts
   its exit window, so its restore never lands in the layer about to take over.
@@ -157,7 +155,7 @@ Vue-specific notes on top of the core contract:
   `<KeepAlive>` view reopens siblings in the order they opened. A page that
   bundles the binding twice still runs one pass.
 - **`<KeepAlive>`**: a deactivated dialog's machine is paused by the adapter,
-  as React's `<Activity>` pauses its effects, so its DOM work pauses too: the
+  so its DOM work pauses too: the
   Portal parks the layers back in place, inside the cached view and off the
   document — Vue would otherwise leave teleported content painted over the
   next view — and the history guard, focus trap, and scroll lock release.
@@ -184,9 +182,8 @@ Vue-specific notes on top of the core contract:
   `aria-expanded="true"` and an `aria-controls` naming a window not yet in the
   document, and a Content rendered with the root (no Portal) carries no
   `aria-labelledby` / `aria-describedby` until its Title and Description
-  mount. The React binding's server markup has the same gaps; leaving
-  `aria-controls` out until the window exists needs the core to track the
-  window's presence.
+  mount. Leaving `aria-controls` out until the window exists needs the core
+  to track the window's presence.
 - Everything ships headless, per the core contract's
   [Internals](../../core/dialog/SPEC.md#internals).
 

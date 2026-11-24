@@ -55,9 +55,8 @@ export function useFocusTrap(
   options: UseFocusTrapOptions = {},
 ): void {
   // Armed from mount, when a template ref has filled — never during server
-  // rendering — and released after the DOM is gone, as React runs an
-  // effect's cleanup after commit. A <KeepAlive> deactivation releases it
-  // too, as React's <Activity> does. The trap reads the options per Tab
+  // rendering — and released after the DOM is gone. A <KeepAlive>
+  // deactivation releases it too. The trap reads the options per Tab
   // press, so `enabled` / `last` stay live without re-binding. Released by
   // hand: Vue 3.6 also runs a watcher's onCleanup when its source merely
   // re-evaluates.

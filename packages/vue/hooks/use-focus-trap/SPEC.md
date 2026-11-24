@@ -38,8 +38,8 @@ Vue-specific notes on top of the DOM contract:
   root element needs a ref on the element instead. The trap arms when the
   component mounts (a template ref has filled by then), re-arms when the
   target yields a new element, and releases on unmount. A `<KeepAlive>`
-  deactivation releases it too and reactivation arms it again, as React's
-  `<Activity>` runs an effect's cleanup; mounted into a view that is already
+  deactivation releases it too and reactivation arms it again; mounted into a
+  view that is already
   deactivated, it waits for the view's return, and reached by a restored
   view's activation before it has mounted (an async component under
   `<Suspense>`), it waits for its own mount. Mounted hooks never run during
