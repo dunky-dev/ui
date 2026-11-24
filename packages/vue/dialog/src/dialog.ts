@@ -36,9 +36,9 @@ import type {
 } from '@dunky.dev/dialog'
 
 import {
-  acceptsBackdropPress,
-  acceptsViewportPress,
   dialogTrapOptions,
+  gateBackdropPress,
+  gateViewportPress,
   guardBackNavigation,
   openDialogLayer,
   startExitWindow,
@@ -457,16 +457,10 @@ export const Backdrop = defineComponent(
       // Only a modal dialog dims the page — non-modal coexists with it.
       if (!machine.context.modal) return null
 
-      const { onClick, ...bindings } = normalize(api.value.parts.backdrop) as {
-        onClick?: (event: MouseEvent) => void
-      } & Record<string, unknown>
-
-      const merged = mergeProps(attrs, {
-        ...bindings,
-        onClick: (event: MouseEvent) => {
-          if (acceptsBackdropPress(machine.context.id)) onClick?.(event)
-        },
-      })
+      const merged = mergeProps(
+        attrs,
+        gateBackdropPress(machine.context.id, normalize(api.value.parts.backdrop)),
+      )
 
       return h('div', { ...merged, ref: backdropRef }, slots.default?.())
     }
@@ -484,16 +478,10 @@ export const Viewport = defineComponent(
   (_props: DialogViewportProps, { attrs, slots }) => {
     const { api, machine, viewportRef } = useDialogContext()
     return () => {
-      const { onClick, ...bindings } = normalize(api.value.parts.viewport) as {
-        onClick?: (event: MouseEvent) => void
-      } & Record<string, unknown>
-
-      const merged = mergeProps(attrs, {
-        ...bindings,
-        onClick: (event: MouseEvent) => {
-          if (acceptsViewportPress(machine.context.id, event)) onClick?.(event)
-        },
-      })
+      const merged = mergeProps(
+        attrs,
+        gateViewportPress(machine.context.id, normalize(api.value.parts.viewport)),
+      )
 
       return h('div', { ...merged, ref: viewportRef }, slots.default?.())
     }
