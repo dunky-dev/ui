@@ -6,5 +6,5 @@ export {
   type BackNavigationGuard,
   type BackNavigationGuardOptions,
 } from './back-navigation'
-export { acceptsBackdropPress, acceptsViewportPress } from './press'
+export { gateBackdropPress, gateViewportPress } from './press'
 export { dialogTrapOptions } from './focus-trap'

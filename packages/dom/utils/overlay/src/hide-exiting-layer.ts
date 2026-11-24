@@ -1,3 +1,5 @@
+import { createHideTracker } from './hide-tracker'
+
 /**
  * A closing overlay has already left the stack — the page beneath is live
  * again — but its layer keeps painting until the exit visual finishes. Take
@@ -22,25 +24,9 @@ export function hideExitingLayer(
   // the content itself.
   if (root.parentElement === null) root = content
 
-  const targets: Element[] = [root]
-  if (backdrop != null && !root.contains(backdrop)) targets.push(backdrop)
+  const tracker = createHideTracker()
+  tracker.hide(root)
+  if (backdrop != null && !root.contains(backdrop)) tracker.hide(backdrop)
 
-  const hidden: Array<[Element, string | null]> = []
-  for (const element of targets) {
-    // `aria-hidden="false"` asserts visible — the opposite of author-hidden —
-    // so only a truthy value counts as the author's.
-    const ariaHidden = element.getAttribute('aria-hidden')
-    if ((ariaHidden !== null && ariaHidden !== 'false') || element.hasAttribute('inert')) continue
-    element.setAttribute('aria-hidden', 'true')
-    element.setAttribute('inert', '')
-    hidden.push([element, ariaHidden])
-  }
-
-  return () => {
-    for (const [element, previousAriaHidden] of hidden) {
-      if (previousAriaHidden === null) element.removeAttribute('aria-hidden')
-      else element.setAttribute('aria-hidden', previousAriaHidden)
-      element.removeAttribute('inert')
-    }
-  }
+  return tracker.undo
 }

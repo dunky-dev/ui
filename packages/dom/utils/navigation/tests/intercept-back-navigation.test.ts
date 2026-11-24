@@ -321,3 +321,26 @@ describe('interceptBackNavigation', () => {
     await releaseAndSettle(releaseLower)
   })
 })
+
+describe('duplicate module copies', () => {
+  it('share one registry and one listener, so a Back unwinds one layer across copies', async () => {
+    // A monorepo or micro-frontend can bundle this module twice; both copies
+    // drive the one real session history.
+    vi.resetModules()
+    const copy = await import('@dunky.dev/browser-navigation')
+    const before: unknown = history.state
+    const lower = vi.fn(() => true)
+    const upper = vi.fn(() => true)
+    interceptBackNavigation(lower)
+    copy.interceptBackNavigation(upper)
+
+    await pressBack()
+    expect(upper).toHaveBeenCalledTimes(1)
+    expect(lower).not.toHaveBeenCalled()
+
+    await pressBack()
+    expect(lower).toHaveBeenCalledTimes(1)
+    expect(upper).toHaveBeenCalledTimes(1)
+    expect(history.state).toEqual(before)
+  })
+})

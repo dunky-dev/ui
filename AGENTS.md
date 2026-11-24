@@ -56,8 +56,9 @@ architecture:
   (`@dunky.dev/state-machine` + `@dunky.dev/state-machine-bindings`), and the
   machine utils under `core/utils`. A machine util imports only the runtime;
   a DOM util imports nothing from this repo except a smaller DOM util (a
-  predicate two utils must agree on, never a peer that imports it back); a DOM
-  component imports its core counterpart and the DOM utils, never a framework;
+  predicate two utils must agree on, never a peer that imports it back) and
+  the core util it extends for the DOM (`dom-overlay` builds on `overlay`); a
+  DOM component imports its core counterpart and the DOM utils, never a framework;
   a substrate hook imports only the DOM util it wraps.
 - **DOM behavior is written once too.** Logic that is DOM-specific but not
   framework-specific — a document listener, an ordered focus/stack sequence —
@@ -137,6 +138,17 @@ Before shipping: tests, lint, and type-check pass, and the change is
 verified across all scopes. If something's off, loop back to SPEC; if not, ship it!
 
 ## Code
+
+### Principles
+
+Every change is held to these three, in this order — simplest thing that
+works, written once, built only when needed:
+
+| Principle | Meaning                                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **KISS**  | Keep it simple. Prefer the plain solution over the clever one; complexity must earn its keep with a need the simple version can't meet.                      |
+| **DRY**   | Don't repeat yourself. A rule two places must agree on is written once and shared — duplication is where the copies drift apart.                             |
+| **YAGNI** | You aren't gonna need it. Build for the requirement in front of you, not the one imagined; speculative machinery is deleted-on-sight, not kept just in case. |
 
 ### Naming
 
