@@ -18,7 +18,7 @@ pnpm install
 | Command                        | What it does                                               |
 | ------------------------------ | ---------------------------------------------------------- |
 | `pnpm scaffold <name>`         | Stamps a new primitive across every substrate              |
-| `pnpm test`                    | vitest suite (core + dom + react), watch mode              |
+| `pnpm test`                    | vitest suite (core, dom, web bindings), watch mode         |
 | `pnpm test:native`             | The native substrate's jest suite (jest-expo + RNTL)       |
 | `pnpm test:ci`                 | Everything once (vitest + native jest) — what CI runs      |
 | `pnpm typecheck`               | `tsc --noEmit` across the whole workspace                  |
@@ -36,7 +36,7 @@ pnpm test packages/core/dialog/tests/machine.test.ts
 
 ## Storybook
 
-Each UI substrate (React, Solid, ...) is a self-contained package under
+Each UI substrate (React, Solid, Vue, ...) is a self-contained package under
 `packages/<substrate>` with its own Storybook — the fastest way to see a
 change actually render. Every substrate gets an explicit `dev:<substrate>`
 script:
@@ -44,6 +44,8 @@ script:
 ```bash
 pnpm dev             # alias for dev:react (the default substrate)
 pnpm dev:react       # @dunky-dev/react Storybook at http://localhost:6006
+pnpm dev:solid       # @dunky-dev/solid Storybook at http://localhost:6008
+pnpm dev:vue         # @dunky-dev/vue Storybook at http://localhost:6007
 pnpm build-storybook # static build of the react substrate's Storybook
 ```
 

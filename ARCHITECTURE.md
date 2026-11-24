@@ -6,7 +6,7 @@ one per host environment — the **substrates**. Behavior cannot drift between
 hosts because it exists in exactly one place.
 
 A substrate is any environment a primitive is delivered to: a framework
-(react), another framework (solid), or a different host entirely
+(react), other frameworks (solid, vue), or a different host entirely
 (native). Substrates are cheap by design; the expensive thing — the behavior
 — is written once.
 
@@ -67,9 +67,9 @@ edges — lives under `dom/components/` instead. A util is primitive-agnostic
 and imports nothing from the repo but a smaller util; a component package is
 the opposite, and may import the primitive's core package and any DOM util.
 Both are equally
-framework-free. The split matters as substrates multiply: React and Solid
-differ in how they schedule an effect, not in what the effect does, so the
-what is written once and each binding contributes only its lifecycle.
+framework-free. The split matters as substrates multiply: React, Solid, and
+Vue differ in how they schedule an effect, not in what the effect does, so
+the what is written once and each binding contributes only its lifecycle.
 
 Agnostic logic that several primitives need lives the same way under
 `core/utils/`: no env assumptions, no framework. The controlled/uncontrolled
