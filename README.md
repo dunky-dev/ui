@@ -68,8 +68,8 @@ renders, not how machines execute.
   ordered focus sequences), written once and shared by every DOM host.
   Published as `@dunky.dev/dom-<name>`.
 - **`<substrate>/`** — the render. A thin binding per host (`react/`,
-  `solid/`, `native/`) that wires the machine to real elements. Published as
-  `@dunky.dev/<substrate>-<name>` (e.g. `@dunky.dev/react-dialog`).
+  `solid/`, `svelte/`, `native/`) that wires the machine to real elements.
+  Published as `@dunky.dev/<substrate>-<name>` (e.g. `@dunky.dev/react-dialog`).
 
 The layers build one way: `core -> dom -> substrate`. A binding
 adds no behavior of its own — if a decision is needed, it moves into the core

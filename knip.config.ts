@@ -28,6 +28,9 @@ const config: KnipConfig = {
       // The babel presets are referenced as strings in tsdown.config.ts.
       ignoreDependencies: ['babel-preset-solid', '@babel/preset-typescript'],
     },
+    'packages/svelte/*': {
+      entry: ['stories/*.stories.svelte'],
+    },
   },
 }
 

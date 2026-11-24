@@ -30,6 +30,9 @@ interface Tokens {
 interface CreatedPackage {
   name: string
   private: boolean
+  // Built by the root tsdown workspace — not true of every substrate (the
+  // Svelte packages build with @sveltejs/package).
+  tsdown: boolean
   dir: string
   src: string
 }
@@ -82,6 +85,7 @@ function describeCreatedPackages(jobs: Array<{ dest: string; rel: string }>): Cr
       return {
         name: pkg.name,
         private: pkg.private === true,
+        tsdown: pkg.scripts?.build === 'tsdown',
         dir: relative(ROOT, dir),
         src: relative(ROOT, join(dir, 'src')),
       }
@@ -102,15 +106,16 @@ function wireTsconfig(created: CreatedPackage[]): void {
   writeFileSync(path, text)
 }
 
-// The tsdown workspace is an explicit list of publishable packages. Rebuild it as
-// a sorted, deduped multiline array (private packages are never published).
+// The tsdown workspace is an explicit list of the packages tsdown publishes.
+// Rebuild it as a sorted, deduped multiline array (private packages are never
+// published; a package whose build isn't tsdown has its own pipeline).
 function wireTsdown(created: CreatedPackage[]): void {
   const path = join(ROOT, 'tsdown.config.ts')
   const text = readFileSync(path, 'utf8')
   const match = text.match(/workspace:\s*\[([\s\S]*?)\]/)
   if (!match) fail('could not find the workspace array in tsdown.config.ts')
   const existing = [...match[1].matchAll(/'([^']+)'/g)].map(m => m[1])
-  const additions = created.filter(pkg => !pkg.private).map(pkg => pkg.dir)
+  const additions = created.filter(pkg => !pkg.private && pkg.tsdown).map(pkg => pkg.dir)
   const all = [...new Set([...existing, ...additions])].sort()
   const rebuilt = `workspace: [\n${all.map(entry => `    '${entry}',`).join('\n')}\n  ]`
   writeFileSync(path, text.replace(match[0], rebuilt))

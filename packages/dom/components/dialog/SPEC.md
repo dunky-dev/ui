@@ -128,7 +128,8 @@ dialogs at the same place can't be told apart, and then neither reopens.
 A press dismisses only when it is genuinely outside and genuinely this
 dialog's to answer. The gates take the part's normalized bindings and return
 them with the press wrapped — the wrap every DOM substrate would otherwise
-write identically:
+write identically, under whichever name the host's normalize gives the press
+(`onClick`, or Svelte's `onclick`):
 
 - `gateBackdropPress` — the topmost dialog of a stack answers, nobody else.
 - `gateViewportPress` — content presses bubble to the viewport, so the

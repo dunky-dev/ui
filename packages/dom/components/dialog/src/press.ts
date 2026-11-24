@@ -1,25 +1,25 @@
 import { isTopmostLayer } from '@dunky.dev/dom-overlay'
 
 // The parts of a DOM press event the gates read — narrower than the host's
-// synthetic event type, so React and Solid both satisfy it.
+// synthetic event type, so every DOM host's event satisfies it.
 interface PressTarget {
   target: EventTarget | null
   currentTarget: EventTarget | null
 }
 
-// Every DOM substrate would wrap the normalized part's onClick identically,
+// Every DOM substrate would wrap the normalized part's press identically,
 // so the wrap lives here: fire the consumer-visible press only when it is
 // this dialog's outside interaction, swallow it otherwise.
 function gate(
   bindings: Record<string, unknown>,
   accepts: (event: PressTarget) => boolean,
 ): Record<string, unknown> {
-  const { onClick, ...rest } = bindings as { onClick?: (event: PressTarget) => void } & Record<
-    string,
-    unknown
-  >
-  rest.onClick = (event: PressTarget) => {
-    if (accepts(event)) onClick?.(event)
+  // Svelte's normalize spells the press as the DOM attribute, `onclick`;
+  // the other hosts camel-case it.
+  const key = 'onclick' in bindings ? 'onclick' : 'onClick'
+  const { [key]: press, ...rest } = bindings as Record<string, unknown>
+  rest[key] = (event: PressTarget) => {
+    if (accepts(event)) (press as ((event: PressTarget) => void) | undefined)?.(event)
   }
   return rest
 }

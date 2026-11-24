@@ -489,6 +489,18 @@ describe('outside-press gating', () => {
     gated.onClick({ target: content, currentTarget: viewport })
     expect(onClick).toHaveBeenCalledTimes(1)
   })
+
+  it('gates a press normalized to the lowercase onclick', () => {
+    mountLayer('dlg', 1)
+    mountLayer('above', 2)
+    const onclick = vi.fn()
+    const gated = gateBackdropPress('dlg', { onclick }) as {
+      onclick: GatedPress['onClick']
+    }
+
+    gated.onclick({ target: null, currentTarget: null })
+    expect(onclick).not.toHaveBeenCalled()
+  })
 })
 
 describe('dialogTrapOptions', () => {
