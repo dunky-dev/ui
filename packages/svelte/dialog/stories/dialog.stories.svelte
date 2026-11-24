@@ -10,9 +10,8 @@
   import ScopedDialog from './scoped-dialog.svelte'
   import { actions, backdrop, closableContent, content, field, input, viewport } from './styles.js'
 
-  // Each story is a static composition, like the React and Solid sets: `asChild`
-  // renders the markup as-is, and `exportName` keeps the story ids identical
-  // across substrates. A story that needs local state is a component of its own
+  // Each story is a static composition: `asChild` renders the markup as-is,
+  // and `exportName` keeps the story ids identical across substrates. A story that needs local state is a component of its own
   // in this folder — Svelte's unit of state.
   const { Story } = defineMeta({
     title: 'Primitives/Dialog',

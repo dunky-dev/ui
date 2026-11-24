@@ -4,8 +4,7 @@
 ---
 
 New substrate: the Svelte lifecycle wrappers over the framework-free DOM
-utils, in the Solid hooks' shape, for Svelte 5 — the substrate's one peer
-range, `svelte` `>=5.20.0 <5.33.5 || ^5.34.5`. Both are rune modules: call
+utils, for Svelte 5 — the substrate's one peer range, `svelte` `>=5.20.0 <5.33.5 || ^5.34.5`. Both are rune modules: call
 them while a component initializes, like `$effect`.
 `useFocusTrap(target, options?)` takes a getter for the container — over
 `$state`, a new element re-arms the trap — and `useScrollLock(locked?, target?)`

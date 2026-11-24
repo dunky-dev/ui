@@ -3,8 +3,8 @@
 ---
 
 New substrate: the Svelte binding for `@dunky.dev/dialog`, for Svelte 5. The
-same compound anatomy and behavior contract as the React and Solid bindings —
-one core machine, a new host — in Svelte's native shape: `<Dialog>` with its
+same compound anatomy and behavior contract as every other binding — one core
+machine, a new host — in Svelte's native shape: `<Dialog>` with its
 parts hanging off it (`<Dialog.Trigger>`, `<Dialog.Portal>`,
 `<Dialog.Content>`, ...), children as snippets, the core options as plain
 props, and `onOpenChange` as a callback prop.

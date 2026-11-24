@@ -32,11 +32,10 @@ Svelte-specific notes on top of the DOM contract:
 - A rune module: call it while a component initializes, like `$effect`
   itself (or inside an `$effect.root`). The trap arms after mount — once
   `bind:this` has filled — and releases when the component is destroyed.
-- The target is a getter, the same shape as the Solid hook's accessor: over
-  `$state`, a new element re-arms the trap on it; over a plain variable, the
-  element is read once, after mount. It is a hook rather than an attachment
-  for that shared shape — and for the dialog, whose trap target is a part it
-  already renders.
+- The target is a getter: over `$state`, a new element re-arms the trap on
+  it; over a plain variable, the element is read once, after mount. It is a
+  hook rather than an attachment so every substrate's hook keeps one shape —
+  and for the dialog, whose trap target is a part it already renders.
 - Options are read per Tab press, so inline `enabled` / `last` getters see the
   latest state without re-binding the listener — the per-press re-evaluation
   the DOM contract promises.
